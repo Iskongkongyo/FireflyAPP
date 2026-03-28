@@ -1,0 +1,42 @@
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# Gradle
+.gradle/
+build/
+*/build/
+local.properties
+
+# Kotlin / Android build caches
+.kotlin/
+.cxx/
+.externalNativeBuild/
+captures/
+
+# APK / AAB / signing artifacts
+*.apk
+*.aab
+*.ap_
+*.idsig
+*.jks
+*.keystore
+*.p12
+*.pk8
+*.pem
+signing.properties
+keystore.properties
+
+# Logs / reports / local diagnostics
+*.log
+pack.log
+hs_err_pid*
+replay_pid*
+*.hprof
+
+# Project export / local package outputs
+*.fireflyproj.zip
+
+# OS junk
+.DS_Store
+Thumbs.db

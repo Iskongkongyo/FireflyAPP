@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <files-path
+        name="projects"
+        path="projects/" />
+    <cache-path
+        name="crop_cache"
+        path="crop/" />
+    <external-files-path
+        name="downloads"
+        path="Download/" />
+</paths>

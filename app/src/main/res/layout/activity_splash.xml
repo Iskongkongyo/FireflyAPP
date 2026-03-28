@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/firefly_surface">
+
+    <ImageView
+        android:id="@+id/splashImage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/skipButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/bg_splash_skip"
+        android:clickable="true"
+        android:focusable="true"
+        android:textColor="#D9111111"
+        android:textSize="14sp"
+        android:visibility="gone" />
+</FrameLayout>

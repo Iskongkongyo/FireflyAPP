@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "app": {
+    "name": "Firefly Demo",
+    "template": "top_bar_bottom_tabs",
+    "defaultUrl": "https://example.com"
+  },
+  "browser": {
+    "backAction": "go_back_or_home"
+  },
+  "shell": {
+    "topBarShowHomeButton": true,
+    "topBarFollowPageTitle": false,
+    "topBarTitleCentered": false,
+    "topBarShadowDp": 6,
+    "bottomBarShadowDp": 8,
+    "bottomBarBadgeColor": "#E11D48",
+    "bottomBarBadgeTextColor": "#FFFFFF",
+    "drawerWidthDp": 320,
+    "enableSwipeNavigation": true,
+    "navigationBackBehavior": "reset_on_navigation",
+    "topBarThemeColor": "#FFFFFF"
+  },
+  "navigation": {
+    "items": [
+      {
+        "id": "iwara",
+        "title": "Iwara",
+        "selectedIcon": "home"
+      },
+      {
+        "id": "docs",
+        "title": "Upload",
+        "url": "https://file.kiwi/zh",
+        "icon": "upload",
+        "selectedIcon": "upload"
+      },
+      {
+        "id": "geo",
+        "title": "Location",
+        "url": "https://mylocationmap.com/zh-Hans/",
+        "icon": "location",
+        "selectedIcon": "location"
+      },
+      {
+        "id": "camera",
+        "title": "Camera",
+        "url": "https://www.lzltool.com/Camera",
+        "icon": "camera",
+        "selectedIcon": "camera"
+      }
+    ]
+  },
+  "security": {
+    "allowedHosts": [
+      "example.com",
+      "ss.ixq.pp.ua",
+      "file.kiwi",
+      "mylocationmap.com",
+      "www.lzltool.com"
+    ]
+  }
+}

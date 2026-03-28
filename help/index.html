@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>FireflyApp — Documentation</title>
+  <style>
+    /* ===== Reset & Base ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: linear-gradient(135deg, #E8F5E9 0%, #F4F0E8 45%, #E7F0FF 100%);
+      --bg-solid: #F0F2ED;
+      --bg-card: rgba(255,255,255,0.65);
+      --bg-card-hover: rgba(255,255,255,0.85);
+      --bg-code: rgba(0,0,0,0.04);
+      --border: rgba(0,0,0,0.07);
+      --text: #1e293b;
+      --text-dim: #64748b;
+      --text-heading: #0f172a;
+      --accent: #2563eb;
+      --accent-dim: rgba(37,99,235,0.08);
+      --accent2: #7c3aed;
+      --accent3: #059669;
+      --accent4: #ea580c;
+      --accent5: #db2777;
+      --radius: 16px;
+      --radius-sm: 12px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --nav-h: 48px;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-tap-highlight-color: transparent;
+      height: 100%;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", sans-serif;
+      background-color: #EFF1EC;
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+      padding-top: calc(var(--safe-top) + var(--nav-h));
+      padding-bottom: var(--safe-bottom);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      position: relative;
+    }
+
+    /* Fixed gradient background layer — avoids stretch & works in Android WebView */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, #E8F5E9 0%, #F4F0E8 45%, #E7F0FF 100%);
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      background: var(--bg-code);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      color: var(--accent2);
+    }
+
+    /* ===== Scrollbar ===== */
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 4px; }
+
+    /* ===== Nav Bar (sticky top) ===== */
+    .nav-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: auto;
+      min-height: var(--nav-h);
+      padding-top: calc(var(--safe-top) + 6px);
+      padding-bottom: 6px;
+      background: rgba(244,240,232,0.82);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+      gap: 2px;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+    .nav-bar::-webkit-scrollbar { display: none; }
+    .nav-link {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .nav-link:hover, .nav-link:active {
+      color: var(--accent);
+      background: var(--accent-dim);
+      text-decoration: none;
+    }
+    .nav-link.active {
+      color: #fff;
+      background: var(--accent);
+    }
+
+    /* ===== Hero ===== */
+    .hero {
+      padding: 40px 24px 36px;
+      text-align: center;
+      position: relative;
+    }
+    .hero-icon {
+      width: 80px; height: 80px;
+      border-radius: 22px;
+      margin: 0 auto 16px;
+      display: block;
+      object-fit: cover;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.1);
+    }
+    .hero h1 {
+      font-size: 26px; font-weight: 800;
+      color: var(--text-heading);
+      letter-spacing: -0.5px;
+    }
+    .hero p {
+      color: var(--text-dim);
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    /* ===== Language Toggle ===== */
+    .lang-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-top: 16px;
+    }
+    .lang-btn {
+      padding: 5px 16px;
+      border-radius: 999px;
+      border: 1.5px solid var(--border);
+      background: rgba(255,255,255,0.5);
+      color: var(--text-dim);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .lang-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* ===== Container ===== */
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    /* ===== Section ===== */
+    .section {
+      padding: 32px 0;
+    }
+    .section + .section {
+      border-top: 1px solid var(--border);
+    }
+    .section-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title .icon {
+      width: 26px; height: 26px;
+      border-radius: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .section-desc {
+      color: var(--text-dim);
+      font-size: 13.5px;
+      margin-bottom: 16px;
+      line-height: 1.8;
+    }
+
+    /* ===== Feature Cards ===== */
+    .features-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 480px) {
+      .features-grid { grid-template-columns: 1fr; }
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      transition: background .2s, transform .15s, box-shadow .2s;
+      backdrop-filter: blur(6px);
+    }
+    .feature-card:active {
+      transform: scale(0.98);
+      background: var(--bg-card-hover);
+    }
+    .feature-card .fc-icon {
+      font-size: 22px;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .feature-card h3 {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin-bottom: 3px;
+    }
+    .feature-card p {
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ===== Template List ===== */
+    .template-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .template-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      backdrop-filter: blur(6px);
+    }
+    .template-badge {
+      width: 40px; height: 40px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .template-info h4 {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-heading);
+    }
+    .template-info .template-id {
+      font-size: 11px;
+      color: var(--accent);
+      font-family: "SF Mono", "Fira Code", monospace;
+      background: var(--accent-dim);
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-left: 5px;
+    }
+    .template-info p {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* ===== Steps ===== */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+    .step {
+      display: flex;
+      gap: 14px;
+      padding-bottom: 18px;
+      position: relative;
+    }
+    .step:last-child { padding-bottom: 0; }
+    .step-num {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: var(--accent-dim);
+      border: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--accent);
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .step:not(:last-child) .step-num::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: calc(100% + 10px);
+      background: var(--border);
+    }
+    .step-content {
+      padding-top: 3px;
+      flex: 1;
+      min-width: 0;
+    }
+    .step-content h4 {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text-heading);
+      margin-bottom: 3px;
+    }
+    .step-content p {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ===== Config Table ===== */
+    .config-group {
+      margin-bottom: 18px;
+    }
+    .config-group-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--accent2);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .config-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .config-table th {
+      text-align: left;
+      padding: 8px 10px;
+      background: rgba(0,0,0,0.02);
+      color: var(--text-dim);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+    .config-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid rgba(0,0,0,0.03);
+      vertical-align: top;
+    }
+    .config-table tr:last-child td { border-bottom: none; }
+    .config-table .td-desc { color: var(--text-dim); }
+
+    /* ===== Pill Tags ===== */
+    .pill-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .pill {
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+    .pill-trigger { color: var(--accent4); border-color: rgba(234,88,12,0.18); background: rgba(234,88,12,0.05); }
+    .pill-action { color: var(--accent3); border-color: rgba(5,150,105,0.18); background: rgba(5,150,105,0.05); }
+
+    /* ===== Code Block ===== */
+    .code-block {
+      background: #1e293b;
+      border: 1px solid rgba(0,0,0,0.1);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      overflow-x: auto;
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+      font-size: 11.5px;
+      line-height: 1.7;
+      color: #94a3b8;
+      -webkit-overflow-scrolling: touch;
+    }
+    .code-block .ck { color: #38bdf8; }
+    .code-block .cv { color: #34d399; }
+    .code-block .cc { color: #475569; }
+    .code-block .cs { color: #fb923c; }
+
+    /* ===== Security Grid ===== */
+    .security-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .security-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      backdrop-filter: blur(6px);
+    }
+    .si-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .security-item h4 { font-size: 13px; font-weight: 700; color: var(--text-heading); }
+    .security-item p { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+
+    /* ===== FAQ ===== */
+    .faq-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      overflow: hidden;
+      backdrop-filter: blur(6px);
+    }
+    .faq-q {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      cursor: pointer;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-heading);
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .faq-q .arrow { transition: transform .2s; color: var(--text-dim); font-size: 11px; }
+    .faq-a {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .3s ease, padding .3s ease;
+      font-size: 12.5px;
+      color: var(--text-dim);
+      line-height: 1.8;
+      padding: 0 14px;
+    }
+    .faq-item.open .faq-a { max-height: 500px; padding: 0 14px 14px; }
+    .faq-item.open .faq-q .arrow { transform: rotate(90deg); }
+
+    /* ===== Footer ===== */
+    .footer {
+      text-align: center;
+      padding: 36px 16px 28px;
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+    .footer a { color: var(--accent); }
+    .footer .heart { color: var(--accent5); }
+
+    /* ===== Back to Top ===== */
+    .back-top {
+      position: fixed;
+      bottom: calc(20px + var(--safe-bottom));
+      right: 14px;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      box-shadow: 0 4px 14px rgba(37,99,235,0.3);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
+      cursor: pointer;
+      border: none;
+      z-index: 100;
+      -webkit-appearance: none;
+    }
+    .back-top.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* ===== i18n ===== */
+    [data-lang="en"] .zh { display: none; }
+    [data-lang="zh"] .en { display: none; }
+
+    /* ===== Animations ===== */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .section { animation: fadeUp .45s ease both; }
+  </style>
+</head>
+<body data-lang="zh">
+
+  <nav class="nav-bar" id="navBar">
+    <a class="nav-link zh" data-target="sec-features">核心特性</a>
+    <a class="nav-link en" data-target="sec-features">Features</a>
+    <a class="nav-link zh" data-target="sec-templates">UI 模板</a>
+    <a class="nav-link en" data-target="sec-templates">Templates</a>
+    <a class="nav-link zh" data-target="sec-start">快速开始</a>
+    <a class="nav-link en" data-target="sec-start">Quick Start</a>
+    <a class="nav-link zh" data-target="sec-config">配置参考</a>
+    <a class="nav-link en" data-target="sec-config">Config</a>
+    <a class="nav-link zh" data-target="sec-events">页面事件</a>
+    <a class="nav-link en" data-target="sec-events">Events</a>
+    <a class="nav-link zh" data-target="sec-pipeline">打包原理</a>
+    <a class="nav-link en" data-target="sec-pipeline">Pipeline</a>
+    <a class="nav-link zh" data-target="sec-security">安全机制</a>
+    <a class="nav-link en" data-target="sec-security">Security</a>
+    <a class="nav-link zh" data-target="sec-faq">常见问题</a>
+    <a class="nav-link en" data-target="sec-faq">FAQ</a>
+  </nav>
+
+  <!-- ===== Hero ===== -->
+  <header class="hero">
+    <img class="hero-icon" src="./firefly.jpg" alt="FireflyApp" onerror="this.style.display='none'">
+    <h1>FireflyApp</h1>
+    <p class="zh">将网站打包成精致的 Android 原生应用</p>
+    <p class="en">Turn websites into polished Android apps</p>
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('zh')">中文</button>
+      <button class="lang-btn" onclick="setLang('en')">English</button>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- ===== Features ===== -->
+    <section class="section" id="sec-features">
+      <div class="section-title">
+        <span class="icon" style="background:rgba(37,99,235,0.08);color:#2563eb">✦</span>
+        <span class="zh">核心特性</span><span class="en">Features</span>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="fc-icon">🎨</span>
+          <h3 class="zh">6 种 UI 模板</h3><h3 class="en">6 UI Templates</h3>
+          <p class="zh">底部导航 / 顶部工具栏 / 侧滑抽屉 / 沉浸全屏等，覆盖主流 App 布局。</p>
+          <p class="en">Bottom Bar / Top Bar / Side Drawer / Immersive, covering mainstream layouts.</p>
+        </div>
+        <div class="feature-card">
+          <span class="fc-icon">📦</span>
+          <h3 class="zh">设备端打包</h3><h3 class="en">On-Device Packing</h3>
+          <p class="zh">无需电脑或服务器，在手机上直接完成 APK 打包与签名。</p>
+          <p class="en">No PC or server needed. Build & sign APK on your phone.</p>
+        </div>
+        <div class="feature-card">
+          <span class="fc-icon">🛠</span>
+          <h3 class="zh">可视化编辑器</h3><h3 class="en">Visual Editor</h3>
+          <p class="zh">分 Tab 编辑所有配置：基础 / 规则 / 事件 / 品牌 / 构建。</p>
+          <p class="en">Tab-based editor: Basic / Rules / Events / Branding / Build.</p>
+        </div>
+        <div class="feature-card">
+          <span class="fc-icon">🌐</span>
+          <h3 class="zh">完整浏览器能力</h3><h3 class="en">Full Browser Capability</h3>
+          <p class="zh">Cookie / localStorage / 文件上传下载 / 地理位置 / 全屏视频。</p>
+          <p class="en">Cookie / localStorage / Upload & Download / Geolocation / Fullscreen.</p>
+        </div>
+        <div class="feature-card">
+          <span class="fc-icon">🔒</span>
+          <h3 class="zh">安全策略</h3><h3 class="en">Security Policies</h3>
+          <p class="zh">域名白名单、外链拦截、SSL 强制校验、路径穿越防护。</p>
+          <p class="en">Host whitelist, SSL enforcement, path traversal protection.</p>
+        </div>
+        <div class="feature-card">
+          <span class="fc-icon">🎯</span>
+          <h3 class="zh">页面规则 & 事件</h3><h3 class="en">Page Rules & Events</h3>
+          <p class="zh">按 URL 匹配注入 JS/CSS、自定义错误页、监听页面生命周期。</p>
+          <p class="en">Inject JS/CSS per URL, custom error pages, lifecycle listeners.</p>
+        </div>
+        <div class="feature-card">
+          <span class="fc-icon">🌙</span>
+          <h3 class="zh">夜间模式</h3><h3 class="en">Night Mode</h3>
+          <p class="zh">支持手动开启或跟随系统深色主题自动切换。</p>
+          <p class="en">Manual toggle or auto-switch with system dark theme.</p>
+        </div>
+        <div class="feature-card">
+          <span class="fc-icon">🌍</span>
+          <h3 class="zh">多语言支持</h3><h3 class="en">Multi-Language</h3>
+          <p class="zh">内置简体中文和英文，支持跟随系统语言。</p>
+          <p class="en">Built-in Chinese & English, follows system language.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Templates ===== -->
+    <section class="section" id="sec-templates">
+      <div class="section-title">
+        <span class="icon" style="background:rgba(124,58,237,0.08);color:#7c3aed">◈</span>
+        <span class="zh">UI 模板</span><span class="en">UI Templates</span>
+      </div>
+      <p class="section-desc zh">选择不同的原生壳模板，一键切换应用的导航风格。</p>
+      <p class="section-desc en">Choose a native shell template to switch the app's navigation style.</p>
+      <div class="template-list">
+        <div class="template-item">
+          <div class="template-badge" style="background:rgba(37,99,235,0.07)">🌐</div>
+          <div class="template-info">
+            <h4>Browser <span class="template-id">browser</span></h4>
+            <p class="zh">纯 WebView 全屏，无原生导航栏，适合独立网页应用。</p>
+            <p class="en">Fullscreen WebView without native bars, ideal for web apps.</p>
+          </div>
+        </div>
+        <div class="template-item">
+          <div class="template-badge" style="background:rgba(124,58,237,0.07)">🖥</div>
+          <div class="template-info">
+            <h4>Immersive <span class="template-id">immersive_single_page</span></h4>
+            <p class="zh">沉浸全屏模式，隐藏状态栏和导航栏，适合游戏与媒体。</p>
+            <p class="en">Immersive mode, hides all system bars. Great for games & media.</p>
+          </div>
+        </div>
+        <div class="template-item">
+          <div class="template-badge" style="background:rgba(5,150,105,0.07)">📌</div>
+          <div class="template-info">
+            <h4>Top Bar <span class="template-id">top_bar</span></h4>
+            <p class="zh">顶部工具栏，支持标题、返回、刷新、主页按钮。</p>
+            <p class="en">Toolbar with title, back, refresh, and home buttons.</p>
+          </div>
+        </div>
+        <div class="template-item">
+          <div class="template-badge" style="background:rgba(234,88,12,0.07)">📱</div>
+          <div class="template-info">
+            <h4>Bottom Bar <span class="template-id">bottom_bar</span></h4>
+            <p class="zh">底部 Tab 导航，最多 5 个标签页，最常用的 App 布局。</p>
+            <p class="en">Bottom tabs (up to 5). The most common app layout.</p>
+          </div>
+        </div>
+        <div class="template-item">
+          <div class="template-badge" style="background:rgba(219,39,119,0.07)">🔲</div>
+          <div class="template-info">
+            <h4>Top + Tabs <span class="template-id">top_bar_bottom_tabs</span></h4>
+            <p class="zh">顶部工具栏 + 底部 Tab 组合，适合内容丰富的应用。</p>
+            <p class="en">Top bar & bottom tabs combined, ideal for content-rich apps.</p>
+          </div>
+        </div>
+        <div class="template-item">
+          <div class="template-badge" style="background:rgba(37,99,235,0.07)">☰</div>
+          <div class="template-info">
+            <h4>Side Drawer <span class="template-id">side_drawer</span></h4>
+            <p class="zh">侧滑抽屉菜单，支持自定义壁纸和头像。</p>
+            <p class="en">Swipeable drawer with custom wallpaper & avatar.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Quick Start ===== -->
+    <section class="section" id="sec-start">
+      <div class="section-title">
+        <span class="icon" style="background:rgba(5,150,105,0.08);color:#059669">▶</span>
+        <span class="zh">快速开始</span><span class="en">Quick Start</span>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="step-num">1</div><div class="step-content">
+          <h4 class="zh">创建项目</h4><h4 class="en">Create a Project</h4>
+          <p class="zh">在项目中心点击「New Project」，输入项目名称即可创建。</p>
+          <p class="en">Tap "New Project" in Project Hub and enter a project name.</p>
+        </div></div>
+        <div class="step"><div class="step-num">2</div><div class="step-content">
+          <h4 class="zh">编辑配置</h4><h4 class="en">Edit Configuration</h4>
+          <p class="zh">在配置编辑器中设置目标网站 URL、选择模板、添加导航项、调整外观和行为。</p>
+          <p class="en">Set the target URL, choose a template, add navigation items, and customize appearance.</p>
+        </div></div>
+        <div class="step"><div class="step-num">3</div><div class="step-content">
+          <h4 class="zh">预览效果</h4><h4 class="en">Preview</h4>
+          <p class="zh">点击「Preview」实时查看应用效果，所见即所得。</p>
+          <p class="en">Tap "Preview" for a live preview. What you see is what you get.</p>
+        </div></div>
+        <div class="step"><div class="step-num">4</div><div class="step-content">
+          <h4 class="zh">打包安装</h4><h4 class="en">Pack & Install</h4>
+          <p class="zh">进入 Pack 界面 → Prepare → Pack → 生成签名 APK → 安装或分享。</p>
+          <p class="en">Go to Pack → Prepare → Pack → Get signed APK → Install or share.</p>
+        </div></div>
+      </div>
+    </section>
+
+    <!-- ===== Configuration ===== -->
+    <section class="section" id="sec-config">
+      <div class="section-title">
+        <span class="icon" style="background:rgba(234,88,12,0.08);color:#ea580c">⚙</span>
+        <span class="zh">配置参考</span><span class="en">Configuration Reference</span>
+      </div>
+      <p class="section-desc zh">所有行为由 <code>app-config.json</code> 驱动。以下是主要配置项。</p>
+      <p class="section-desc en">All behavior is driven by <code>app-config.json</code>. Key fields listed below.</p>
+
+      <div class="config-group">
+        <div class="config-group-title">📋 app</div>
+        <table class="config-table">
+          <tr><th class="zh">字段</th><th class="en">Field</th><th class="zh">说明</th><th class="en">Description</th></tr>
+          <tr><td><code>name</code></td><td class="td-desc zh">应用名称</td><td class="td-desc en">Application display name</td></tr>
+          <tr><td><code>template</code></td><td class="td-desc zh">模板类型（见上方模板列表）</td><td class="td-desc en">Template type (see templates above)</td></tr>
+          <tr><td><code>defaultUrl</code></td><td class="td-desc zh">默认主页 URL</td><td class="td-desc en">Default home page URL</td></tr>
+        </table>
+      </div>
+      <div class="config-group">
+        <div class="config-group-title">🌐 browser</div>
+        <table class="config-table">
+          <tr><th class="zh">字段</th><th class="en">Field</th><th class="zh">说明</th><th class="en">Description</th></tr>
+          <tr><td><code>javaScriptEnabled</code></td><td class="td-desc zh">启用 JavaScript</td><td class="td-desc en">Enable JavaScript</td></tr>
+          <tr><td><code>domStorageEnabled</code></td><td class="td-desc zh">启用 DOM 存储（localStorage 等）</td><td class="td-desc en">Enable DOM storage (localStorage, etc.)</td></tr>
+          <tr><td><code>userAgent</code></td><td class="td-desc zh">自定义 User-Agent（留空用系统默认）</td><td class="td-desc en">Custom UA (blank = system default)</td></tr>
+          <tr><td><code>backAction</code></td><td class="td-desc zh">返回键行为：go_back_or_exit / go_back_or_home</td><td class="td-desc en">Back button: go_back_or_exit / go_back_or_home</td></tr>
+          <tr><td><code>nightMode</code></td><td class="td-desc zh">夜间模式：off / on / follow_theme</td><td class="td-desc en">Night mode: off / on / follow_theme</td></tr>
+        </table>
+      </div>
+      <div class="config-group">
+        <div class="config-group-title">🔒 security</div>
+        <table class="config-table">
+          <tr><th class="zh">字段</th><th class="en">Field</th><th class="zh">说明</th><th class="en">Description</th></tr>
+          <tr><td><code>allowedHosts</code></td><td class="td-desc zh">域名白名单数组，支持 *.example.com</td><td class="td-desc en">Host whitelist array, supports wildcards</td></tr>
+          <tr><td><code>allowExternalHosts</code></td><td class="td-desc zh">是否允许打开白名单外的 URL</td><td class="td-desc en">Allow URLs outside the whitelist</td></tr>
+          <tr><td><code>openOtherAppsMode</code></td><td class="td-desc zh">跳转外部应用：ask / allow / block</td><td class="td-desc en">External app launch: ask / allow / block</td></tr>
+        </table>
+      </div>
+
+      <p class="section-desc zh" style="margin-top:14px">最小可用配置示例：</p>
+      <p class="section-desc en" style="margin-top:14px">Minimal working configuration:</p>
+      <div class="code-block"><span class="cc">// app-config.json</span>
+{
+  <span class="ck">"app"</span>: {
+    <span class="ck">"name"</span>: <span class="cs">"My App"</span>,
+    <span class="ck">"template"</span>: <span class="cs">"bottom_bar"</span>,
+    <span class="ck">"defaultUrl"</span>: <span class="cs">"https://example.com"</span>
+  },
+  <span class="ck">"navigation"</span>: {
+    <span class="ck">"items"</span>: [
+      { <span class="ck">"id"</span>: <span class="cs">"home"</span>, <span class="ck">"title"</span>: <span class="cs">"Home"</span>, <span class="ck">"url"</span>: <span class="cs">"https://example.com"</span>, <span class="ck">"icon"</span>: <span class="cs">"home"</span> }
+    ]
+  },
+  <span class="ck">"security"</span>: {
+    <span class="ck">"allowedHosts"</span>: [<span class="cs">"example.com"</span>]
+  }
+}</div>
+    </section>
+
+    <!-- ===== Events ===== -->
+    <section class="section" id="sec-events">
+      <div class="section-title">
+        <span class="icon" style="background:rgba(219,39,119,0.08);color:#db2777">⚡</span>
+        <span class="zh">页面事件系统</span><span class="en">Page Event System</span>
+      </div>
+      <p class="section-desc zh">监听页面生命周期事件，触发原生或 JavaScript 动作。</p>
+      <p class="section-desc en">Listen to page lifecycle events and trigger native or JS actions.</p>
+
+      <p style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin-bottom:6px" class="zh">触发器 Triggers</p>
+      <p style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin-bottom:6px" class="en">Triggers</p>
+      <div class="pill-grid">
+        <span class="pill pill-trigger">page_started</span>
+        <span class="pill pill-trigger">page_finished</span>
+        <span class="pill pill-trigger">page_title_changed</span>
+        <span class="pill pill-trigger">page_left</span>
+        <span class="pill pill-trigger">spa_url_changed</span>
+      </div>
+
+      <p style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin-bottom:6px" class="zh">动作 Actions</p>
+      <p style="font-size:12.5px;font-weight:700;color:var(--text-heading);margin-bottom:6px" class="en">Actions</p>
+      <div class="pill-grid">
+        <span class="pill pill-action">toast</span>
+        <span class="pill pill-action">load_url</span>
+        <span class="pill pill-action">open_external</span>
+        <span class="pill pill-action">reload</span>
+        <span class="pill pill-action">reload_ignore_cache</span>
+        <span class="pill pill-action">go_back</span>
+        <span class="pill pill-action">copy_to_clipboard</span>
+        <span class="pill pill-action">run_js</span>
+      </div>
+
+      <p class="section-desc zh">动作字段支持模板变量：<code>{url}</code> <code>{title}</code> <code>{trigger}</code> <code>{previousUrl}</code> <code>{nextUrl}</code></p>
+      <p class="section-desc en">Template variables: <code>{url}</code> <code>{title}</code> <code>{trigger}</code> <code>{previousUrl}</code> <code>{nextUrl}</code></p>
+    </section>
+
+    <!-- ===== Pipeline ===== -->
+    <section class="section" id="sec-pipeline">
+      <div class="section-title">
+        <span class="icon" style="background:rgba(5,150,105,0.08);color:#059669">📦</span>
+        <span class="zh">打包原理</span><span class="en">Pack Pipeline</span>
+      </div>
+      <p class="section-desc zh">FireflyApp 采用 Template APK Repack 方案，在 Android 设备上完成全部流程：</p>
+      <p class="section-desc en">FireflyApp uses Template APK Repack, completing the entire process on-device:</p>
+      <div class="steps">
+        <div class="step"><div class="step-num">①</div><div class="step-content">
+          <h4 class="zh">解压模板</h4><h4 class="en">Unpack Template</h4>
+          <p class="zh">从宿主 assets 中提取预编译的 unsigned 模板 APK 并解压。</p>
+          <p class="en">Extract the pre-compiled unsigned template APK from host assets.</p>
+        </div></div>
+        <div class="step"><div class="step-num">②</div><div class="step-content">
+          <h4 class="zh">注入配置与资产</h4><h4 class="en">Inject Config & Assets</h4>
+          <p class="zh">将项目的 app-config.json、启动图标、Splash 图片注入到解压目录。</p>
+          <p class="en">Inject app-config.json, launcher icon, splash image into the unpacked dir.</p>
+        </div></div>
+        <div class="step"><div class="step-num">③</div><div class="step-content">
+          <h4 class="zh">二进制 Manifest 修改</h4><h4 class="en">Binary Manifest Patching</h4>
+          <p class="zh">直接操作编译后的二进制 AndroidManifest.xml，替换包名、应用名、版本号（无需 AAPT）。</p>
+          <p class="en">Patch binary AndroidManifest.xml — replace package name, label, version (no AAPT).</p>
+        </div></div>
+        <div class="step"><div class="step-num">④</div><div class="step-content">
+          <h4 class="zh">重打包 → 对齐 → 签名</h4><h4 class="en">Repackage → Align → Sign</h4>
+          <p class="zh">重新打包为 APK → zipalign 对齐 → 使用 AndroidKeyStore 或自定义 JKS 签名。</p>
+          <p class="en">Repackage → zipalign → Sign with AndroidKeyStore or custom JKS.</p>
+        </div></div>
+        <div class="step"><div class="step-num">⑤</div><div class="step-content">
+          <h4 class="zh">安装或分享</h4><h4 class="en">Install or Share</h4>
+          <p class="zh">生成签名 APK，可直接安装、分享或复制路径。</p>
+          <p class="en">Output a signed APK. Install, share, or copy the file path.</p>
+        </div></div>
+      </div>
+    </section>
+
+    <!-- ===== Security ===== -->
+    <section class="section" id="sec-security">
+      <div class="section-title">
+        <span class="icon" style="background:rgba(234,88,12,0.08);color:#ea580c">🛡</span>
+        <span class="zh">安全机制</span><span class="en">Security</span>
+      </div>
+      <div class="security-grid">
+        <div class="security-item">
+          <span class="si-icon">🌐</span>
+          <div><h4 class="zh">域名白名单</h4><h4 class="en">Host Whitelist</h4>
+          <p class="zh">通过 allowedHosts 控制可访问的域名，支持通配符。</p>
+          <p class="en">Control accessible domains via allowedHosts. Supports wildcards.</p></div>
+        </div>
+        <div class="security-item">
+          <span class="si-icon">🚫</span>
+          <div><h4 class="zh">外链拦截</h4><h4 class="en">External Link Blocking</h4>
+          <p class="zh">白名单外的 URL 可配置为弹窗确认、直接允许或完全阻止。</p>
+          <p class="en">URLs outside whitelist: ask, allow, or block.</p></div>
+        </div>
+        <div class="security-item">
+          <span class="si-icon">🔐</span>
+          <div><h4 class="zh">SSL 强制校验</h4><h4 class="en">SSL Enforcement</h4>
+          <p class="zh">遇到 SSL 证书错误时一律拒绝加载，不提供跳过选项。</p>
+          <p class="en">SSL errors are always rejected. No bypass option.</p></div>
+        </div>
+        <div class="security-item">
+          <span class="si-icon">📂</span>
+          <div><h4 class="zh">路径安全</h4><h4 class="en">Path Safety</h4>
+          <p class="zh">项目文件路径经过清洗，防止 ../ 等路径穿越攻击。</p>
+          <p class="en">File paths sanitized to prevent path traversal attacks.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section class="section" id="sec-faq">
+      <div class="section-title">
+        <span class="icon" style="background:rgba(124,58,237,0.08);color:#7c3aed">?</span>
+        <span class="zh">常见问题</span><span class="en">FAQ</span>
+      </div>
+
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">
+        <span class="zh">打包出来的 APP 支持 Cookie 和 Storage 吗？</span>
+        <span class="en">Does the packed app support Cookie & Storage?</span>
+        <span class="arrow">▶</span>
+      </div><div class="faq-a">
+        <span class="zh">支持。Cookie（含第三方 Cookie）、localStorage、sessionStorage、IndexedDB 均默认启用。数据存储在 APP 的私有沙盒中，卸载 APP 才会清除。</span>
+        <span class="en">Yes. Cookie (including third-party), localStorage, sessionStorage, and IndexedDB are all enabled by default. Data is stored in the app's private sandbox.</span>
+      </div></div>
+
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">
+        <span class="zh">导航项最多能添加几个？</span>
+        <span class="en">How many navigation items can I add?</span>
+        <span class="arrow">▶</span>
+      </div><div class="faq-a">
+        <span class="zh">最多 5 个导航项。如果需要更多入口，可以使用 Side Drawer 模板。</span>
+        <span class="en">Up to 5 items. For more entries, consider the Side Drawer template.</span>
+      </div></div>
+
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">
+        <span class="zh">可以使用自己的签名密钥吗？</span>
+        <span class="en">Can I use my own signing key?</span>
+        <span class="arrow">▶</span>
+      </div><div class="faq-a">
+        <span class="zh">可以。在配置编辑器的 Build 页导入自定义 JKS / PKCS12 密钥库。如果不导入，将使用设备本地 AndroidKeyStore 自动生成的密钥。</span>
+        <span class="en">Yes. Import JKS / PKCS12 in the Build tab. Otherwise, a device-local AndroidKeyStore key is used.</span>
+      </div></div>
+
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">
+        <span class="zh">如何注入全局 JavaScript 或 CSS？</span>
+        <span class="en">How to inject global JavaScript or CSS?</span>
+        <span class="arrow">▶</span>
+      </div><div class="faq-a">
+        <span class="zh">在配置的 inject 部分添加 globalJs 和 globalCss 数组。还可以通过 pageRules 按 URL 匹配做页面级注入。</span>
+        <span class="en">Add globalJs and globalCss arrays in the inject section. Use pageRules for per-URL injection.</span>
+      </div></div>
+
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">
+        <span class="zh">SPA 单页应用的路由变化能监听吗？</span>
+        <span class="en">Can I detect SPA route changes?</span>
+        <span class="arrow">▶</span>
+      </div><div class="faq-a">
+        <span class="zh">可以。使用页面事件系统的 spa_url_changed 触发器，内部通过 MutationObserver 检测 URL 变化。</span>
+        <span class="en">Yes. Use the spa_url_changed trigger. Internally uses MutationObserver to detect URL changes.</span>
+      </div></div>
+
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">
+        <span class="zh">如何导入/导出项目？</span>
+        <span class="en">How to import/export projects?</span>
+        <span class="arrow">▶</span>
+      </div><div class="faq-a">
+        <span class="zh">项目中心支持导入 .fireflyproj.zip 项目包或 app-config.json 配置文件。导出可将项目打包为 ZIP 分享给他人。</span>
+        <span class="en">Project Hub supports importing .fireflyproj.zip or app-config.json. Export bundles the project as ZIP.</span>
+      </div></div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>Made with <span class="heart">♥</span> by <a href="https://github.com/Iskongkongyo/FireflyApp" target="_blank">FireflyApp</a></p>
+    <p style="margin-top:5px">
+      <span class="zh">如有问题或建议，欢迎在 GitHub 提交 Issue。</span>
+      <span class="en">Questions or suggestions? Open an Issue on GitHub.</span>
+    </p>
+  </footer>
+
+  <!-- Back to Top -->
+  <button class="back-top" id="backTop" type="button">↑</button>
+
+  <script>
+    /* ===== Language Toggle ===== */
+    function setLang(lang) {
+      document.body.setAttribute('data-lang', lang);
+      document.querySelectorAll('.lang-btn').forEach(function(b) {
+        b.classList.toggle('active', b.textContent.trim() === (lang === 'zh' ? '中文' : 'English'));
+      });
+      try { localStorage.setItem('firefly-help-lang', lang); } catch(e) {}
+    }
+    (function() {
+      try {
+        var s = localStorage.getItem('firefly-help-lang');
+        if (s === 'en' || s === 'zh') { setLang(s); return; }
+      } catch(e) {}
+      setLang((navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en');
+    })();
+
+    /* ===== FAQ Accordion ===== */
+    function toggleFaq(el) {
+      el.parentElement.classList.toggle('open');
+    }
+
+    /* ===== Back to Top ===== */
+    var backTopBtn = document.getElementById('backTop');
+    backTopBtn.addEventListener('click', function() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    window.addEventListener('scroll', function() {
+      backTopBtn.classList.toggle('visible', window.scrollY > 400);
+    }, { passive: true });
+
+    /* ===== Nav Scroll & Highlight ===== */
+    (function() {
+      var sections = document.querySelectorAll('.section[id]');
+      var navLinks = document.querySelectorAll('.nav-link');
+      var navBar = document.getElementById('navBar');
+      var navH = 60;
+      var lastHighlighted = null;
+      var clickCooldown = false;
+
+      /* Click: scroll to section via JS (no history entry), freeze highlight */
+      navLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          var targetId = this.getAttribute('data-target');
+          if (!targetId) return;
+          var target = document.getElementById(targetId);
+          if (!target) return;
+
+          clickCooldown = true;
+          lastHighlighted = targetId;
+
+          /* Highlight the clicked item immediately */
+          navLinks.forEach(function(l) {
+            l.classList.toggle('active', l.getAttribute('data-target') === targetId);
+          });
+
+          /* Scroll to section without touching browser history */
+          var navBarH = navBar ? navBar.offsetHeight : navH;
+          var y = target.getBoundingClientRect().top + window.scrollY - navBarH - 8;
+          window.scrollTo({ top: y, behavior: 'smooth' });
+
+          setTimeout(function() { clickCooldown = false; }, 800);
+        });
+      });
+
+      function updateNav() {
+        if (clickCooldown) return;
+
+        var scrollY = window.scrollY;
+        var viewH = window.innerHeight;
+        var docH = document.documentElement.scrollHeight;
+        var atBottom = (scrollY + viewH) >= (docH - 30);
+        var activeId = '';
+
+        if (atBottom) {
+          activeId = sections.length ? sections[sections.length - 1].id : '';
+        } else {
+          for (var i = sections.length - 1; i >= 0; i--) {
+            if (sections[i].offsetTop <= scrollY + navH + 40) {
+              activeId = sections[i].id;
+              break;
+            }
+          }
+        }
+
+        if (activeId === lastHighlighted) return;
+        lastHighlighted = activeId;
+
+        navLinks.forEach(function(link) {
+          var isActive = link.getAttribute('data-target') === activeId;
+          link.classList.toggle('active', isActive);
+          if (isActive && navBar) {
+            var linkLeft = link.offsetLeft - navBar.offsetLeft;
+            var scrollTarget = linkLeft - navBar.clientWidth / 2 + link.offsetWidth / 2;
+            navBar.scrollTo({ left: scrollTarget, behavior: 'smooth' });
+          }
+        });
+      }
+
+      window.addEventListener('scroll', updateNav, { passive: true });
+      window.addEventListener('resize', updateNav, { passive: true });
+      updateNav();
+    })();
+  </script>
+</body>
+</html>
