@@ -92,6 +92,7 @@
     <string name="config_editor_common_icon_names">Common icon names: home, docs, profile, menu, location, camera, upload, download, settings, info, search, favorite, news, chat.</string>
     <string name="config_editor_item_fallback">Item%1$d</string>
     <string name="config_editor_no_navigation_items">No navigation items yet.</string>
+    <string name="config_editor_navigation_limit_reached">Up to %1$d navigation items are supported. Remove one before adding another.</string>
     <string name="config_editor_default_navigation_item_id">Default navigation item ID</string>
     <string name="config_editor_enable_swipe_navigation">Enable swipe navigation</string>
     <string name="config_editor_navigation_back_behavior">Navigation back behavior</string>
@@ -102,7 +103,8 @@
     <string name="config_editor_template_desc_browser">Single-page WebView shell without native top or bottom bars.</string>
     <string name="config_editor_template_desc_immersive">Single-page shell that keeps both status and navigation bars hidden by default.</string>
     <string name="config_editor_template_desc_side_drawer">Toolbar shell with a left drawer menu backed by configured navigation items.</string>
-    <string name="config_editor_template_desc_top_tabs">Combined shell with a native top bar and bottom tab navigation.</string>
+    <string name="config_editor_template_desc_top_tabs">Combined shell with a native top bar and top tabs navigation.</string>
+    <string name="config_editor_template_desc_top_bottom_bar">Combined shell with a native top bar and bottom bar navigation.</string>
     <string name="config_editor_template_desc_top_bar">Toolbar shell with page title, back action, and refresh.</string>
     <string name="config_editor_template_desc_bottom_bar">Tab-style shell backed by configured navigation items.</string>
     <string name="config_editor_navigation_item_title">Item %1$d</string>
@@ -115,6 +117,10 @@
     <string name="config_editor_show_page_progress_bar">Show page progress bar</string>
     <string name="config_editor_immersive_status_bar">Immersive status bar</string>
     <string name="config_editor_open_other_apps">Open other apps</string>
+    <string name="config_editor_ssl_error_handling">SSL certificate errors</string>
+    <string name="config_editor_ssl_error_handling_strict">Strict validation (Recommended)</string>
+    <string name="config_editor_ssl_error_handling_ignore">Ignore SSL certificate errors</string>
+    <string name="config_editor_ssl_error_handling_warning">Dangerous: pages with invalid or forged certificates will still load. Only enable this for trusted internal or self-signed sites.</string>
     <string name="config_editor_host_rules_desc">Host rules support exact hosts, wildcard subdomains like *.example.com, and optional scheme prefixes such as https://example.com.</string>
     <string name="config_editor_top_bar_follow_page_title">Follow page title</string>
     <string name="config_editor_top_bar_title_centered">Center title</string>
@@ -123,6 +129,8 @@
     <string name="config_editor_top_bar_show_home_button">Show home button</string>
     <string name="config_editor_home_button_behavior">Home button behavior</string>
     <string name="config_editor_refresh_button_behavior">Refresh button behavior</string>
+    <string name="config_editor_home_button_javascript">Home button JavaScript</string>
+    <string name="config_editor_refresh_button_javascript">Refresh button JavaScript</string>
     <string name="config_editor_top_bar_corner_radius">Top bar corner radius (dp)</string>
     <string name="config_editor_top_bar_shadow">Top bar shadow (dp)</string>
     <string name="config_editor_top_bar_back_icon">Back icon</string>
@@ -149,6 +157,9 @@
     <string name="config_editor_bottom_bar_show_text_labels">Show text labels</string>
     <string name="config_editor_bottom_bar_corner_radius">Bottom bar corner radius (dp)</string>
     <string name="config_editor_bottom_bar_shadow">Bottom bar shadow (dp)</string>
+    <string name="config_editor_section_tabs">Tabs</string>
+    <string name="config_editor_tabs_corner_radius">Tabs corner radius (dp)</string>
+    <string name="config_editor_tabs_shadow">Tabs shadow (dp)</string>
     <string name="config_editor_bottom_bar_badge_color">Badge color</string>
     <string name="config_editor_bottom_bar_badge_text_color">Badge text color</string>
     <string name="config_editor_badge_gravity">Badge gravity</string>
@@ -158,6 +169,9 @@
     <string name="config_editor_bottom_bar_selected_color">Bottom bar selected color</string>
     <string name="config_editor_bottom_bar_theme_color">Bottom bar background color</string>
     <string name="config_editor_bottom_bar_desc">Selected color controls the active icon and label. Background color controls the bar surface.</string>
+    <string name="config_editor_tabs_selected_color">Tabs selected color</string>
+    <string name="config_editor_tabs_theme_color">Tabs background color</string>
+    <string name="config_editor_tabs_desc">Selected color controls the active tab label and indicator. Background color controls the tabs surface.</string>
     <string name="config_editor_app_identity_desc">These values are written into the packed Android app and determine the final app identity users see after installation.</string>
     <string name="config_editor_application_name">Application name</string>
     <string name="config_editor_version_name">Version name</string>
@@ -267,6 +281,7 @@
     <string name="config_editor_template_preview">Template preview</string>
     <string name="config_editor_preview_top_bar">Top bar</string>
     <string name="config_editor_preview_bottom_bar">Bottom bar</string>
+    <string name="config_editor_preview_tabs">Tabs</string>
     <string name="config_editor_preview_drawer">Drawer</string>
     <string name="config_editor_preview_nav_items">%1$d nav items</string>
     <string name="config_editor_preview_immersive">Immersive</string>
@@ -280,6 +295,7 @@
     <string name="config_editor_preview_title_current_page">Current page</string>
     <string name="config_editor_preview_title_bottom_bar">Bottom Bar</string>
     <string name="config_editor_preview_title_hybrid_shell">Hybrid shell</string>
+    <string name="config_editor_preview_title_top_tabs_shell">Top tabs shell</string>
     <string name="config_editor_preview_title_selected_tab_page">Selected tab page</string>
     <string name="config_editor_preview_title_drawer_shell">Drawer shell</string>
     <string name="config_editor_preview_title_content_page">Content page</string>
@@ -395,6 +411,7 @@
     <string name="project_hub_template_immersive">Immersive</string>
     <string name="project_hub_template_side_drawer">Side Drawer</string>
     <string name="project_hub_template_top_tabs">Top + Tabs</string>
+    <string name="project_hub_template_top_bottom_bar">Top + BottomBar</string>
     <string name="project_hub_template_top_bar">Top Bar</string>
     <string name="project_hub_template_bottom_bar">Bottom Bar</string>
     <string name="project_hub_language_dialog_title">Language</string>
@@ -528,7 +545,8 @@
     <string name="packager_preflight_signature_conflict">Signature Conflict</string>
     <string name="packager_preflight_version_downgrade">Version Downgrade</string>
     <string name="packager_template_immersive_single_page">Immersive Single Page</string>
-    <string name="packager_template_top_bar_bottom_tabs">Top Bar + Bottom Tabs</string>
+    <string name="packager_template_top_bar_tabs">Top + Tabs</string>
+    <string name="packager_template_top_bar_bottom_tabs">Top + BottomBar</string>
     <string name="common_unknown_error">unknown error</string>
     <string name="common_error_with_reason">%1$s: %2$s</string>
     <string name="config_editor_message_configuration_saved">Configuration saved.</string>

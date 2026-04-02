@@ -12,10 +12,12 @@ class PageRuleResolver(
             showTopBar = appConfig.app.template in setOf(
                 TemplateType.TOP_BAR,
                 TemplateType.SIDE_DRAWER,
+                TemplateType.TOP_BAR_TABS,
                 TemplateType.TOP_BAR_BOTTOM_TABS
             ),
             showBottomBar = appConfig.app.template in setOf(
                 TemplateType.BOTTOM_BAR,
+                TemplateType.TOP_BAR_TABS,
                 TemplateType.TOP_BAR_BOTTOM_TABS
             ),
             showDownloadOverlay = true,

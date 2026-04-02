@@ -9,6 +9,8 @@ data class ShellConfig(
     val topBarShowRefreshButton: Boolean = true,
     val topBarHomeBehavior: String = "default_home",
     val topBarRefreshBehavior: String = "reload",
+    val topBarHomeScript: String = "",
+    val topBarRefreshScript: String = "",
     val topBarFollowPageTitle: Boolean = true,
     val topBarTitleCentered: Boolean = true,
     val topBarCornerRadiusDp: Int = 0,

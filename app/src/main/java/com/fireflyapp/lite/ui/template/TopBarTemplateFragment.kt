@@ -96,18 +96,20 @@ class TopBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPa
         binding.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_home -> {
-                    val config = mainViewModel.requireConfig()
-                    val homeTarget = TemplateTopBarActionResolver.resolveHomeTarget(
-                        config = config,
-                        navigationItems = config.navigation.items
-                    )
-                    webFragment?.loadUrl(homeTarget.url)
-                    true
+                    val shellConfig = mainViewModel.requireConfig().shell
+                    if (TemplateTopBarActionResolver.isRunJavaScriptBehavior(shellConfig.topBarHomeBehavior)) {
+                        webFragment?.runJavaScript(shellConfig.topBarHomeScript)
+                        true
+                    } else {
+                        navigateHomeIfNeeded()
+                    }
                 }
                 R.id.action_refresh -> {
+                    val shellConfig = mainViewModel.requireConfig().shell
                     TemplateTopBarActionResolver.performRefresh(
                         fragment = webFragment,
-                        behavior = mainViewModel.requireConfig().shell.topBarRefreshBehavior
+                        behavior = shellConfig.topBarRefreshBehavior,
+                        script = shellConfig.topBarRefreshScript
                     )
                     true
                 }
@@ -137,7 +139,11 @@ class TopBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPa
         if (webFragment?.exitFullscreen() == true) {
             return true
         }
-        return webFragment?.handleBackAction() == true
+        return when (webFragment?.resolveBackNavigationAction()) {
+            WebContainerFragment.BackNavigationAction.HANDLED -> true
+            WebContainerFragment.BackNavigationAction.GO_HOME -> navigateHomeIfNeeded()
+            else -> false
+        }
     }
 
     override fun onPageTitleChanged(title: String) {
@@ -193,6 +199,28 @@ class TopBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPa
         val initialTopBarTop = (topBarContainer.getTag(R.id.topBarContainer) as? Int) ?: 0
         root.updatePadding(top = initialRootTop + if (pageWantsTopBar) 0 else currentStatusTopInset)
         topBarContainer.updatePadding(top = initialTopBarTop + if (pageWantsTopBar) currentStatusTopInset else 0)
+    }
+
+    private fun navigateHomeIfNeeded(): Boolean {
+        val config = mainViewModel.requireConfig()
+        val homeTarget = TemplateTopBarActionResolver.resolveHomeTarget(
+            config = config,
+            navigationItems = config.navigation.items
+        )
+        if (homeTarget.url.isBlank()) {
+            return false
+        }
+        if (webFragment?.currentUrl() == homeTarget.url) {
+            if (!homeTarget.title.isNullOrBlank()) {
+                binding.toolbar.title = homeTarget.title
+            }
+            return true
+        }
+        webFragment?.loadUrl(homeTarget.url)
+        if (!homeTarget.title.isNullOrBlank()) {
+            binding.toolbar.title = homeTarget.title
+        }
+        return true
     }
 
     private companion object {

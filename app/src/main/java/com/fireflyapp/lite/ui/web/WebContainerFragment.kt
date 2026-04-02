@@ -7,6 +7,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.net.Uri
 import android.content.res.ColorStateList
+import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
 import android.content.pm.PackageManager
 import android.content.Intent
@@ -18,11 +21,15 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 import android.webkit.URLUtil
 import android.webkit.WebChromeClient
 import android.webkit.WebViewClient
 import android.widget.Toast
+import android.widget.FrameLayout
+import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.content.res.AppCompatResources
@@ -49,6 +56,7 @@ import com.fireflyapp.lite.core.rule.ResolvedPageState
 import com.fireflyapp.lite.core.webview.FireflyWebChromeClient
 import com.fireflyapp.lite.core.webview.FireflyWebViewClient.PageLoadErrorState
 import com.fireflyapp.lite.core.webview.FireflyWebViewClient
+import com.fireflyapp.lite.core.webview.ResolvedPageInjectionApplier
 import com.fireflyapp.lite.core.webview.WebPageCallback
 import com.fireflyapp.lite.core.webview.WebViewConfigurator
 import com.fireflyapp.lite.databinding.FragmentWebContainerBinding
@@ -69,6 +77,7 @@ class WebContainerFragment : Fragment() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val downloadHandler by lazy { DownloadHandler(requireContext().applicationContext) }
     private var pageRuleResolver: PageRuleResolver? = null
+    private var resolvedPageInjectionApplier: ResolvedPageInjectionApplier? = null
     private val webPermissionHandler by lazy {
         WebPermissionHandler(
             fragment = this,
@@ -106,6 +115,11 @@ class WebContainerFragment : Fragment() {
     private var loadingSpinnerAnimator: ObjectAnimator? = null
     private var navigationSwipeListener: ((NavigationSwipeDirection) -> Unit)? = null
     private var swipeGestureDetector: GestureDetectorCompat? = null
+    private var pendingNavigationSwipeDirection: NavigationSwipeDirection? = null
+    private var pendingNavigationSwipeExitCompleted = false
+    private var pendingNavigationSwipePageReady = false
+    private var pendingNavigationSwipeSkipEnterAnimation = false
+    private var navigationSwipeSnapshotView: ImageView? = null
     private val hideDownloadStatusRunnable = Runnable {
         _binding?.downloadStatusContainer?.visibility = View.GONE
     }
@@ -142,6 +156,14 @@ class WebContainerFragment : Fragment() {
                 currentPageUrl = url
                 if (title.isNotBlank()) {
                     currentPageTitle = title
+                }
+                pageRuleResolver?.resolve(url)?.let { state ->
+                    currentPageState = state
+                    pageCallback?.onPageStateResolved(state)
+                    applyPageUiStyle(state)
+                    _binding?.webView?.let { webView ->
+                        resolvedPageInjectionApplier?.apply(webView, state)
+                    }
                 }
                 if (previousUrl.isNotBlank() && previousUrl != url) {
                     dispatchPageEvent(
@@ -183,6 +205,7 @@ class WebContainerFragment : Fragment() {
         val config = mainViewModel.requireConfig()
         val resolver = PageRuleResolver(config)
         pageRuleResolver = resolver
+        resolvedPageInjectionApplier = ResolvedPageInjectionApplier()
         pageEventDispatcher = PageEventDispatcher(config)
         currentPageState = resolver.resolve(
             requireArguments().getString(ARG_INITIAL_URL).orEmpty().ifBlank { config.app.defaultUrl }
@@ -276,6 +299,9 @@ class WebContainerFragment : Fragment() {
                 currentPageState = state
                 applyPageUiStyle(state)
             },
+            onPageCommitVisible = { _, _ ->
+                onNavigationSwipePageReady()
+            },
             onPageFinished = { webView, url ->
                 currentPageUrl = url
                 installPageEventHook(webView)
@@ -283,6 +309,7 @@ class WebContainerFragment : Fragment() {
                 installNotificationBridge(webView)
                 installDownloadMetadataHook(webView)
                 installBlobDownloadHook(webView)
+                onNavigationSwipePageReady()
                 if (clearHistoryOnNextPageFinished) {
                     clearHistoryOnNextPageFinished = false
                     webView.clearHistory()
@@ -358,6 +385,66 @@ class WebContainerFragment : Fragment() {
         if (_binding == null || url.isBlank()) {
             return
         }
+        resetNavigationSwipeTransition()
+        loadUrlInternal(url, resetHistory)
+    }
+
+    fun loadUrlWithSwipeTransition(
+        url: String,
+        direction: NavigationSwipeDirection,
+        resetHistory: Boolean = false
+    ) {
+        val currentBinding = _binding ?: return
+        if (url.isBlank()) {
+            return
+        }
+        val snapshotBitmap = captureNavigationSwipeSnapshot()
+        if (currentBinding.errorView.visibility == View.VISIBLE) {
+            resetNavigationSwipeTransition()
+            loadUrlInternal(url, resetHistory)
+            return
+        }
+        val width = currentBinding.webView.width
+            .takeIf { it > 0 }
+            ?: currentBinding.root.width
+        if (width <= 0) {
+            resetNavigationSwipeTransition()
+            loadUrlInternal(url, resetHistory)
+            return
+        }
+        val exitTranslation = when (direction) {
+            NavigationSwipeDirection.NEXT -> -width * NAVIGATION_SWIPE_SNAPSHOT_EXIT_DISTANCE_RATIO
+            NavigationSwipeDirection.PREVIOUS -> width * NAVIGATION_SWIPE_SNAPSHOT_EXIT_DISTANCE_RATIO
+        }
+        val entryTranslation = -exitTranslation * NAVIGATION_SWIPE_ENTRY_OFFSET_RATIO
+        resetNavigationSwipeTransition()
+        pendingNavigationSwipeDirection = direction
+        pendingNavigationSwipeExitCompleted = false
+        pendingNavigationSwipePageReady = false
+        pendingNavigationSwipeSkipEnterAnimation = false
+        currentBinding.webView.translationX = entryTranslation
+        currentBinding.webView.alpha = NAVIGATION_SWIPE_ENTRY_ALPHA
+        keepWebViewHiddenUntilLoaded = true
+        applyNavigationSwipeBlankBackground()
+        syncWebViewVisibility()
+        snapshotBitmap?.let { installNavigationSwipeSnapshot(it) }
+        navigationSwipeSnapshotView?.animate()?.cancel()
+        navigationSwipeSnapshotView?.animate()
+            ?.translationX(exitTranslation)
+            ?.alpha(NAVIGATION_SWIPE_SNAPSHOT_EXIT_ALPHA)
+            ?.setDuration(NAVIGATION_SWIPE_SNAPSHOT_EXIT_DURATION_MS)
+            ?.setInterpolator(AccelerateInterpolator())
+            ?.withEndAction {
+                removeNavigationSwipeSnapshot()
+                pendingNavigationSwipeExitCompleted = true
+                pendingNavigationSwipeSkipEnterAnimation = !pendingNavigationSwipePageReady
+                maybeCompleteNavigationSwipeEnterAnimation()
+            }
+            ?.start()
+        loadUrlInternal(url, resetHistory)
+    }
+
+    private fun loadUrlInternal(url: String, resetHistory: Boolean) {
         if (errorStateLocked) {
             beginRecoveryLoad()
         } else {
@@ -427,6 +514,14 @@ class WebContainerFragment : Fragment() {
             clearCache(true)
             reload()
         }
+    }
+
+    fun runJavaScript(script: String) {
+        val resolvedScript = script.trim()
+        if (resolvedScript.isBlank()) {
+            return
+        }
+        _binding?.webView?.evaluateJavascript(resolvedScript, null)
     }
 
     private fun openExternalIntent(intent: Intent): Boolean {
@@ -527,16 +622,24 @@ class WebContainerFragment : Fragment() {
         return true
     }
 
-    fun handleBackAction(): Boolean {
+    fun currentUrl(): String? {
+        return currentPageUrl ?: _binding?.webView?.url
+    }
+
+    fun resolveBackNavigationAction(): BackNavigationAction {
         if (goBack()) {
-            return true
+            return BackNavigationAction.HANDLED
         }
 
         return when (mainViewModel.requireConfig().browser.backAction) {
-            "go_back_or_home" -> false
-            "disabled" -> true
-            else -> false
+            "go_back_or_home" -> BackNavigationAction.GO_HOME
+            "disabled" -> BackNavigationAction.HANDLED
+            else -> BackNavigationAction.NOT_HANDLED
         }
+    }
+
+    fun handleBackAction(): Boolean {
+        return resolveBackNavigationAction() == BackNavigationAction.HANDLED
     }
 
     fun exitFullscreen(): Boolean {
@@ -1367,6 +1470,7 @@ class WebContainerFragment : Fragment() {
         }
         if (shouldShow) {
             currentBinding.loadingContainer.visibility = View.GONE
+            resetNavigationSwipeTransition()
         }
         syncWebViewVisibility()
     }
@@ -1374,12 +1478,15 @@ class WebContainerFragment : Fragment() {
     private fun showLoading(show: Boolean) {
         val currentBinding = _binding ?: return
         val allowLoading = mainViewModel.requireConfig().browser.showLoadingOverlay
-        val shouldShow = show && allowLoading && currentBinding.errorView.visibility != View.VISIBLE
+        val shouldShow = show &&
+            allowLoading &&
+            currentBinding.errorView.visibility != View.VISIBLE &&
+            pendingNavigationSwipeDirection == null
         currentBinding.loadingText.text = currentPageState?.loadingText?.takeIf { it.isNotBlank() }
             ?: getString(R.string.web_loading_message)
         currentBinding.loadingContainer.visibility = if (shouldShow) View.VISIBLE else View.GONE
         updateLoadingSpinnerAnimation(shouldShow)
-        if (!shouldShow) {
+        if (!shouldShow && pendingNavigationSwipeDirection == null) {
             keepWebViewHiddenUntilLoaded = false
         }
         syncWebViewVisibility()
@@ -1393,6 +1500,118 @@ class WebContainerFragment : Fragment() {
     private fun beginRecoveryLoad() {
         keepWebViewHiddenUntilLoaded = true
         clearErrorState()
+    }
+
+    private fun captureNavigationSwipeSnapshot(): Bitmap? {
+        val currentBinding = _binding ?: return null
+        val width = currentBinding.webView.width
+        val height = currentBinding.webView.height
+        if (width <= 0 || height <= 0) {
+            return null
+        }
+        return runCatching {
+            Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap ->
+                val canvas = Canvas(bitmap)
+                currentBinding.webView.draw(canvas)
+            }
+        }.getOrNull()
+    }
+
+    private fun installNavigationSwipeSnapshot(bitmap: Bitmap) {
+        val currentBinding = _binding ?: return
+        removeNavigationSwipeSnapshot()
+        val snapshotView = ImageView(requireContext()).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            scaleType = ImageView.ScaleType.FIT_XY
+            setImageBitmap(bitmap)
+            alpha = 1f
+            translationX = 0f
+        }
+        currentBinding.root.addView(snapshotView, 1)
+        navigationSwipeSnapshotView = snapshotView
+    }
+
+    private fun onNavigationSwipePageReady() {
+        if (pendingNavigationSwipeDirection == null) {
+            return
+        }
+        pendingNavigationSwipePageReady = true
+        maybeCompleteNavigationSwipeEnterAnimation()
+    }
+
+    private fun maybeCompleteNavigationSwipeEnterAnimation() {
+        val currentBinding = _binding ?: return
+        if (pendingNavigationSwipeDirection == null) {
+            return
+        }
+        if (!pendingNavigationSwipeExitCompleted || !pendingNavigationSwipePageReady) {
+            return
+        }
+        pendingNavigationSwipeDirection = null
+        pendingNavigationSwipeExitCompleted = false
+        pendingNavigationSwipePageReady = false
+        val skipEnterAnimation = pendingNavigationSwipeSkipEnterAnimation
+        pendingNavigationSwipeSkipEnterAnimation = false
+        removeNavigationSwipeSnapshot()
+        keepWebViewHiddenUntilLoaded = false
+        clearNavigationSwipeBlankBackground()
+        showLoading(false)
+        syncWebViewVisibility()
+        currentBinding.webView.animate().cancel()
+        if (skipEnterAnimation) {
+            currentBinding.webView.translationX = 0f
+            currentBinding.webView.alpha = 1f
+        } else {
+            currentBinding.webView.animate()
+                .translationX(0f)
+                .alpha(1f)
+                .setDuration(NAVIGATION_SWIPE_ENTER_DURATION_MS)
+                .setInterpolator(DecelerateInterpolator())
+                .start()
+        }
+    }
+
+    private fun resetNavigationSwipeTransition() {
+        pendingNavigationSwipeDirection = null
+        pendingNavigationSwipeExitCompleted = false
+        pendingNavigationSwipePageReady = false
+        pendingNavigationSwipeSkipEnterAnimation = false
+        keepWebViewHiddenUntilLoaded = false
+        clearNavigationSwipeBlankBackground()
+        removeNavigationSwipeSnapshot()
+        val currentBinding = _binding ?: return
+        currentBinding.webView.animate().cancel()
+        currentBinding.webView.translationX = 0f
+        currentBinding.webView.alpha = 1f
+    }
+
+    private fun applyNavigationSwipeBlankBackground() {
+        val currentBinding = _binding ?: return
+        currentBinding.root.setBackgroundColor(resolveNavigationSwipeBlankColor())
+    }
+
+    private fun clearNavigationSwipeBlankBackground() {
+        _binding?.root?.setBackgroundColor(Color.TRANSPARENT)
+    }
+
+    private fun resolveNavigationSwipeBlankColor(): Int {
+        val nightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return if (nightMode == Configuration.UI_MODE_NIGHT_YES) {
+            Color.BLACK
+        } else {
+            Color.WHITE
+        }
+    }
+
+    private fun removeNavigationSwipeSnapshot() {
+        val snapshotView = navigationSwipeSnapshotView ?: return
+        snapshotView.animate().cancel()
+        (snapshotView.parent as? ViewGroup)?.removeView(snapshotView)
+        snapshotView.setImageDrawable(null)
+        navigationSwipeSnapshotView = null
     }
 
     private fun applyPageUiStyle(state: ResolvedPageState) {
@@ -1522,6 +1741,7 @@ class WebContainerFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        resetNavigationSwipeTransition()
         externalAppDialog?.dismiss()
         externalAppDialog = null
         fileChooserHandler.cancelPending()
@@ -1532,9 +1752,11 @@ class WebContainerFragment : Fragment() {
         loadingSpinnerAnimator = null
         navigationSwipeListener = null
         swipeGestureDetector = null
+        pendingNavigationSwipeDirection = null
         chromeClient?.exitFullscreen()
         chromeClient = null
         pageRuleResolver = null
+        resolvedPageInjectionApplier = null
         pageEventDispatcher = null
         currentPageUrl = null
         currentPageTitle = null
@@ -1583,6 +1805,12 @@ class WebContainerFragment : Fragment() {
         private const val SWIPE_MIN_DISTANCE_PX = 140f
         private const val SWIPE_MIN_VELOCITY_PX = 650f
         private const val SWIPE_HORIZONTAL_RATIO = 1.3f
+        private const val NAVIGATION_SWIPE_SNAPSHOT_EXIT_DISTANCE_RATIO = 1f
+        private const val NAVIGATION_SWIPE_ENTRY_OFFSET_RATIO = 0.55f
+        private const val NAVIGATION_SWIPE_SNAPSHOT_EXIT_ALPHA = 0.36f
+        private const val NAVIGATION_SWIPE_ENTRY_ALPHA = 0.92f
+        private const val NAVIGATION_SWIPE_SNAPSHOT_EXIT_DURATION_MS = 160L
+        private const val NAVIGATION_SWIPE_ENTER_DURATION_MS = 210L
 
         fun newInstance(initialUrl: String): WebContainerFragment {
             return WebContainerFragment().apply {
@@ -1591,5 +1819,11 @@ class WebContainerFragment : Fragment() {
                 }
             }
         }
+    }
+
+    enum class BackNavigationAction {
+        HANDLED,
+        GO_HOME,
+        NOT_HANDLED
     }
 }

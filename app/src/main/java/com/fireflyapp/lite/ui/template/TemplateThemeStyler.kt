@@ -18,6 +18,7 @@ import com.fireflyapp.lite.R
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.navigation.NavigationBarView
 import com.google.android.material.navigation.NavigationView
+import com.google.android.material.tabs.TabLayout
 import com.google.android.material.shape.CornerFamily
 import com.google.android.material.shape.MaterialShapeDrawable
 import com.google.android.material.shape.ShapeAppearanceModel
@@ -27,7 +28,8 @@ object TemplateThemeStyler {
         toolbar: MaterialToolbar,
         colorValue: String,
         cornerRadiusDp: Int = 0,
-        shadowDp: Int = 0
+        shadowDp: Int = 0,
+        roundBottomCorners: Boolean = cornerRadiusDp > 0
     ) {
         val customColor = parseColorOrNull(colorValue)
         val backgroundColor = customColor ?: resolveBackgroundColor(toolbar)
@@ -38,7 +40,7 @@ object TemplateThemeStyler {
             cornerRadiusDp = cornerRadiusDp.takeIf { it > 0 } ?: DEFAULT_TOP_BAR_RADIUS_DP,
             shadowDp = shadowDp.takeIf { it > 0 } ?: DEFAULT_TOP_BAR_SHADOW_DP,
             roundTopCorners = false,
-            roundBottomCorners = cornerRadiusDp > 0,
+            roundBottomCorners = roundBottomCorners && cornerRadiusDp > 0,
             applyElevationOverlay = customColor == null
         )
         toolbar.contentInsetStartWithNavigation = dpToPx(toolbar.context, 14)
@@ -96,6 +98,31 @@ object TemplateThemeStyler {
         bottomNavigation.itemRippleColor = ColorStateList.valueOf(Color.TRANSPARENT)
         disableNavigationBarItemBackground(bottomNavigation)
         disableNavigationBarActiveIndicator(bottomNavigation)
+    }
+
+    fun applyTabsTheme(
+        tabLayout: TabLayout,
+        colorValue: String,
+        selectedColorValue: String = "",
+        cornerRadiusDp: Int = 0,
+        shadowDp: Int = 0
+    ) {
+        val customColor = parseColorOrNull(colorValue)
+        val backgroundColor = customColor ?: resolveBackgroundColor(tabLayout)
+        val selectedColor = parseColorOrNull(selectedColorValue) ?: resolveReadableForeground(backgroundColor)
+        val unselectedColor = resolveBottomBarUnselectedColor(backgroundColor)
+        applySurfaceShape(
+            view = tabLayout,
+            backgroundColor = backgroundColor,
+            cornerRadiusDp = cornerRadiusDp.takeIf { it > 0 } ?: DEFAULT_BOTTOM_BAR_RADIUS_DP,
+            shadowDp = shadowDp.takeIf { it > 0 } ?: DEFAULT_BOTTOM_BAR_SHADOW_DP,
+            roundTopCorners = false,
+            roundBottomCorners = cornerRadiusDp > 0,
+            applyElevationOverlay = customColor == null
+        )
+        tabLayout.setTabTextColors(unselectedColor, selectedColor)
+        tabLayout.setSelectedTabIndicatorColor(selectedColor)
+        tabLayout.tabRippleColor = ColorStateList.valueOf(Color.TRANSPARENT)
     }
 
     fun applyDrawerTheme(

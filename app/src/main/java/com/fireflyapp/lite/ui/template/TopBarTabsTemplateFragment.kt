@@ -2,7 +2,6 @@ package com.fireflyapp.lite.ui.template
 
 import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.content.res.AppCompatResources
@@ -12,26 +11,26 @@ import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import com.google.android.material.navigation.NavigationBarView
+import com.google.android.material.tabs.TabLayout
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.core.rule.ResolvedPageState
 import com.fireflyapp.lite.core.webview.WebPageCallback
 import com.fireflyapp.lite.data.model.NavigationItem
-import com.fireflyapp.lite.databinding.FragmentTopBarBottomTabsTemplateBinding
+import com.fireflyapp.lite.databinding.FragmentTopBarTabsTemplateBinding
 import com.fireflyapp.lite.ui.main.MainViewModel
 import com.fireflyapp.lite.ui.web.WebContainerFragment
 
-class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPageCallback {
-    private var _binding: FragmentTopBarBottomTabsTemplateBinding? = null
+class TopBarTabsTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPageCallback {
+    private var _binding: FragmentTopBarTabsTemplateBinding? = null
     private val binding get() = checkNotNull(_binding)
     private var ruleTitleOverride: String? = null
-    private var isImeVisible: Boolean = false
-    private var pageWantsBottomBar: Boolean = true
-    private var followPageTitle: Boolean = true
     private var pageWantsTopBar: Boolean = true
+    private var pageWantsTabs: Boolean = true
+    private var followPageTitle: Boolean = true
     private var currentNavigationItemId: Int? = null
     private var rootNavigationItemId: Int? = null
     private var currentStatusTopInset: Int = 0
+    private var immersiveStatusBarEnabled: Boolean = false
 
     private val mainViewModel: MainViewModel by activityViewModels()
     private val webFragment: WebContainerFragment?
@@ -42,7 +41,7 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentTopBarBottomTabsTemplateBinding.inflate(inflater, container, false)
+        _binding = FragmentTopBarTabsTemplateBinding.inflate(inflater, container, false)
         return binding.root
     }
 
@@ -51,6 +50,7 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
         val config = mainViewModel.requireConfig()
         val items = config.navigation.items.take(MAX_ITEMS)
         val shellConfig = config.shell
+        immersiveStatusBarEnabled = config.browser.immersiveStatusBar
         rootNavigationItemId = TemplateNavigationResolver.resolveInitialItem(
             items = items,
             preferredId = shellConfig.defaultNavigationItemId
@@ -77,12 +77,6 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
             TemplateActionIconResolver.resolveRefresh(shellConfig.topBarRefreshIcon)
         )
         binding.toolbar.menu.findItem(R.id.action_refresh)?.isVisible = shellConfig.topBarShowRefreshButton
-        binding.bottomNavigation.labelVisibilityMode =
-            if (shellConfig.bottomBarShowTextLabels) {
-                NavigationBarView.LABEL_VISIBILITY_LABELED
-            } else {
-                NavigationBarView.LABEL_VISIBILITY_UNLABELED
-            }
         val topBarColor = TemplateThemeStyler.resolveThemeColor(
             colorValue = shellConfig.topBarThemeColor,
             fallbackView = binding.toolbar
@@ -92,24 +86,18 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
             toolbar = binding.toolbar,
             colorValue = shellConfig.topBarThemeColor,
             cornerRadiusDp = shellConfig.topBarCornerRadiusDp,
-            shadowDp = shellConfig.topBarShadowDp
+            shadowDp = shellConfig.topBarShadowDp,
+            roundBottomCorners = false
         )
-        if (!config.browser.immersiveStatusBar) {
-            TemplateThemeStyler.applyTopBarStatusBarTheme(
-                window = requireActivity().window,
-                anchorView = binding.root,
-                colorValue = shellConfig.topBarThemeColor,
-                fallbackView = binding.toolbar
-            )
-        }
-        TemplateThemeStyler.applyBottomBarTheme(
-            bottomNavigation = binding.bottomNavigation,
+        TemplateThemeStyler.applyTabsTheme(
+            tabLayout = binding.tabs,
             colorValue = shellConfig.bottomBarThemeColor,
             selectedColorValue = shellConfig.bottomBarSelectedColor,
             cornerRadiusDp = shellConfig.bottomBarCornerRadiusDp,
             shadowDp = shellConfig.bottomBarShadowDp
         )
-        setupBottomNavigation(items, shellConfig)
+        setupTabs(items, shellConfig)
+        applyStatusBarTheme()
 
         if (savedInstanceState == null) {
             val initialItem = TemplateNavigationResolver.resolveInitialItem(
@@ -124,14 +112,9 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
                 )
                 .commitNow()
             currentNavigationItemId = initialItem.id.hashCode()
-            binding.bottomNavigation.selectedItemId = initialItem.id.hashCode()
+            selectTabByItemId(items, currentNavigationItemId)
             binding.toolbar.title = initialItem.title
         }
-        TemplateNavigationStateIconHelper.applyToBottomBar(
-            bottomNavigation = binding.bottomNavigation,
-            items = items,
-            selectedItemId = currentNavigationItemId
-        )
         bindSwipeNavigation(items)
     }
 
@@ -172,10 +155,11 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
     override fun onPageStateResolved(state: ResolvedPageState) {
         ruleTitleOverride = state.title
         pageWantsTopBar = state.showTopBar
+        pageWantsTabs = state.showBottomBar
         binding.topBarContainer.isVisible = state.showTopBar
-        pageWantsBottomBar = state.showBottomBar
+        updateTabsVisibility()
         applyTopInset()
-        updateBottomNavigationVisibility()
+        applyStatusBarTheme()
         if (!state.title.isNullOrBlank()) {
             binding.toolbar.title = state.title
         }
@@ -183,13 +167,13 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
 
     override fun onDestroyView() {
         ruleTitleOverride = null
-        isImeVisible = false
-        pageWantsBottomBar = true
-        followPageTitle = true
         pageWantsTopBar = true
+        pageWantsTabs = true
+        followPageTitle = true
         currentNavigationItemId = null
         rootNavigationItemId = null
         currentStatusTopInset = 0
+        immersiveStatusBarEnabled = false
         _binding = null
         super.onDestroyView()
     }
@@ -216,6 +200,7 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
                     }
                     true
                 }
+
                 R.id.action_refresh -> {
                     val shellConfig = mainViewModel.requireConfig().shell
                     TemplateTopBarActionResolver.performRefresh(
@@ -231,6 +216,47 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
         }
     }
 
+    private fun setupTabs(
+        items: List<NavigationItem>,
+        shellConfig: com.fireflyapp.lite.data.model.ShellConfig
+    ) {
+        binding.tabs.removeAllTabs()
+        binding.tabs.tabMode = if (items.size > 4) TabLayout.MODE_SCROLLABLE else TabLayout.MODE_FIXED
+        binding.tabs.tabGravity = if (items.size > 4) TabLayout.GRAVITY_CENTER else TabLayout.GRAVITY_FILL
+        items.forEach { item ->
+            binding.tabs.addTab(
+                binding.tabs.newTab().setText(item.title.ifBlank { item.id })
+            )
+        }
+        TemplateNavigationBadgeHelper.applyToTabs(
+            tabLayout = binding.tabs,
+            items = items,
+            badgeColorValue = shellConfig.bottomBarBadgeColor,
+            badgeTextColorValue = shellConfig.bottomBarBadgeTextColor,
+            badgeGravityValue = shellConfig.bottomBarBadgeGravity,
+            maxCharacterCount = shellConfig.bottomBarBadgeMaxCharacterCount,
+            horizontalOffsetDp = shellConfig.bottomBarBadgeHorizontalOffsetDp,
+            verticalOffsetDp = shellConfig.bottomBarBadgeVerticalOffsetDp
+        )
+        binding.tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                val item = items.getOrNull(tab.position) ?: return
+                if (currentNavigationItemId == item.id.hashCode() && webFragment != null) {
+                    return
+                }
+                currentNavigationItemId = item.id.hashCode()
+                if (!item.title.isBlank()) {
+                    binding.toolbar.title = item.title
+                }
+                webFragment?.loadUrl(item.url, resetHistory = shouldResetHistoryOnNavigation())
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+
+            override fun onTabReselected(tab: TabLayout.Tab) = Unit
+        })
+    }
+
     private fun navigateHome() {
         val config = mainViewModel.requireConfig()
         val items = config.navigation.items.take(MAX_ITEMS)
@@ -240,58 +266,11 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
         )
         val matchingItem = items.firstOrNull { it.url == homeTarget.url }
         currentNavigationItemId = matchingItem?.id?.hashCode()
-        matchingItem?.let {
-            binding.bottomNavigation.selectedItemId = it.id.hashCode()
-        }
-        TemplateNavigationStateIconHelper.applyToBottomBar(
-            bottomNavigation = binding.bottomNavigation,
-            items = items,
-            selectedItemId = currentNavigationItemId
-        )
+        selectTabByItemId(items, currentNavigationItemId)
         webFragment?.loadUrl(homeTarget.url, resetHistory = shouldResetHistoryOnNavigation())
         if (!homeTarget.title.isNullOrBlank()) {
             binding.toolbar.title = homeTarget.title
         }
-    }
-
-    private fun setupBottomNavigation(
-        items: List<NavigationItem>,
-        shellConfig: com.fireflyapp.lite.data.model.ShellConfig
-    ) {
-        binding.bottomNavigation.menu.clear()
-        items.forEachIndexed { index, item ->
-            binding.bottomNavigation.menu.add(Menu.NONE, item.id.hashCode(), index, item.title)
-                .setIcon(TemplateNavigationIconResolver.resolve(item, index))
-        }
-        TemplateNavigationBadgeHelper.apply(
-            bottomNavigation = binding.bottomNavigation,
-            items = items,
-            badgeColorValue = shellConfig.bottomBarBadgeColor,
-            badgeTextColorValue = shellConfig.bottomBarBadgeTextColor,
-            badgeGravityValue = shellConfig.bottomBarBadgeGravity,
-            maxCharacterCount = shellConfig.bottomBarBadgeMaxCharacterCount,
-            horizontalOffsetDp = shellConfig.bottomBarBadgeHorizontalOffsetDp,
-            verticalOffsetDp = shellConfig.bottomBarBadgeVerticalOffsetDp
-        )
-        binding.bottomNavigation.setOnItemSelectedListener { menuItem ->
-            if (currentNavigationItemId == menuItem.itemId && webFragment != null) {
-                return@setOnItemSelectedListener true
-            }
-            val item = items.firstOrNull { it.id.hashCode() == menuItem.itemId }
-                ?: return@setOnItemSelectedListener false
-            currentNavigationItemId = menuItem.itemId
-            TemplateNavigationStateIconHelper.applyToBottomBar(
-                bottomNavigation = binding.bottomNavigation,
-                items = items,
-                selectedItemId = currentNavigationItemId
-            )
-            if (!item.title.isNullOrBlank()) {
-                binding.toolbar.title = item.title
-            }
-            webFragment?.loadUrl(item.url, resetHistory = shouldResetHistoryOnNavigation())
-            true
-        }
-        binding.bottomNavigation.setOnItemReselectedListener { }
     }
 
     private fun navigateToRootItemIfNeeded(): Boolean {
@@ -304,27 +283,22 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
         if (rootItem.url.isBlank()) {
             return false
         }
+        currentNavigationItemId = rootItem.id.hashCode()
+        selectTabByItemId(items, currentNavigationItemId)
         if (webFragment?.currentUrl() == rootItem.url) {
-            currentNavigationItemId = rootItem.id.hashCode()
-            binding.bottomNavigation.selectedItemId = rootItem.id.hashCode()
-            TemplateNavigationStateIconHelper.applyToBottomBar(
-                bottomNavigation = binding.bottomNavigation,
-                items = items,
-                selectedItemId = currentNavigationItemId
-            )
             binding.toolbar.title = rootItem.title
             return true
         }
-        currentNavigationItemId = rootItem.id.hashCode()
-        binding.bottomNavigation.selectedItemId = rootItem.id.hashCode()
-        TemplateNavigationStateIconHelper.applyToBottomBar(
-            bottomNavigation = binding.bottomNavigation,
-            items = items,
-            selectedItemId = currentNavigationItemId
-        )
         webFragment?.loadUrl(rootItem.url, resetHistory = true)
         binding.toolbar.title = rootItem.title
         return true
+    }
+
+    private fun selectTabByItemId(items: List<NavigationItem>, itemId: Int?) {
+        val targetIndex = items.indexOfFirst { it.id.hashCode() == itemId }
+        if (targetIndex >= 0) {
+            binding.tabs.getTabAt(targetIndex)?.select()
+        }
     }
 
     private fun bindSwipeNavigation(items: List<NavigationItem>) {
@@ -337,12 +311,7 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
                         direction = direction
                     ) ?: return@swipe
                     currentNavigationItemId = targetItem.id.hashCode()
-                    binding.bottomNavigation.selectedItemId = targetItem.id.hashCode()
-                    TemplateNavigationStateIconHelper.applyToBottomBar(
-                        bottomNavigation = binding.bottomNavigation,
-                        items = items,
-                        selectedItemId = currentNavigationItemId
-                    )
+                    selectTabByItemId(items, currentNavigationItemId)
                     if (!targetItem.title.isNullOrBlank()) {
                         binding.toolbar.title = targetItem.title
                     }
@@ -365,21 +334,16 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
     private fun applyWindowInsets(immersiveStatusBar: Boolean) {
         val root = binding.root
         val topBarContainer = binding.topBarContainer
-        val bottomNavigation = binding.bottomNavigation
+        val tabsContainer = binding.tabsContainer
         val initialRootTop = root.paddingTop
         val initialTopBarTop = topBarContainer.paddingTop
-        val initialBottomNavBottom = bottomNavigation.paddingBottom
+        val initialTabsTop = tabsContainer.paddingTop
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             currentStatusTopInset = if (immersiveStatusBar) 0 else insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            val navigationBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-            isImeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
             root.setTag(R.id.mainFragmentContainer, initialRootTop)
             topBarContainer.setTag(R.id.topBarContainer, initialTopBarTop)
+            tabsContainer.setTag(R.id.tabs, initialTabsTop)
             applyTopInset()
-            bottomNavigation.updatePadding(
-                bottom = initialBottomNavBottom + if (isImeVisible) 0 else navigationBottom
-            )
-            updateBottomNavigationVisibility()
             insets
         }
         ViewCompat.requestApplyInsets(root)
@@ -388,14 +352,52 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
     private fun applyTopInset() {
         val root = _binding?.root ?: return
         val topBarContainer = _binding?.topBarContainer ?: return
+        val tabsContainer = _binding?.tabsContainer ?: return
         val initialRootTop = (root.getTag(R.id.mainFragmentContainer) as? Int) ?: 0
         val initialTopBarTop = (topBarContainer.getTag(R.id.topBarContainer) as? Int) ?: 0
-        root.updatePadding(top = initialRootTop + if (pageWantsTopBar) 0 else currentStatusTopInset)
-        topBarContainer.updatePadding(top = initialTopBarTop + if (pageWantsTopBar) currentStatusTopInset else 0)
+        val initialTabsTop = (tabsContainer.getTag(R.id.tabs) as? Int) ?: 0
+        root.updatePadding(
+            top = initialRootTop + if (pageWantsTopBar || pageWantsTabs) 0 else currentStatusTopInset
+        )
+        topBarContainer.updatePadding(
+            top = initialTopBarTop + if (pageWantsTopBar) currentStatusTopInset else 0
+        )
+        tabsContainer.updatePadding(
+            top = initialTabsTop + if (!pageWantsTopBar && pageWantsTabs) currentStatusTopInset else 0
+        )
     }
 
-    private fun updateBottomNavigationVisibility() {
-        _binding?.bottomBarContainer?.isVisible = pageWantsBottomBar && !isImeVisible
+    private fun updateTabsVisibility() {
+        _binding?.tabsContainer?.isVisible = pageWantsTabs
+    }
+
+    private fun applyStatusBarTheme() {
+        val binding = _binding ?: return
+        if (immersiveStatusBarEnabled) {
+            return
+        }
+        when {
+            pageWantsTopBar -> TemplateThemeStyler.applyTopBarStatusBarTheme(
+                window = requireActivity().window,
+                anchorView = binding.root,
+                colorValue = mainViewModel.requireConfig().shell.topBarThemeColor,
+                fallbackView = binding.toolbar
+            )
+
+            pageWantsTabs -> TemplateThemeStyler.applyTopBarStatusBarTheme(
+                window = requireActivity().window,
+                anchorView = binding.root,
+                colorValue = mainViewModel.requireConfig().shell.bottomBarThemeColor,
+                fallbackView = binding.tabs
+            )
+
+            else -> TemplateThemeStyler.applyTopBarStatusBarTheme(
+                window = requireActivity().window,
+                anchorView = binding.root,
+                colorValue = "",
+                fallbackView = binding.root
+            )
+        }
     }
 
     private companion object {

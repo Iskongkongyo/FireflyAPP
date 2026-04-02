@@ -11,8 +11,14 @@ data class RuntimeShellTemplateSpec(
     val supportsTopBar: Boolean,
     val supportsTopBarBackButton: Boolean,
     val supportsBottomBar: Boolean,
+    val navigationChromeStyle: TemplateNavigationChromeStyle? = null,
     val createFragment: () -> Fragment
 )
+
+enum class TemplateNavigationChromeStyle {
+    BOTTOM_BAR,
+    TOP_TABS
+}
 
 object TemplateCatalog {
     val specs: List<RuntimeShellTemplateSpec> = listOf(
@@ -47,16 +53,6 @@ object TemplateCatalog {
             createFragment = { SideDrawerTemplateFragment() }
         ),
         RuntimeShellTemplateSpec(
-            type = TemplateType.TOP_BAR_BOTTOM_TABS,
-            label = "Top Bar + Bottom Tabs",
-            description = "Combined shell with a native top bar and bottom tab navigation.",
-            supportsNavigationItems = true,
-            supportsTopBar = true,
-            supportsTopBarBackButton = true,
-            supportsBottomBar = true,
-            createFragment = { TopBarBottomTabsTemplateFragment() }
-        ),
-        RuntimeShellTemplateSpec(
             type = TemplateType.TOP_BAR,
             label = "Top Bar",
             description = "Toolbar shell with page title, back action, and refresh.",
@@ -74,7 +70,30 @@ object TemplateCatalog {
             supportsTopBar = false,
             supportsTopBarBackButton = false,
             supportsBottomBar = true,
+            navigationChromeStyle = TemplateNavigationChromeStyle.BOTTOM_BAR,
             createFragment = { BottomBarTemplateFragment() }
+        ),
+        RuntimeShellTemplateSpec(
+            type = TemplateType.TOP_BAR_TABS,
+            label = "Top Bar + Tabs",
+            description = "Combined shell with a native top bar and top tabs navigation.",
+            supportsNavigationItems = true,
+            supportsTopBar = true,
+            supportsTopBarBackButton = true,
+            supportsBottomBar = true,
+            navigationChromeStyle = TemplateNavigationChromeStyle.TOP_TABS,
+            createFragment = { TopBarTabsTemplateFragment() }
+        ),
+        RuntimeShellTemplateSpec(
+            type = TemplateType.TOP_BAR_BOTTOM_TABS,
+            label = "Top Bar + BottomBar",
+            description = "Combined shell with a native top bar and bottom bar navigation.",
+            supportsNavigationItems = true,
+            supportsTopBar = true,
+            supportsTopBarBackButton = true,
+            supportsBottomBar = true,
+            navigationChromeStyle = TemplateNavigationChromeStyle.BOTTOM_BAR,
+            createFragment = { TopBarBottomTabsTemplateFragment() }
         )
     )
 

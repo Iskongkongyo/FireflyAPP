@@ -62,7 +62,11 @@ class BrowserTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebP
         if (webFragment?.exitFullscreen() == true) {
             return true
         }
-        return webFragment?.handleBackAction() == true
+        return when (webFragment?.resolveBackNavigationAction()) {
+            WebContainerFragment.BackNavigationAction.HANDLED -> true
+            WebContainerFragment.BackNavigationAction.GO_HOME -> navigateHomeIfNeeded()
+            else -> false
+        }
     }
 
     override fun onPageTitleChanged(title: String) {
@@ -104,6 +108,28 @@ class BrowserTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebP
             insets
         }
         ViewCompat.requestApplyInsets(root)
+    }
+
+    private fun navigateHomeIfNeeded(): Boolean {
+        val config = mainViewModel.requireConfig()
+        val homeTarget = TemplateTopBarActionResolver.resolveHomeTarget(
+            config = config,
+            navigationItems = config.navigation.items
+        )
+        if (homeTarget.url.isBlank()) {
+            return false
+        }
+        if (webFragment?.currentUrl() == homeTarget.url) {
+            if (!homeTarget.title.isNullOrBlank()) {
+                requireActivity().title = homeTarget.title
+            }
+            return true
+        }
+        webFragment?.loadUrl(homeTarget.url)
+        if (!homeTarget.title.isNullOrBlank()) {
+            requireActivity().title = homeTarget.title
+        }
+        return true
     }
 
     private companion object {

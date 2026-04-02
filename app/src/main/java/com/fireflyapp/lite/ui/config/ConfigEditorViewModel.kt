@@ -20,12 +20,15 @@ import com.fireflyapp.lite.data.model.PageRule
 import com.fireflyapp.lite.data.model.ProjectManifest
 import com.fireflyapp.lite.data.model.SecurityConfig
 import com.fireflyapp.lite.data.model.ShellConfig
+import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_STRICT
 import com.fireflyapp.lite.data.model.TemplateType
 import com.fireflyapp.lite.data.repository.ConfigRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+
+private const val MAX_NAVIGATION_ITEMS = 5
 
 class ConfigEditorViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ConfigRepository(application.applicationContext)
@@ -62,6 +65,8 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updateTopBarShowRefreshButton(value: Boolean) = updateForm { copy(topBarShowRefreshButton = value) }
     fun updateTopBarHomeBehavior(value: String) = updateForm { copy(topBarHomeBehavior = value) }
     fun updateTopBarRefreshBehavior(value: String) = updateForm { copy(topBarRefreshBehavior = value) }
+    fun updateTopBarHomeScript(value: String) = updateForm { copy(topBarHomeScriptText = value) }
+    fun updateTopBarRefreshScript(value: String) = updateForm { copy(topBarRefreshScriptText = value) }
     fun updateTopBarFollowPageTitle(value: Boolean) = updateForm { copy(topBarFollowPageTitle = value) }
     fun updateTopBarTitleCentered(value: Boolean) = updateForm { copy(topBarTitleCentered = value) }
     fun updateTopBarCornerRadiusText(value: String) = updateForm { copy(topBarCornerRadiusText = value) }
@@ -100,6 +105,7 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updateBottomBarThemeColor(value: String) = updateForm { copy(bottomBarThemeColor = value) }
     fun updateAllowExternalHosts(value: Boolean) = updateForm { copy(allowExternalHosts = value) }
     fun updateOpenOtherAppsMode(value: String) = updateForm { copy(openOtherAppsMode = value) }
+    fun updateSslErrorHandling(value: String) = updateForm { copy(sslErrorHandling = value) }
     fun updateAllowedHostsText(value: String) = updateForm { copy(allowedHostsText = value) }
     fun updateGlobalJsText(value: String) = updateForm { copy(globalJsText = value) }
     fun updateGlobalCssText(value: String) = updateForm { copy(globalCssText = value) }
@@ -119,6 +125,16 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun addNavigationItem() {
+        val currentState = _uiState.value
+        if (currentState.formState.navigationItems.size >= MAX_NAVIGATION_ITEMS) {
+            _uiState.value = currentState.copy(
+                userMessage = appString(
+                    R.string.config_editor_navigation_limit_reached,
+                    MAX_NAVIGATION_ITEMS
+                )
+            )
+            return
+        }
         updateForm {
             copy(
                 navigationItems = navigationItems + NavigationItemForm(
@@ -864,6 +880,8 @@ data class ConfigEditorFormState(
     val topBarShowRefreshButton: Boolean = true,
     val topBarHomeBehavior: String = "default_home",
     val topBarRefreshBehavior: String = "reload",
+    val topBarHomeScriptText: String = "",
+    val topBarRefreshScriptText: String = "",
     val topBarFollowPageTitle: Boolean = true,
     val topBarTitleCentered: Boolean = true,
     val topBarCornerRadiusText: String = "0",
@@ -906,6 +924,7 @@ data class ConfigEditorFormState(
     val nightMode: String = "off",
     val allowExternalHosts: Boolean = true,
     val openOtherAppsMode: String = "ask",
+    val sslErrorHandling: String = SSL_ERROR_HANDLING_STRICT,
     val allowedHostsText: String = "",
     val globalJsText: String = "",
     val globalCssText: String = "",
@@ -951,6 +970,8 @@ data class ConfigEditorFormState(
                 topBarShowRefreshButton = topBarShowRefreshButton,
                 topBarHomeBehavior = topBarHomeBehavior,
                 topBarRefreshBehavior = topBarRefreshBehavior,
+                topBarHomeScript = topBarHomeScriptText,
+                topBarRefreshScript = topBarRefreshScriptText,
                 topBarFollowPageTitle = topBarFollowPageTitle,
                 topBarTitleCentered = topBarTitleCentered,
                 topBarCornerRadiusDp = topBarCornerRadiusText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0,
@@ -1006,7 +1027,8 @@ data class ConfigEditorFormState(
             security = SecurityConfig(
                 allowedHosts = allowedHostsText.lines().map { it.trim() }.filter { it.isNotBlank() },
                 allowExternalHosts = allowExternalHosts,
-                openOtherAppsMode = openOtherAppsMode
+                openOtherAppsMode = openOtherAppsMode,
+                sslErrorHandling = sslErrorHandling
             ),
             inject = InjectConfig(
                 globalJs = splitBlocks(globalJsText),
@@ -1065,6 +1087,8 @@ data class ConfigEditorFormState(
                 topBarShowRefreshButton = config.shell.topBarShowRefreshButton,
                 topBarHomeBehavior = config.shell.topBarHomeBehavior,
                 topBarRefreshBehavior = config.shell.topBarRefreshBehavior,
+                topBarHomeScriptText = config.shell.topBarHomeScript,
+                topBarRefreshScriptText = config.shell.topBarRefreshScript,
                 topBarFollowPageTitle = config.shell.topBarFollowPageTitle,
                 topBarTitleCentered = config.shell.topBarTitleCentered,
                 topBarCornerRadiusText = config.shell.topBarCornerRadiusDp.toString(),
@@ -1107,6 +1131,7 @@ data class ConfigEditorFormState(
                 nightMode = config.browser.nightMode,
                 allowExternalHosts = config.security.allowExternalHosts,
                 openOtherAppsMode = config.security.openOtherAppsMode,
+                sslErrorHandling = config.security.sslErrorHandling,
                 allowedHostsText = config.security.allowedHosts.joinToString("\n"),
                 globalJsText = config.inject.globalJs.joinToString(BLOCK_SEPARATOR),
                 globalCssText = config.inject.globalCss.joinToString(BLOCK_SEPARATOR),
@@ -1345,6 +1370,8 @@ private fun AppConfig.merge(sections: ConfigSections): AppConfig {
             topBarShowRefreshButton = sections.shell.topBarShowRefreshButton,
             topBarHomeBehavior = sections.shell.topBarHomeBehavior,
             topBarRefreshBehavior = sections.shell.topBarRefreshBehavior,
+            topBarHomeScript = sections.shell.topBarHomeScript,
+            topBarRefreshScript = sections.shell.topBarRefreshScript,
             topBarFollowPageTitle = sections.shell.topBarFollowPageTitle,
             topBarTitleCentered = sections.shell.topBarTitleCentered,
             topBarCornerRadiusDp = sections.shell.topBarCornerRadiusDp,
@@ -1388,7 +1415,8 @@ private fun AppConfig.merge(sections: ConfigSections): AppConfig {
         security = security.copy(
             allowedHosts = sections.security.allowedHosts,
             allowExternalHosts = sections.security.allowExternalHosts,
-            openOtherAppsMode = sections.security.openOtherAppsMode
+            openOtherAppsMode = sections.security.openOtherAppsMode,
+            sslErrorHandling = sections.security.sslErrorHandling
         ),
         inject = inject.copy(
             globalJs = sections.inject.globalJs,

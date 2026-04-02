@@ -163,12 +163,13 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         if (webFragment?.exitFullscreen() == true) {
             return true
         }
-        if (webFragment?.handleBackAction() == true) {
-            return true
+        when (webFragment?.resolveBackNavigationAction()) {
+            WebContainerFragment.BackNavigationAction.HANDLED -> return true
+            WebContainerFragment.BackNavigationAction.GO_HOME -> return navigateToRootItemIfNeeded()
+            else -> Unit
         }
         if (shouldResetHistoryOnNavigation() && currentNavigationItemId != rootNavigationItemId) {
-            navigateToRootItem()
-            return true
+            return navigateToRootItemIfNeeded()
         }
         return false
     }
@@ -221,13 +222,20 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         binding.toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_home -> {
-                    navigateHome()
+                    val shellConfig = mainViewModel.requireConfig().shell
+                    if (TemplateTopBarActionResolver.isRunJavaScriptBehavior(shellConfig.topBarHomeBehavior)) {
+                        webFragment?.runJavaScript(shellConfig.topBarHomeScript)
+                    } else {
+                        navigateHome()
+                    }
                     true
                 }
                 R.id.action_refresh -> {
+                    val shellConfig = mainViewModel.requireConfig().shell
                     TemplateTopBarActionResolver.performRefresh(
                         fragment = webFragment,
-                        behavior = mainViewModel.requireConfig().shell.topBarRefreshBehavior
+                        behavior = shellConfig.topBarRefreshBehavior,
+                        script = shellConfig.topBarRefreshScript
                     )
                     true
                 }
@@ -269,13 +277,28 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         }
     }
 
-    private fun navigateToRootItem() {
+    private fun navigateToRootItemIfNeeded(): Boolean {
         val config = mainViewModel.requireConfig()
         val items = config.navigation.items
         val rootItem = TemplateNavigationResolver.resolveInitialItem(
             items = items,
             preferredId = config.shell.defaultNavigationItemId
         )
+        if (rootItem.url.isBlank()) {
+            return false
+        }
+        if (webFragment?.currentUrl() == rootItem.url) {
+            currentNavigationItemId = rootItem.id.hashCode()
+            binding.drawerNavigation.setCheckedItem(rootItem.id.hashCode())
+            TemplateNavigationStateIconHelper.applyToDrawer(
+                navigationView = binding.drawerNavigation,
+                items = items,
+                selectedItemId = currentNavigationItemId
+            )
+            binding.toolbar.title = rootItem.title
+            binding.drawerLayout.closeDrawer(GravityCompat.START)
+            return true
+        }
         currentNavigationItemId = rootItem.id.hashCode()
         binding.drawerNavigation.setCheckedItem(rootItem.id.hashCode())
         TemplateNavigationStateIconHelper.applyToDrawer(
@@ -286,6 +309,7 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         webFragment?.loadUrl(rootItem.url, resetHistory = true)
         binding.toolbar.title = rootItem.title
         binding.drawerLayout.closeDrawer(GravityCompat.START)
+        return true
     }
 
     private fun bindSwipeNavigation(items: List<NavigationItem>) {
@@ -308,7 +332,11 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
                         binding.toolbar.title = targetItem.title
                     }
                     binding.drawerLayout.closeDrawer(GravityCompat.START)
-                    webFragment?.loadUrl(targetItem.url, resetHistory = shouldResetHistoryOnNavigation())
+                    webFragment?.loadUrlWithSwipeTransition(
+                        url = targetItem.url,
+                        direction = direction,
+                        resetHistory = shouldResetHistoryOnNavigation()
+                    )
                 }
             } else {
                 null

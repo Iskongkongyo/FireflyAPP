@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color as AndroidColor
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
@@ -25,6 +26,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,11 +36,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -74,13 +79,16 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -101,15 +109,20 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.app.AppLanguageManager
+import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_IGNORE
+import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_STRICT
 import com.fireflyapp.lite.data.model.TemplateType
-import com.fireflyapp.lite.ui.template.TemplateCatalog
 import com.fireflyapp.lite.ui.template.RuntimeShellTemplateSpec
+import com.fireflyapp.lite.ui.template.TemplateCatalog
 import com.fireflyapp.lite.ui.template.TemplateIconCatalog
+import com.fireflyapp.lite.ui.template.TemplateNavigationChromeStyle
 import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
@@ -118,6 +131,8 @@ private enum class DrawerMediaTarget {
     WALLPAPER,
     AVATAR
 }
+
+private const val MAX_EDIT_NAVIGATION_ITEMS = 5
 
 class ConfigEditorActivity : ComponentActivity() {
     private val viewModel: ConfigEditorViewModel by viewModels()
@@ -136,6 +151,12 @@ class ConfigEditorActivity : ComponentActivity() {
 
         viewModel.loadProject(projectId)
         enableEdgeToEdge()
+        window.statusBarColor = AndroidColor.TRANSPARENT
+        window.navigationBarColor = AndroidColor.TRANSPARENT
+        WindowCompat.getInsetsController(window, window.decorView)?.apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
 
         setContent {
             val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -232,7 +253,7 @@ class ConfigEditorActivity : ComponentActivity() {
                 }
             }
 
-            MaterialTheme {
+            MaterialTheme(colorScheme = lightColorScheme()) {
                 ConfigEditorScreen(
                     state = state,
                     onBack = ::finish,
@@ -254,7 +275,9 @@ class ConfigEditorActivity : ComponentActivity() {
                     onTopBarShowHomeButtonChanged = viewModel::updateTopBarShowHomeButton,
                     onTopBarShowRefreshButtonChanged = viewModel::updateTopBarShowRefreshButton,
                     onTopBarHomeBehaviorChanged = viewModel::updateTopBarHomeBehavior,
+                    onTopBarHomeScriptChanged = viewModel::updateTopBarHomeScript,
                     onTopBarRefreshBehaviorChanged = viewModel::updateTopBarRefreshBehavior,
+                    onTopBarRefreshScriptChanged = viewModel::updateTopBarRefreshScript,
                     onTopBarFollowPageTitleChanged = viewModel::updateTopBarFollowPageTitle,
                     onTopBarTitleCenteredChanged = viewModel::updateTopBarTitleCentered,
                     onTopBarCornerRadiusChanged = viewModel::updateTopBarCornerRadiusText,
@@ -301,6 +324,7 @@ class ConfigEditorActivity : ComponentActivity() {
                     onBottomBarThemeColorChanged = viewModel::updateBottomBarThemeColor,
                     onAllowExternalHostsChanged = viewModel::updateAllowExternalHosts,
                     onOpenOtherAppsModeChanged = viewModel::updateOpenOtherAppsMode,
+                    onSslErrorHandlingChanged = viewModel::updateSslErrorHandling,
                     onAllowedHostsChanged = viewModel::updateAllowedHostsText,
                     onGlobalJsChanged = viewModel::updateGlobalJsText,
                     onGlobalCssChanged = viewModel::updateGlobalCssText,
@@ -476,7 +500,9 @@ private fun ConfigEditorScreen(
     onTopBarShowHomeButtonChanged: (Boolean) -> Unit,
     onTopBarShowRefreshButtonChanged: (Boolean) -> Unit,
     onTopBarHomeBehaviorChanged: (String) -> Unit,
+    onTopBarHomeScriptChanged: (String) -> Unit,
     onTopBarRefreshBehaviorChanged: (String) -> Unit,
+    onTopBarRefreshScriptChanged: (String) -> Unit,
     onTopBarFollowPageTitleChanged: (Boolean) -> Unit,
     onTopBarTitleCenteredChanged: (Boolean) -> Unit,
     onTopBarCornerRadiusChanged: (String) -> Unit,
@@ -519,6 +545,7 @@ private fun ConfigEditorScreen(
     onBottomBarThemeColorChanged: (String) -> Unit,
     onAllowExternalHostsChanged: (Boolean) -> Unit,
     onOpenOtherAppsModeChanged: (String) -> Unit,
+    onSslErrorHandlingChanged: (String) -> Unit,
     onAllowedHostsChanged: (String) -> Unit,
     onGlobalJsChanged: (String) -> Unit,
     onGlobalCssChanged: (String) -> Unit,
@@ -584,8 +611,10 @@ private fun ConfigEditorScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
     ) {
         Column(
             modifier = Modifier.background(MaterialTheme.colorScheme.surface)
@@ -625,7 +654,8 @@ private fun ConfigEditorScreen(
 
         ScrollableTabRow(
             selectedTabIndex = state.selectedTab.ordinal,
-            edgePadding = 8.dp
+            edgePadding = 8.dp,
+            containerColor = MaterialTheme.colorScheme.surface
         ) {
             Tab(
                 selected = state.selectedTab == EditorTab.BASIC,
@@ -684,7 +714,9 @@ private fun ConfigEditorScreen(
                 onTopBarShowHomeButtonChanged = onTopBarShowHomeButtonChanged,
                 onTopBarShowRefreshButtonChanged = onTopBarShowRefreshButtonChanged,
                 onTopBarHomeBehaviorChanged = onTopBarHomeBehaviorChanged,
+                onTopBarHomeScriptChanged = onTopBarHomeScriptChanged,
                 onTopBarRefreshBehaviorChanged = onTopBarRefreshBehaviorChanged,
+                onTopBarRefreshScriptChanged = onTopBarRefreshScriptChanged,
                 onTopBarFollowPageTitleChanged = onTopBarFollowPageTitleChanged,
                 onTopBarTitleCenteredChanged = onTopBarTitleCenteredChanged,
                 onTopBarCornerRadiusChanged = onTopBarCornerRadiusChanged,
@@ -727,6 +759,7 @@ private fun ConfigEditorScreen(
                 onBottomBarThemeColorChanged = onBottomBarThemeColorChanged,
                 onAllowExternalHostsChanged = onAllowExternalHostsChanged,
                 onOpenOtherAppsModeChanged = onOpenOtherAppsModeChanged,
+                onSslErrorHandlingChanged = onSslErrorHandlingChanged,
                 onAllowedHostsChanged = onAllowedHostsChanged,
                 onGlobalJsChanged = onGlobalJsChanged,
                 onGlobalCssChanged = onGlobalCssChanged,
@@ -998,7 +1031,9 @@ private fun ConfigFormContent(
     onTopBarShowHomeButtonChanged: (Boolean) -> Unit,
     onTopBarShowRefreshButtonChanged: (Boolean) -> Unit,
     onTopBarHomeBehaviorChanged: (String) -> Unit,
+    onTopBarHomeScriptChanged: (String) -> Unit,
     onTopBarRefreshBehaviorChanged: (String) -> Unit,
+    onTopBarRefreshScriptChanged: (String) -> Unit,
     onTopBarFollowPageTitleChanged: (Boolean) -> Unit,
     onTopBarTitleCenteredChanged: (Boolean) -> Unit,
     onTopBarCornerRadiusChanged: (String) -> Unit,
@@ -1041,6 +1076,7 @@ private fun ConfigFormContent(
     onBottomBarThemeColorChanged: (String) -> Unit,
     onAllowExternalHostsChanged: (Boolean) -> Unit,
     onOpenOtherAppsModeChanged: (String) -> Unit,
+    onSslErrorHandlingChanged: (String) -> Unit,
     onAllowedHostsChanged: (String) -> Unit,
     onGlobalJsChanged: (String) -> Unit,
     onGlobalCssChanged: (String) -> Unit,
@@ -1119,6 +1155,7 @@ private fun ConfigFormContent(
         item {
         SectionCard(title = stringResource(R.string.config_section_navigation)) {
             val context = LocalContext.current
+            val canAddNavigationItem = state.navigationItems.size < MAX_EDIT_NAVIGATION_ITEMS
             if (selectedTemplateSpec.supportsNavigationItems) {
                 Text(
                     text = stringResource(R.string.config_editor_common_icon_names),
@@ -1145,8 +1182,30 @@ private fun ConfigFormContent(
                                 }
                             )
                         }
+                        OutlinedButton(
+                            onClick = {
+                                selectedNavigationIndex = state.navigationItems.size
+                                onAddNavigationItem()
+                            },
+                            enabled = canAddNavigationItem
+                        ) {
+                            Icon(imageVector = Icons.Filled.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.config_add_navigation_item))
+                        }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
+                    if (!canAddNavigationItem) {
+                        Text(
+                            text = stringResource(
+                                R.string.config_editor_navigation_limit_reached,
+                                MAX_EDIT_NAVIGATION_ITEMS
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
                     val selectedItem = state.navigationItems.getOrNull(selectedNavigationIndex)
                     if (selectedItem != null) {
                         NavigationItemEditor(
@@ -1170,17 +1229,23 @@ private fun ConfigFormContent(
                     }
                 } else {
                     Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            selectedNavigationIndex = state.navigationItems.size
+                            onAddNavigationItem()
+                        },
+                        enabled = canAddNavigationItem
+                    ) {
+                        Icon(imageVector = Icons.Filled.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.config_add_navigation_item))
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = stringResource(R.string.config_editor_no_navigation_items),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(onClick = onAddNavigationItem) {
-                    Icon(imageVector = Icons.Filled.Add, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.config_add_navigation_item))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 LabeledTextField(
@@ -1245,7 +1310,9 @@ private fun ConfigFormContent(
                     onTopBarShowHomeButtonChanged = onTopBarShowHomeButtonChanged,
                     onTopBarShowRefreshButtonChanged = onTopBarShowRefreshButtonChanged,
                     onTopBarHomeBehaviorChanged = onTopBarHomeBehaviorChanged,
+                    onTopBarHomeScriptChanged = onTopBarHomeScriptChanged,
                     onTopBarRefreshBehaviorChanged = onTopBarRefreshBehaviorChanged,
+                    onTopBarRefreshScriptChanged = onTopBarRefreshScriptChanged,
                     onTopBarFollowPageTitleChanged = onTopBarFollowPageTitleChanged,
                     onTopBarTitleCenteredChanged = onTopBarTitleCenteredChanged,
                     onTopBarCornerRadiusChanged = onTopBarCornerRadiusChanged,
@@ -1289,6 +1356,8 @@ private fun ConfigFormContent(
             item {
                 BottomBarShellSection(
                     state = state,
+                    navigationChromeStyle = selectedTemplateSpec.navigationChromeStyle
+                        ?: TemplateNavigationChromeStyle.BOTTOM_BAR,
                     onBottomBarShowTextLabelsChanged = onBottomBarShowTextLabelsChanged,
                     onBottomBarCornerRadiusChanged = onBottomBarCornerRadiusChanged,
                     onBottomBarShadowChanged = onBottomBarShadowChanged,
@@ -1409,6 +1478,24 @@ private fun ConfigFormContent(
                 onValueChange = onOpenOtherAppsModeChanged
             )
             Spacer(modifier = Modifier.height(12.dp))
+            LabeledDropdownField(
+                label = stringResource(R.string.config_editor_ssl_error_handling),
+                value = state.sslErrorHandling,
+                options = listOf(SSL_ERROR_HANDLING_STRICT, SSL_ERROR_HANDLING_IGNORE),
+                optionLabel = { formatSslErrorHandlingLabel(context, it) },
+                onValueChange = onSslErrorHandlingChanged
+            )
+            if (state.sslErrorHandling == SSL_ERROR_HANDLING_IGNORE) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.config_editor_ssl_error_handling_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            } else {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             OutlinedTextField(
                 value = state.allowedHostsText,
                 onValueChange = onAllowedHostsChanged,
@@ -1459,7 +1546,9 @@ private fun TopBarShellSection(
     onTopBarShowHomeButtonChanged: (Boolean) -> Unit,
     onTopBarShowRefreshButtonChanged: (Boolean) -> Unit,
     onTopBarHomeBehaviorChanged: (String) -> Unit,
+    onTopBarHomeScriptChanged: (String) -> Unit,
     onTopBarRefreshBehaviorChanged: (String) -> Unit,
+    onTopBarRefreshScriptChanged: (String) -> Unit,
     onTopBarFollowPageTitleChanged: (Boolean) -> Unit,
     onTopBarTitleCenteredChanged: (Boolean) -> Unit,
     onTopBarCornerRadiusChanged: (String) -> Unit,
@@ -1502,18 +1591,40 @@ private fun TopBarShellSection(
         LabeledDropdownField(
             label = stringResource(R.string.config_editor_home_button_behavior),
             value = state.topBarHomeBehavior,
-            options = listOf("default_home", "default_navigation_item"),
+            options = listOf("default_home", "default_navigation_item", "run_js"),
             optionLabel = { formatTopBarHomeBehaviorLabel(context, it) },
             onValueChange = onTopBarHomeBehaviorChanged
         )
+        if (state.topBarHomeBehavior == "run_js") {
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = state.topBarHomeScriptText,
+                onValueChange = onTopBarHomeScriptChanged,
+                label = { Text(stringResource(R.string.config_editor_home_button_javascript)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 6,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+            )
+        }
         Spacer(modifier = Modifier.height(12.dp))
         LabeledDropdownField(
             label = stringResource(R.string.config_editor_refresh_button_behavior),
             value = state.topBarRefreshBehavior,
-            options = listOf("reload", "reload_ignore_cache"),
+            options = listOf("reload", "reload_ignore_cache", "run_js"),
             optionLabel = { formatTopBarRefreshBehaviorLabel(context, it) },
             onValueChange = onTopBarRefreshBehaviorChanged
         )
+        if (state.topBarRefreshBehavior == "run_js") {
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedTextField(
+                value = state.topBarRefreshScriptText,
+                onValueChange = onTopBarRefreshScriptChanged,
+                label = { Text(stringResource(R.string.config_editor_refresh_button_javascript)) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 6,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+            )
+        }
         Spacer(modifier = Modifier.height(12.dp))
         LabeledTextField(
             label = stringResource(R.string.config_editor_top_bar_corner_radius),
@@ -1698,6 +1809,7 @@ private fun DrawerShellSection(
 @Composable
 private fun BottomBarShellSection(
     state: ConfigEditorFormState,
+    navigationChromeStyle: TemplateNavigationChromeStyle,
     onBottomBarShowTextLabelsChanged: (Boolean) -> Unit,
     onBottomBarCornerRadiusChanged: (String) -> Unit,
     onBottomBarShadowChanged: (String) -> Unit,
@@ -1710,23 +1822,36 @@ private fun BottomBarShellSection(
     onBottomBarSelectedColorChanged: (String) -> Unit,
     onBottomBarThemeColorChanged: (String) -> Unit
 ) {
-    SectionCard(title = stringResource(R.string.config_editor_section_bottom_bar)) {
-        val context = LocalContext.current
-        ToggleRow(
-            label = stringResource(R.string.config_editor_bottom_bar_show_text_labels),
-            checked = state.bottomBarShowTextLabels,
-            onCheckedChange = onBottomBarShowTextLabelsChanged
+    val isTopTabs = navigationChromeStyle == TemplateNavigationChromeStyle.TOP_TABS
+    SectionCard(
+        title = stringResource(
+            if (isTopTabs) R.string.config_editor_section_tabs else R.string.config_editor_section_bottom_bar
         )
-        Spacer(modifier = Modifier.height(12.dp))
+    ) {
+        val context = LocalContext.current
+        if (!isTopTabs) {
+            ToggleRow(
+                label = stringResource(R.string.config_editor_bottom_bar_show_text_labels),
+                checked = state.bottomBarShowTextLabels,
+                onCheckedChange = onBottomBarShowTextLabelsChanged
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
         LabeledTextField(
-            label = stringResource(R.string.config_editor_bottom_bar_corner_radius),
+            label = stringResource(
+                if (isTopTabs) R.string.config_editor_tabs_corner_radius
+                else R.string.config_editor_bottom_bar_corner_radius
+            ),
             value = state.bottomBarCornerRadiusText,
             onValueChange = onBottomBarCornerRadiusChanged,
             keyboardType = KeyboardType.Number
         )
         Spacer(modifier = Modifier.height(12.dp))
         LabeledTextField(
-            label = stringResource(R.string.config_editor_bottom_bar_shadow),
+            label = stringResource(
+                if (isTopTabs) R.string.config_editor_tabs_shadow
+                else R.string.config_editor_bottom_bar_shadow
+            ),
             value = state.bottomBarShadowText,
             onValueChange = onBottomBarShadowChanged,
             keyboardType = KeyboardType.Number
@@ -1772,19 +1897,28 @@ private fun BottomBarShellSection(
         )
         Spacer(modifier = Modifier.height(12.dp))
         ColorPickerField(
-            label = stringResource(R.string.config_editor_bottom_bar_selected_color),
+            label = stringResource(
+                if (isTopTabs) R.string.config_editor_tabs_selected_color
+                else R.string.config_editor_bottom_bar_selected_color
+            ),
             value = state.bottomBarSelectedColor,
             onValueChange = onBottomBarSelectedColorChanged
         )
         Spacer(modifier = Modifier.height(12.dp))
         ColorPickerField(
-            label = stringResource(R.string.config_editor_bottom_bar_theme_color),
+            label = stringResource(
+                if (isTopTabs) R.string.config_editor_tabs_theme_color
+                else R.string.config_editor_bottom_bar_theme_color
+            ),
             value = state.bottomBarThemeColor,
             onValueChange = onBottomBarThemeColorChanged
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = stringResource(R.string.config_editor_bottom_bar_desc),
+            text = stringResource(
+                if (isTopTabs) R.string.config_editor_tabs_desc
+                else R.string.config_editor_bottom_bar_desc
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -2602,6 +2736,14 @@ private fun TemplatePreviewCard(
                                 navigationItems = navigationItems,
                                 selectedNavigationId = selectedNavigationId
                             )
+                            TemplateType.TOP_BAR_TABS -> MiniTopTabsPreview(
+                                state = state,
+                                topBarColor = topBarColor,
+                                tabsColor = bottomBarColor,
+                                tabsSelectedColor = bottomBarSelectedColor,
+                                navigationItems = navigationItems,
+                                selectedNavigationId = selectedNavigationId
+                            )
                             TemplateType.TOP_BAR_BOTTOM_TABS -> MiniTopBarBottomTabsPreview(
                                 state = state,
                                 topBarColor = topBarColor,
@@ -2622,7 +2764,23 @@ private fun TemplatePreviewCard(
             ) {
                 PreviewPill(formatTemplateTypeLabel(context, selectedTemplateSpec.type))
                 if (selectedTemplateSpec.supportsTopBar) PreviewPill(stringResource(R.string.config_editor_preview_top_bar))
-                if (selectedTemplateSpec.supportsBottomBar) PreviewPill(stringResource(R.string.config_editor_preview_bottom_bar))
+                when (selectedTemplateSpec.navigationChromeStyle) {
+                    TemplateNavigationChromeStyle.TOP_TABS -> {
+                        PreviewPill(stringResource(R.string.config_editor_preview_tabs))
+                    }
+
+                    TemplateNavigationChromeStyle.BOTTOM_BAR -> {
+                        if (selectedTemplateSpec.supportsBottomBar) {
+                            PreviewPill(stringResource(R.string.config_editor_preview_bottom_bar))
+                        }
+                    }
+
+                    null -> {
+                        if (selectedTemplateSpec.supportsBottomBar) {
+                            PreviewPill(stringResource(R.string.config_editor_preview_bottom_bar))
+                        }
+                    }
+                }
                 if (selectedTemplateSpec.type == TemplateType.SIDE_DRAWER) PreviewPill(stringResource(R.string.config_editor_preview_drawer))
                 if (selectedTemplateSpec.supportsNavigationItems) {
                     PreviewPill(stringResource(R.string.config_editor_preview_nav_items, navigationItems.size))
@@ -2765,6 +2923,116 @@ private fun MiniTopBarBottomTabsPreview(
             selectedNavigationId = selectedNavigationId,
             showLabels = state.bottomBarShowTextLabels
         )
+    }
+}
+
+@Composable
+private fun MiniTopTabsPreview(
+    state: ConfigEditorFormState,
+    topBarColor: Color,
+    tabsColor: Color,
+    tabsSelectedColor: Color,
+    navigationItems: List<NavigationItemForm>,
+    selectedNavigationId: String
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        MiniStatusStrip(
+            immersive = state.immersiveStatusBar,
+            background = topBarColor
+        )
+        MiniTopBar(
+            title = state.appName.ifBlank { stringResource(R.string.config_editor_preview_title_top_tabs_shell) },
+            showBack = state.topBarShowBackButton,
+            showHome = state.topBarShowHomeButton,
+            showRefresh = state.topBarShowRefreshButton,
+            centered = state.topBarTitleCentered,
+            background = topBarColor,
+            backIconName = state.topBarBackIcon,
+            homeIconName = state.topBarHomeIcon,
+            refreshIconName = state.topBarRefreshIcon
+        )
+        MiniTabsBar(
+            background = tabsColor,
+            selectedColor = tabsSelectedColor,
+            items = navigationItems,
+            selectedNavigationId = selectedNavigationId
+        )
+        MiniWebCanvas(
+            modifier = Modifier.weight(1f),
+            title = stringResource(R.string.config_editor_preview_title_selected_tab_page),
+            accent = tabsSelectedColor,
+            showAccentPanel = false,
+            showPrimaryAction = false
+        )
+    }
+}
+
+@Composable
+private fun MiniTabsBar(
+    background: Color,
+    selectedColor: Color,
+    items: List<NavigationItemForm>,
+    selectedNavigationId: String
+) {
+    val inactive = resolvePreviewBottomBarUnselectedColor(background)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(background)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        items.take(4).forEach { item ->
+            val selected = item.id == selectedNavigationId
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (selected) {
+                        selectedColor.copy(alpha = 0.16f)
+                    } else {
+                        Color.Transparent
+                    }
+                ) {
+                    Text(
+                        text = item.title.ifBlank { item.id }.take(10),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (selected) selectedColor else inactive,
+                        maxLines = 1
+                    )
+                }
+                when {
+                    item.badgeCount.isNotBlank() -> {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(14.dp)
+                                .background(Color(0xFFE11D48), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = item.badgeCount.take(1),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    item.showUnreadDot -> {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(8.dp)
+                                .background(Color(0xFFE11D48), CircleShape)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -3038,7 +3306,9 @@ private fun MiniWebCanvas(
     modifier: Modifier = Modifier,
     title: String,
     accent: Color,
-    chromeLess: Boolean = false
+    chromeLess: Boolean = false,
+    showAccentPanel: Boolean = true,
+    showPrimaryAction: Boolean = true
 ) {
     Column(
         modifier = modifier
@@ -3066,13 +3336,15 @@ private fun MiniWebCanvas(
                 )
             }
         }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(62.dp)
-                .background(accent.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
-                .border(1.dp, accent.copy(alpha = 0.28f), RoundedCornerShape(18.dp))
-        )
+        if (showAccentPanel) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(62.dp)
+                    .background(accent.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                    .border(1.dp, accent.copy(alpha = 0.28f), RoundedCornerShape(18.dp))
+            )
+        }
         repeat(3) { index ->
             Box(
                 modifier = Modifier
@@ -3082,16 +3354,18 @@ private fun MiniWebCanvas(
             )
         }
         Spacer(modifier = Modifier.weight(1f))
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = accent.copy(alpha = 0.16f)
-        ) {
-            Text(
-                text = stringResource(R.string.config_editor_preview_primary_action),
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.labelLarge,
-                color = Color(0xFF0F172A)
-            )
+        if (showPrimaryAction) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = accent.copy(alpha = 0.16f)
+            ) {
+                Text(
+                    text = stringResource(R.string.config_editor_preview_primary_action),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Color(0xFF0F172A)
+                )
+            }
         }
     }
 }
@@ -3369,6 +3643,14 @@ private fun formatOpenOtherAppsModeLabel(context: Context, value: String): Strin
     }
 }
 
+private fun formatSslErrorHandlingLabel(context: Context, value: String): String {
+    return when (value) {
+        SSL_ERROR_HANDLING_STRICT -> context.getString(R.string.config_editor_ssl_error_handling_strict)
+        SSL_ERROR_HANDLING_IGNORE -> context.getString(R.string.config_editor_ssl_error_handling_ignore)
+        else -> value
+    }
+}
+
 private fun formatNavigationBackBehaviorLabel(context: Context, value: String): String {
     return when (value) {
         "web_history" -> context.getString(R.string.config_editor_navigation_back_behavior_web_history)
@@ -3381,6 +3663,7 @@ private fun formatTopBarHomeBehaviorLabel(context: Context, value: String): Stri
     return when (value) {
         "default_home" -> context.getString(R.string.config_editor_home_button_behavior_default_home)
         "default_navigation_item" -> context.getString(R.string.config_editor_home_button_behavior_default_navigation_item)
+        "run_js" -> context.getString(R.string.config_editor_action_run_js)
         else -> value
     }
 }
@@ -3389,6 +3672,7 @@ private fun formatTopBarRefreshBehaviorLabel(context: Context, value: String): S
     return when (value) {
         "reload" -> context.getString(R.string.config_editor_refresh_button_behavior_reload)
         "reload_ignore_cache" -> context.getString(R.string.config_editor_refresh_button_behavior_reload_ignore_cache)
+        "run_js" -> context.getString(R.string.config_editor_action_run_js)
         else -> value
     }
 }
@@ -3433,7 +3717,8 @@ private fun formatTemplateTypeLabel(context: Context, templateType: TemplateType
         TemplateType.BROWSER -> context.getString(R.string.project_hub_template_browser)
         TemplateType.IMMERSIVE_SINGLE_PAGE -> context.getString(R.string.project_hub_template_immersive)
         TemplateType.SIDE_DRAWER -> context.getString(R.string.project_hub_template_side_drawer)
-        TemplateType.TOP_BAR_BOTTOM_TABS -> context.getString(R.string.project_hub_template_top_tabs)
+        TemplateType.TOP_BAR_TABS -> context.getString(R.string.project_hub_template_top_tabs)
+        TemplateType.TOP_BAR_BOTTOM_TABS -> context.getString(R.string.project_hub_template_top_bottom_bar)
         TemplateType.TOP_BAR -> context.getString(R.string.project_hub_template_top_bar)
         TemplateType.BOTTOM_BAR -> context.getString(R.string.project_hub_template_bottom_bar)
     }
@@ -3444,7 +3729,8 @@ private fun templateDescription(context: Context, templateType: TemplateType): S
         TemplateType.BROWSER -> context.getString(R.string.config_editor_template_desc_browser)
         TemplateType.IMMERSIVE_SINGLE_PAGE -> context.getString(R.string.config_editor_template_desc_immersive)
         TemplateType.SIDE_DRAWER -> context.getString(R.string.config_editor_template_desc_side_drawer)
-        TemplateType.TOP_BAR_BOTTOM_TABS -> context.getString(R.string.config_editor_template_desc_top_tabs)
+        TemplateType.TOP_BAR_TABS -> context.getString(R.string.config_editor_template_desc_top_tabs)
+        TemplateType.TOP_BAR_BOTTOM_TABS -> context.getString(R.string.config_editor_template_desc_top_bottom_bar)
         TemplateType.TOP_BAR -> context.getString(R.string.config_editor_template_desc_top_bar)
         TemplateType.BOTTOM_BAR -> context.getString(R.string.config_editor_template_desc_bottom_bar)
     }
@@ -3651,6 +3937,7 @@ private fun SectionCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun LabeledTextField(
     label: String,
@@ -3659,11 +3946,24 @@ private fun LabeledTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None
 ) {
+    val bringIntoViewRequester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .bringIntoViewRequester(bringIntoViewRequester)
+            .onFocusChanged { focusState ->
+                if (focusState.isFocused) {
+                    scope.launch {
+                        bringIntoViewRequester.bringIntoView()
+                    }
+                }
+            },
+        singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         visualTransformation = visualTransformation
     )
@@ -3684,7 +3984,8 @@ private fun LabeledDropdownField(
             onValueChange = {},
             readOnly = true,
             label = { Text(label) },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
         )
         Box(
             modifier = Modifier

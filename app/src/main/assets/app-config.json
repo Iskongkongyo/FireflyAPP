@@ -5,9 +5,6 @@
     "template": "top_bar_bottom_tabs",
     "defaultUrl": "https://example.com"
   },
-  "browser": {
-    "backAction": "go_back_or_home"
-  },
   "shell": {
     "topBarShowHomeButton": true,
     "topBarFollowPageTitle": false,

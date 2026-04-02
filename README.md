@@ -25,11 +25,11 @@
 
 ### 核心特性
 
-- 🎨 **6 种 UI 模板** — 浏览器 / 沉浸全屏 / 顶部工具栏 / 底部导航 / 顶栏+底部Tab / 侧滑抽屉
+- 🎨 **7 种 UI 模板** — 浏览器 / 沉浸全屏 / 顶栏 / 底栏 / 顶栏 + 标签 / 顶栏 + 底栏 / 侧边栏
 - 📦 **设备端本地打包** — 无需电脑，直接在手机上完成 APK 重打包与签名
 - 🛠 **可视化配置编辑器** — 分 Tab 编辑所有配置项（Basic / Rules / Events / Branding / Build）
 - 🌐 **完整 WebView 能力** — Cookie、localStorage、IndexedDB、文件上传下载、地理位置
-- 🔒 **安全策略** — 域名白名单、外链拦截、SSL 强制校验
+- 🔒 **安全策略** — 域名白名单、外链拦截、SSL 证书错误处理可配置
 - 🎯 **页面规则 & 事件** — 按 URL 匹配注入 JS/CSS、自定义错误页、监听页面生命周期
 - 🌙 **夜间模式** — 支持跟随系统主题或手动开启
 - 🌍 **多语言** — 简体中文 / English，支持跟随系统
@@ -78,7 +78,7 @@ FireflyApp/
 │   │   │       ├── main/           #   ← SplashActivity + MainActivity
 │   │   │       ├── pack/           #   ← 打包界面（含产物自检卡片）
 │   │   │       ├── project/        #   ← 项目中心（ProjectHub, Compose UI）
-│   │   │       ├── template/       #   ← 6 种模板 Fragment
+│   │   │       ├── template/       #   ← 7 种模板 Fragment
 │   │   │       └── web/            #   ← WebContainerFragment（WebView 容器）
 │   │   ├── assets/
 │   │   │   ├── app-config.json     # 内置默认配置示例
@@ -203,7 +203,8 @@ cd FireflyApp
   "security": {
     "allowedHosts": ["example.com"],     // 域名白名单
     "allowExternalHosts": false,         // 是否允许打开白名单外的 URL
-    "openOtherAppsMode": "ask"           // 跳转外部应用: ask / allow / block
+    "openOtherAppsMode": "ask",          // 跳转外部应用: ask / allow / block
+    "sslErrorHandling": "strict"         // SSL 证书错误处理: strict / ignore
   },
 
   // 全局注入
@@ -252,7 +253,8 @@ cd FireflyApp
 | **Immersive** | `immersive_single_page` | 沉浸全屏，隐藏状态栏和导航栏 |
 | **Top Bar** | `top_bar` | 顶部工具栏 + WebView，支持标题/返回/刷新 |
 | **Bottom Bar** | `bottom_bar` | 底部 Tab 导航，最多 5 个标签页 |
-| **Top + Tabs** | `top_bar_bottom_tabs` | 顶部工具栏 + 底部 Tab 组合 |
+| **Top + Tabs** | `top_bar_tabs` | 顶部工具栏 + 顶部标签导航 |
+| **Top + BottomBar** | `top_bar_bottom_tabs` | 顶部工具栏 + 底栏导航 |
 | **Side Drawer** | `side_drawer` | 侧滑抽屉菜单，支持自定义壁纸和头像 |
 
 ---
@@ -309,7 +311,7 @@ unsigned 壳 APK（含占位符）
 | 地理位置 | ✅ | `WebGeolocationHandler` 权限管理 + 白名单校验 |
 | 摄像头 / 麦克风 | ✅ | `WebPermissionHandler` 双语权限前置提示 |
 | 全屏视频 | ✅ | 自动进入/退出全屏 |
-| 夜间模式 | ✅ | Algorithmic Darkening + Force Dark |
+| 夜间模式 | ✅ | Algorithmic Darkening + 跟随宿主主题 |
 | JS/CSS 注入 | ✅ | 全局注入 + 页面规则级注入 |
 | SPA 路由检测 | ✅ | MutationObserver 监听 URL 变化 |
 
@@ -376,7 +378,7 @@ unsigned 壳 APK（含占位符）
 |--------|------|
 | URL 导航 | `allowedHosts` 域名白名单，支持通配符（`*.example.com`） |
 | 外部应用跳转 | `ask` / `allow` / `block` 三模式，弹窗显示目标应用信息 |
-| SSL 错误 | 一律拒绝（不跳过证书错误） |
+| SSL 错误 | 可配置为严格校验或忽略证书错误（默认严格校验） |
 | 文件路径 | `sanitizeRelativeProjectPath()` 防止 `../` 路径穿越 |
 | 打包名 | 正则校验 + 长度限制 + 禁止与宿主包名重复 |
 | 签名凭据 | 存于 APP 私有沙盒目录 |

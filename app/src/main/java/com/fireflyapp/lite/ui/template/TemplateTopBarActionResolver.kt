@@ -10,6 +10,10 @@ data class TemplateHomeTarget(
 )
 
 object TemplateTopBarActionResolver {
+    fun isRunJavaScriptBehavior(behavior: String): Boolean {
+        return behavior.trim().lowercase() == "run_js"
+    }
+
     fun resolveHomeTarget(config: AppConfig, navigationItems: List<NavigationItem>): TemplateHomeTarget {
         return when (config.shell.topBarHomeBehavior.trim().lowercase()) {
             "default_navigation_item" -> {
@@ -36,9 +40,10 @@ object TemplateTopBarActionResolver {
         }
     }
 
-    fun performRefresh(fragment: WebContainerFragment?, behavior: String) {
+    fun performRefresh(fragment: WebContainerFragment?, behavior: String, script: String = "") {
         when (behavior.trim().lowercase()) {
             "reload_ignore_cache" -> fragment?.reloadIgnoringCache()
+            "run_js" -> fragment?.runJavaScript(script)
             else -> fragment?.reload()
         }
     }

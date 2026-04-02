@@ -1,6 +1,5 @@
 package com.fireflyapp.lite.core.webview
 
-import android.content.res.Configuration
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebView
@@ -44,42 +43,10 @@ object WebViewConfigurator {
 
     private fun applyNightMode(webView: WebView, mode: String) {
         val normalizedMode = mode.trim().lowercase()
-        val shouldUseDarkMode = when (normalizedMode) {
-            "on" -> true
-            "follow_theme" -> {
-                val nightMask = webView.context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                nightMask == Configuration.UI_MODE_NIGHT_YES
-            }
-
-            else -> false
-        }
+        val allowAlgorithmicDarkening = normalizedMode != "off"
 
         if (WebViewFeature.isFeatureSupported(WebViewFeature.ALGORITHMIC_DARKENING)) {
-            WebSettingsCompat.setAlgorithmicDarkeningAllowed(webView.settings, shouldUseDarkMode)
+            WebSettingsCompat.setAlgorithmicDarkeningAllowed(webView.settings, allowAlgorithmicDarkening)
         }
-
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
-            val forceDarkMode = when (normalizedMode) {
-                "on" -> WebSettingsCompat.FORCE_DARK_ON
-                "follow_theme" -> WebSettingsCompat.FORCE_DARK_AUTO
-                else -> WebSettingsCompat.FORCE_DARK_OFF
-            }
-            WebSettingsCompat.setForceDark(webView.settings, forceDarkMode)
-        }
-
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK_STRATEGY)) {
-            WebSettingsCompat.setForceDarkStrategy(
-                webView.settings,
-                WebSettingsCompat.DARK_STRATEGY_USER_AGENT_DARKENING_ONLY
-            )
-        }
-
-        webView.setBackgroundColor(
-            if (shouldUseDarkMode) {
-                android.graphics.Color.BLACK
-            } else {
-                android.graphics.Color.WHITE
-            }
-        )
     }
 }

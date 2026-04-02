@@ -138,6 +138,7 @@ class HostAppService(
             instanceFollowRedirects = true
             useCaches = false
             setRequestProperty("User-Agent", userAgent)
+            setRequestProperty("Accept-Language", acceptLanguage)
         }
         Log.d(
             TAG,

@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color as AndroidColor
 import androidx.core.content.FileProvider
 import android.os.Bundle
 import android.widget.Toast
@@ -11,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +40,6 @@ import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +49,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,6 +63,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.app.AppLanguageManager
@@ -97,8 +100,14 @@ class PackagerActivity : ComponentActivity() {
 
         viewModel.loadProject(projectId, projectName)
         enableEdgeToEdge()
+        window.statusBarColor = AndroidColor.TRANSPARENT
+        window.navigationBarColor = AndroidColor.TRANSPARENT
+        WindowCompat.getInsetsController(window, window.decorView)?.apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
         setContent {
-            MaterialTheme {
+            MaterialTheme(colorScheme = lightColorScheme()) {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
                 PackagerScreen(
                     uiState = uiState,
@@ -219,6 +228,7 @@ private fun PackagerScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -289,7 +299,7 @@ private fun PackagerScreen(
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 
-            ElevatedCard {
+            PackPageCard {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -333,7 +343,7 @@ private fun PackagerScreen(
             }
 
             projectSummary?.let { summary ->
-                ElevatedCard {
+                PackPageCard {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -368,7 +378,7 @@ private fun PackagerScreen(
                 }
             }
 
-            ElevatedCard {
+            PackPageCard {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -521,7 +531,7 @@ private fun PackagerScreen(
                         stringResource(R.string.packager_label_signed_apk) to workspace.signedApkPath
                     )
                 )
-                ElevatedCard {
+                PackPageCard {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -544,7 +554,7 @@ private fun PackagerScreen(
                 }
             }
 
-            ElevatedCard {
+            PackPageCard {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -576,6 +586,18 @@ private fun PackagerScreen(
     }
 }
 
+@Composable
+private fun PackPageCard(
+    content: @Composable () -> Unit
+) {
+    Surface(
+        tonalElevation = 2.dp,
+        shape = MaterialTheme.shapes.large
+    ) {
+        content()
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PackHistoryCard(
@@ -592,7 +614,7 @@ private fun PackHistoryCard(
     val selectedEntry = history.firstOrNull { it.historySelectionKey() == selectedEntryKey }
         ?: history.firstOrNull()
 
-    ElevatedCard {
+    PackPageCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -696,7 +718,7 @@ private fun PackHistoryEntryCard(
     val artifactFile = artifactPath.takeIf { it.isNotBlank() }?.let(::File)
     val artifactExists = artifactFile?.exists() == true
 
-    ElevatedCard {
+    PackPageCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -771,7 +793,7 @@ private fun WorkspaceCard(
     icon: ImageVector,
     rows: List<Pair<String, String>>
 ) {
-    ElevatedCard {
+    PackPageCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -810,7 +832,7 @@ private fun ArtifactSummaryCard(
     val artifactFile = artifactPath.takeIf { it.isNotBlank() }?.let(::File)
     val artifactExists = artifactFile?.exists() == true
 
-    ElevatedCard {
+    PackPageCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -868,7 +890,7 @@ private fun ArtifactSummaryCard(
 
 @Composable
 private fun ArtifactSelfCheckCard(artifactCheck: TemplatePackArtifactCheck) {
-    ElevatedCard {
+    PackPageCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -965,6 +987,7 @@ private fun formatTemplateLabel(template: TemplateType): String {
         TemplateType.BROWSER -> stringResource(R.string.project_hub_template_browser)
         TemplateType.IMMERSIVE_SINGLE_PAGE -> stringResource(R.string.packager_template_immersive_single_page)
         TemplateType.SIDE_DRAWER -> stringResource(R.string.project_hub_template_side_drawer)
+        TemplateType.TOP_BAR_TABS -> stringResource(R.string.packager_template_top_bar_tabs)
         TemplateType.TOP_BAR_BOTTOM_TABS -> stringResource(R.string.packager_template_top_bar_bottom_tabs)
         TemplateType.TOP_BAR -> stringResource(R.string.project_hub_template_top_bar)
         TemplateType.BOTTOM_BAR -> stringResource(R.string.project_hub_template_bottom_bar)

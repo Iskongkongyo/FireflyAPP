@@ -123,12 +123,13 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
         if (webFragment?.exitFullscreen() == true) {
             return true
         }
-        if (webFragment?.handleBackAction() == true) {
-            return true
+        when (webFragment?.resolveBackNavigationAction()) {
+            WebContainerFragment.BackNavigationAction.HANDLED -> return true
+            WebContainerFragment.BackNavigationAction.GO_HOME -> return navigateToRootItemIfNeeded()
+            else -> Unit
         }
         if (shouldResetHistoryOnNavigation() && currentNavigationItemId != rootNavigationItemId) {
-            navigateToRootItem()
-            return true
+            return navigateToRootItemIfNeeded()
         }
         return false
     }
@@ -192,6 +193,21 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
         webFragment?.loadUrl(url, resetHistory = shouldResetHistoryOnNavigation())
     }
 
+    private fun openNavigationPageWithSwipeTransition(
+        url: String,
+        title: String?,
+        direction: NavigationSwipeDirection
+    ) {
+        if (!title.isNullOrBlank()) {
+            requireActivity().title = title
+        }
+        webFragment?.loadUrlWithSwipeTransition(
+            url = url,
+            direction = direction,
+            resetHistory = shouldResetHistoryOnNavigation()
+        )
+    }
+
     private fun bindSwipeNavigation(items: List<NavigationItem>) {
         webFragment?.setNavigationSwipeListener(
             if (mainViewModel.requireConfig().shell.enableSwipeNavigation && items.size > 1) {
@@ -208,7 +224,7 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
                         items = items,
                         selectedItemId = currentNavigationItemId
                     )
-                    openNavigationPage(targetItem.url, targetItem.title)
+                    openNavigationPageWithSwipeTransition(targetItem.url, targetItem.title, direction)
                 }
             } else {
                 null
@@ -216,12 +232,26 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
         )
     }
 
-    private fun navigateToRootItem() {
+    private fun navigateToRootItemIfNeeded(): Boolean {
         val items = mainViewModel.requireConfig().navigation.items.take(MAX_ITEMS)
         val rootItem = TemplateNavigationResolver.resolveInitialItem(
             items = items,
             preferredId = mainViewModel.requireConfig().shell.defaultNavigationItemId
         )
+        if (rootItem.url.isBlank()) {
+            return false
+        }
+        if (webFragment?.currentUrl() == rootItem.url) {
+            currentNavigationItemId = rootItem.id.hashCode()
+            binding.bottomNavigation.selectedItemId = rootItem.id.hashCode()
+            TemplateNavigationStateIconHelper.applyToBottomBar(
+                bottomNavigation = binding.bottomNavigation,
+                items = items,
+                selectedItemId = currentNavigationItemId
+            )
+            requireActivity().title = rootItem.title
+            return true
+        }
         currentNavigationItemId = rootItem.id.hashCode()
         binding.bottomNavigation.selectedItemId = rootItem.id.hashCode()
         TemplateNavigationStateIconHelper.applyToBottomBar(
@@ -231,6 +261,7 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
         )
         webFragment?.loadUrl(rootItem.url, resetHistory = true)
         requireActivity().title = rootItem.title
+        return true
     }
 
     private fun shouldResetHistoryOnNavigation(): Boolean {

@@ -100,8 +100,8 @@ android {
         applicationId = "com.fireflyapp.lite"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         buildConfigField("boolean", "IS_WORKSPACE_HOST_APP", "true")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

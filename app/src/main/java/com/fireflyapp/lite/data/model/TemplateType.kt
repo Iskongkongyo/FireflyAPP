@@ -14,6 +14,9 @@ enum class TemplateType {
     @SerialName("side_drawer")
     SIDE_DRAWER,
 
+    @SerialName("top_bar_tabs")
+    TOP_BAR_TABS,
+
     @SerialName("top_bar_bottom_tabs")
     TOP_BAR_BOTTOM_TABS,
 

@@ -70,6 +70,7 @@
     <string name="config_toggle_error_view">显示错误页</string>
     <string name="config_toggle_allow_external_hosts">允许外部 Host</string>
     <string name="config_editor_no_navigation_items">还没有导航项。</string>
+    <string name="config_editor_navigation_limit_reached">最多支持 %1$d 个导航项。请先删除一个，再继续添加。</string>
     <string name="config_editor_default_navigation_item_id">默认导航项 ID</string>
     <string name="config_editor_enable_swipe_navigation">启用滑动切换导航</string>
     <string name="config_editor_navigation_back_behavior">导航返回行为</string>
@@ -80,7 +81,8 @@
     <string name="config_editor_template_desc_browser">没有原生顶栏和底栏的单页 WebView 壳。</string>
     <string name="config_editor_template_desc_immersive">默认同时隐藏状态栏和导航栏的单页壳。</string>
     <string name="config_editor_template_desc_side_drawer">带左侧抽屉菜单的工具栏壳，菜单由配置的导航项驱动。</string>
-    <string name="config_editor_template_desc_top_tabs">同时包含原生顶栏和底部标签导航的组合壳。</string>
+    <string name="config_editor_template_desc_top_tabs">同时包含原生顶栏和顶部标签导航的组合壳。</string>
+    <string name="config_editor_template_desc_top_bottom_bar">同时包含原生顶栏和底栏导航的组合壳。</string>
     <string name="config_editor_template_desc_top_bar">包含页面标题、返回动作和刷新的工具栏壳。</string>
     <string name="config_editor_template_desc_bottom_bar">由配置导航项驱动的标签式底栏壳。</string>
     <string name="config_editor_navigation_item_title">项目 %1$d</string>
@@ -101,6 +103,8 @@
     <string name="config_editor_top_bar_show_home_button">显示首页按钮</string>
     <string name="config_editor_home_button_behavior">首页按钮行为</string>
     <string name="config_editor_refresh_button_behavior">刷新按钮行为</string>
+    <string name="config_editor_home_button_javascript">首页按钮 JavaScript</string>
+    <string name="config_editor_refresh_button_javascript">刷新按钮 JavaScript</string>
     <string name="config_editor_top_bar_corner_radius">顶栏圆角 (dp)</string>
     <string name="config_editor_top_bar_shadow">顶栏阴影 (dp)</string>
     <string name="config_editor_top_bar_back_icon">返回图标</string>
@@ -127,6 +131,9 @@
     <string name="config_editor_bottom_bar_show_text_labels">显示文字标签</string>
     <string name="config_editor_bottom_bar_corner_radius">底栏圆角 (dp)</string>
     <string name="config_editor_bottom_bar_shadow">底栏阴影 (dp)</string>
+    <string name="config_editor_section_tabs">标签</string>
+    <string name="config_editor_tabs_corner_radius">标签圆角 (dp)</string>
+    <string name="config_editor_tabs_shadow">标签阴影 (dp)</string>
     <string name="config_editor_bottom_bar_badge_color">角标颜色</string>
     <string name="config_editor_bottom_bar_badge_text_color">角标文字颜色</string>
     <string name="config_editor_badge_gravity">角标位置</string>
@@ -136,6 +143,9 @@
     <string name="config_editor_bottom_bar_selected_color">底栏选中颜色</string>
     <string name="config_editor_bottom_bar_theme_color">底栏背景色</string>
     <string name="config_editor_bottom_bar_desc">选中颜色控制激活项的图标和文字，背景色控制底栏本身的底色。</string>
+    <string name="config_editor_tabs_selected_color">标签选中颜色</string>
+    <string name="config_editor_tabs_theme_color">标签背景色</string>
+    <string name="config_editor_tabs_desc">选中颜色控制激活标签的文字和指示器，背景色控制标签栏本身的底色。</string>
     <string name="config_editor_app_identity_desc">这些值会写入最终打包的 Android 应用中，决定用户安装后看到的应用身份信息。</string>
     <string name="config_editor_application_name">应用名称</string>
     <string name="config_editor_version_name">版本名</string>
@@ -245,6 +255,7 @@
     <string name="config_editor_template_preview">模板预览</string>
     <string name="config_editor_preview_top_bar">顶栏</string>
     <string name="config_editor_preview_bottom_bar">底栏</string>
+    <string name="config_editor_preview_tabs">标签</string>
     <string name="config_editor_preview_drawer">侧边栏</string>
     <string name="config_editor_preview_nav_items">%1$d 个导航项</string>
     <string name="config_editor_preview_immersive">沉浸式</string>
@@ -258,6 +269,7 @@
     <string name="config_editor_preview_title_current_page">当前页面</string>
     <string name="config_editor_preview_title_bottom_bar">底栏页面</string>
     <string name="config_editor_preview_title_hybrid_shell">混合壳</string>
+    <string name="config_editor_preview_title_top_tabs_shell">顶栏标签页</string>
     <string name="config_editor_preview_title_selected_tab_page">当前标签页</string>
     <string name="config_editor_preview_title_drawer_shell">侧边栏壳</string>
     <string name="config_editor_preview_title_content_page">内容页</string>
@@ -350,6 +362,7 @@
     <string name="project_hub_template_immersive">沉浸式</string>
     <string name="project_hub_template_side_drawer">侧边栏</string>
     <string name="project_hub_template_top_tabs">顶栏 + 标签</string>
+    <string name="project_hub_template_top_bottom_bar">顶栏 + 底栏</string>
     <string name="project_hub_template_top_bar">顶栏</string>
     <string name="project_hub_template_bottom_bar">底栏</string>
     <string name="project_hub_language_dialog_title">语言</string>
@@ -469,7 +482,8 @@
     <string name="packager_preflight_signature_conflict">签名冲突</string>
     <string name="packager_preflight_version_downgrade">版本降级</string>
     <string name="packager_template_immersive_single_page">沉浸式单页</string>
-    <string name="packager_template_top_bar_bottom_tabs">顶栏 + 底部标签</string>
+    <string name="packager_template_top_bar_tabs">顶栏 + 标签</string>
+    <string name="packager_template_top_bar_bottom_tabs">顶栏 + 底栏</string>
     <string name="common_unknown_error">未知错误</string>
     <string name="common_error_with_reason">%1$s：%2$s</string>
     <string name="config_editor_message_configuration_saved">配置已保存。</string>
@@ -580,4 +594,9 @@
     <string name="icon_designer_apply">应用</string>
     <string name="icon_designer_export_success">PNG 已导出。</string>
     <string name="icon_designer_export_failed">PNG 导出失败。</string>
+    <string name="config_editor_ssl_error_handling">SSL 证书错误处理</string>
+    <string name="config_editor_ssl_error_handling_strict">严格校验（推荐）</string>
+    <string name="config_editor_ssl_error_handling_ignore">忽略 SSL 证书错误</string>
+    <string name="config_editor_ssl_error_handling_warning">危险：证书无效、过期或被伪造时，页面仍会继续加载。仅建议用于你完全信任的内网站点或自签名站点。</string>
 </resources>
+    

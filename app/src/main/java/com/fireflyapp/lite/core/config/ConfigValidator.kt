@@ -8,6 +8,8 @@ import com.fireflyapp.lite.data.model.NavigationItem
 import com.fireflyapp.lite.data.model.PageEventAction
 import com.fireflyapp.lite.data.model.PageEventRule
 import com.fireflyapp.lite.data.model.SecurityConfig
+import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_STRICT
+import com.fireflyapp.lite.data.model.supportedSslErrorHandlingModes
 
 class ConfigValidator {
     fun sanitize(config: AppConfig): AppConfig {
@@ -94,7 +96,12 @@ class ConfigValidator {
                     .trim()
                     .lowercase()
                     .takeIf { it in supportedOpenOtherAppModes }
-                    ?: DEFAULT_OPEN_OTHER_APPS_MODE
+                    ?: DEFAULT_OPEN_OTHER_APPS_MODE,
+                sslErrorHandling = config.security.sslErrorHandling
+                    .trim()
+                    .lowercase()
+                    .takeIf { it in supportedSslErrorHandlingModes }
+                    ?: SSL_ERROR_HANDLING_STRICT
             ),
             browser = config.browser.copy(
                 backAction = config.browser.backAction
@@ -113,8 +120,18 @@ class ConfigValidator {
                 topBarShowBackButton = config.shell.topBarShowBackButton,
                 topBarShowHomeButton = config.shell.topBarShowHomeButton,
                 topBarShowRefreshButton = config.shell.topBarShowRefreshButton,
-                topBarHomeBehavior = config.shell.topBarHomeBehavior.trim().ifBlank { "default_home" },
-                topBarRefreshBehavior = config.shell.topBarRefreshBehavior.trim().ifBlank { "reload" },
+                topBarHomeBehavior = config.shell.topBarHomeBehavior
+                    .trim()
+                    .lowercase()
+                    .takeIf { it in supportedTopBarHomeBehaviors }
+                    ?: "default_home",
+                topBarRefreshBehavior = config.shell.topBarRefreshBehavior
+                    .trim()
+                    .lowercase()
+                    .takeIf { it in supportedTopBarRefreshBehaviors }
+                    ?: "reload",
+                topBarHomeScript = config.shell.topBarHomeScript.trim(),
+                topBarRefreshScript = config.shell.topBarRefreshScript.trim(),
                 topBarFollowPageTitle = config.shell.topBarFollowPageTitle,
                 topBarTitleCentered = config.shell.topBarTitleCentered,
                 topBarCornerRadiusDp = config.shell.topBarCornerRadiusDp.coerceIn(0, 40),
@@ -207,6 +224,16 @@ class ConfigValidator {
         val supportedNavigationBackBehaviors = setOf(
             "web_history",
             "reset_on_navigation"
+        )
+        val supportedTopBarHomeBehaviors = setOf(
+            "default_home",
+            "default_navigation_item",
+            "run_js"
+        )
+        val supportedTopBarRefreshBehaviors = setOf(
+            "reload",
+            "reload_ignore_cache",
+            "run_js"
         )
         val supportedPageEventTriggers = setOf(
             "page_started",

@@ -5,6 +5,7 @@ import android.graphics.Color
 import com.fireflyapp.lite.data.model.NavigationItem
 import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.navigation.NavigationBarView
+import com.google.android.material.tabs.TabLayout
 
 object TemplateNavigationBadgeHelper {
     fun apply(
@@ -52,6 +53,55 @@ object TemplateNavigationBadgeHelper {
                 }
 
                 else -> bottomNavigation.removeBadge(itemId)
+            }
+        }
+    }
+
+    fun applyToTabs(
+        tabLayout: TabLayout,
+        items: List<NavigationItem>,
+        badgeColorValue: String = "",
+        badgeTextColorValue: String = "",
+        badgeGravityValue: String = "top_end",
+        maxCharacterCount: Int = 2,
+        horizontalOffsetDp: Int = 0,
+        verticalOffsetDp: Int = 0
+    ) {
+        val resolvedBadgeColor = parseColorOrNull(badgeColorValue)
+        val resolvedBadgeTextColor = parseColorOrNull(badgeTextColorValue)
+        val resolvedBadgeGravity = resolveBadgeGravity(badgeGravityValue)
+        val horizontalOffsetPx = dpToPx(tabLayout.context, horizontalOffsetDp)
+        val verticalOffsetPx = dpToPx(tabLayout.context, verticalOffsetDp)
+        items.forEachIndexed { index, item ->
+            val tab = tabLayout.getTabAt(index) ?: return@forEachIndexed
+            val badgeCount = item.badgeCount.trim().toIntOrNull()?.takeIf { it > 0 }
+            when {
+                badgeCount != null -> {
+                    tab.orCreateBadge.apply {
+                        isVisible = true
+                        number = badgeCount
+                        this.maxCharacterCount = maxCharacterCount.coerceIn(1, 4)
+                        badgeGravity = resolvedBadgeGravity
+                        backgroundColor = resolvedBadgeColor ?: backgroundColor
+                        resolvedBadgeTextColor?.let { badgeTextColor = it }
+                        horizontalOffset = horizontalOffsetPx
+                        verticalOffset = verticalOffsetPx
+                    }
+                }
+
+                item.showUnreadDot -> {
+                    tab.orCreateBadge.apply {
+                        clearNumber()
+                        isVisible = true
+                        this.maxCharacterCount = maxCharacterCount.coerceIn(1, 4)
+                        badgeGravity = resolvedBadgeGravity
+                        backgroundColor = resolvedBadgeColor ?: backgroundColor
+                        horizontalOffset = horizontalOffsetPx
+                        verticalOffset = verticalOffsetPx
+                    }
+                }
+
+                else -> tab.removeBadge()
             }
         }
     }

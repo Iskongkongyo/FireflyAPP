@@ -1221,7 +1221,8 @@ private fun formatTemplateLabel(template: TemplateType): String {
         TemplateType.BROWSER -> stringResource(R.string.project_hub_template_browser)
         TemplateType.IMMERSIVE_SINGLE_PAGE -> stringResource(R.string.project_hub_template_immersive)
         TemplateType.SIDE_DRAWER -> stringResource(R.string.project_hub_template_side_drawer)
-        TemplateType.TOP_BAR_BOTTOM_TABS -> stringResource(R.string.project_hub_template_top_tabs)
+        TemplateType.TOP_BAR_TABS -> stringResource(R.string.project_hub_template_top_tabs)
+        TemplateType.TOP_BAR_BOTTOM_TABS -> stringResource(R.string.project_hub_template_top_bottom_bar)
         TemplateType.TOP_BAR -> stringResource(R.string.project_hub_template_top_bar)
         TemplateType.BOTTOM_BAR -> stringResource(R.string.project_hub_template_bottom_bar)
     }

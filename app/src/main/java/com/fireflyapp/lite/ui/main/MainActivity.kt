@@ -7,12 +7,14 @@ import android.view.View
 import androidx.activity.addCallback
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.app.AppLanguageManager
+import com.fireflyapp.lite.core.config.AppConfigManager
 import com.fireflyapp.lite.core.webview.FullscreenViewHost
 import com.fireflyapp.lite.databinding.ActivityMainBinding
 import com.fireflyapp.lite.ui.template.BackPressHandler
@@ -32,6 +34,7 @@ class MainActivity : AppCompatActivity(), FullscreenViewHost {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        resolveInitialNightMode()?.let { delegate.localNightMode = it }
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -74,6 +77,16 @@ class MainActivity : AppCompatActivity(), FullscreenViewHost {
                     .commitAllowingStateLoss()
             }
         }
+    }
+
+    private fun resolveInitialNightMode(): Int? {
+        if (intent.hasExtra(EXTRA_LOCAL_NIGHT_MODE)) {
+            return intent.getIntExtra(EXTRA_LOCAL_NIGHT_MODE, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
+        }
+        return resolveProjectNightMode(
+            context = applicationContext,
+            projectId = intent.getStringExtra(EXTRA_PROJECT_ID).orEmpty()
+        )
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -139,10 +152,42 @@ class MainActivity : AppCompatActivity(), FullscreenViewHost {
 
     companion object {
         private const val EXTRA_PROJECT_ID = "project_id"
+        private const val EXTRA_LOCAL_NIGHT_MODE = "local_night_mode"
+        private const val PROJECTS_DIR_NAME = "projects"
+        private const val PROJECT_CONFIG_FILE = "app-config.json"
 
         fun createIntent(context: Context, projectId: String): Intent {
             return Intent(context, MainActivity::class.java).apply {
                 putExtra(EXTRA_PROJECT_ID, projectId)
+                resolveProjectNightMode(context.applicationContext, projectId)?.let { resolvedNightMode ->
+                    putExtra(EXTRA_LOCAL_NIGHT_MODE, resolvedNightMode)
+                }
+            }
+        }
+
+        private fun resolveProjectNightMode(context: Context, projectId: String): Int? {
+            val configManager = AppConfigManager()
+            val rawNightMode = runCatching {
+                if (projectId.isBlank()) {
+                    configManager.load(context).browser.nightMode
+                } else {
+                    val configFile = context.filesDir
+                        .resolve(PROJECTS_DIR_NAME)
+                        .resolve(projectId)
+                        .resolve(PROJECT_CONFIG_FILE)
+                    if (!configFile.exists() || !configFile.isFile) {
+                        return@runCatching null
+                    }
+                    configManager.parseAndSanitize(
+                        configFile.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                    ).browser.nightMode
+                }
+            }.getOrNull() ?: return null
+
+            return when (rawNightMode.trim().lowercase()) {
+                "on" -> AppCompatDelegate.MODE_NIGHT_YES
+                "off" -> AppCompatDelegate.MODE_NIGHT_NO
+                else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
             }
         }
     }
