@@ -73,10 +73,15 @@ object TemplateIconCatalog {
         return aliasIndex[normalized]
     }
 
+    fun resolveIdOrDefault(iconName: String?, fallbackId: String): String {
+        return find(iconName)?.id
+            ?: find(fallbackId)?.id
+            ?: "home"
+    }
+
     @DrawableRes
     fun resolveOrDefault(iconName: String?, fallbackId: String): Int {
-        return find(iconName)?.drawableRes
-            ?: find(fallbackId)?.drawableRes
+        return find(resolveIdOrDefault(iconName, fallbackId))?.drawableRes
             ?: R.drawable.ic_template_home
     }
 }

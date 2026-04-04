@@ -207,6 +207,11 @@
     <string name="config_editor_selected_icon_summary">Selected: %1$s (%2$s)</string>
     <string name="config_editor_icon_picker_hint">Tap Pick to choose from the built-in icon catalog, or type an icon ID manually.</string>
     <string name="config_editor_custom_icon_id">Custom icon ID</string>
+    <string name="config_editor_project_custom_icon">Imported icon</string>
+    <string name="config_editor_project_custom_icon_summary">Imported icon: %1$s</string>
+    <string name="config_editor_project_custom_icons">Imported icons</string>
+    <string name="config_editor_import_custom_icon">Import from gallery</string>
+    <string name="config_editor_import_custom_icon_note">Please import a transparent PNG/WebP icon. Imported icons follow theme tinting and do not preserve original colors.</string>
     <string name="config_editor_no_icon_selected">No icon selected</string>
     <string name="config_editor_search_icons">Search icons</string>
     <string name="config_editor_page_rules_desc">Visual editing now covers common rule fields. Advanced colors and uncommon overrides can still use the JSON tab.</string>
@@ -556,6 +561,7 @@
     <string name="config_editor_message_configuration_reset">Configuration reset to bundled defaults.</string>
     <string name="config_editor_message_build_metadata_reset">Build metadata reset to defaults.</string>
     <string name="config_editor_message_icon_imported">Icon imported.</string>
+    <string name="config_editor_message_custom_icon_imported">Custom icon imported: %1$s</string>
     <string name="config_editor_message_icon_cleared">Icon cleared.</string>
     <string name="config_editor_message_splash_imported">Splash image imported.</string>
     <string name="config_editor_message_splash_cleared">Splash image cleared.</string>
@@ -573,6 +579,7 @@
     <string name="config_editor_error_save_project_metadata">Failed to save project metadata</string>
     <string name="config_editor_error_load_configuration">Failed to load configuration</string>
     <string name="config_editor_error_reset_build_metadata">Failed to reset build metadata</string>
+    <string name="config_editor_error_import_custom_icon">Failed to import custom icon</string>
     <string name="config_editor_error_import_icon">Failed to import icon</string>
     <string name="config_editor_error_clear_icon">Failed to clear icon</string>
     <string name="config_editor_error_import_splash">Failed to import splash image</string>
@@ -632,6 +639,7 @@
     <string name="icon_designer_text_hint">Enter text</string>
     <string name="icon_designer_hex_value">Hex color</string>
     <string name="icon_designer_invalid_color">Enter a valid hex color.</string>
+    <string name="icon_designer_transparent_background">Transparent Background</string>
     <string name="icon_designer_apply">Apply</string>
     <string name="icon_designer_export_success">PNG exported.</string>
     <string name="icon_designer_export_failed">Failed to export PNG.</string>

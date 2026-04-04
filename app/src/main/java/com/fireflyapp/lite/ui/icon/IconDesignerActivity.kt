@@ -102,6 +102,7 @@ private fun IconDesignerRoute(
     var imageLabel by rememberSaveable { mutableStateOf("") }
     var displayText by rememberSaveable { mutableStateOf("") }
     var backgroundHex by rememberSaveable { mutableStateOf(DEFAULT_ICON_BACKGROUND_HEX) }
+    var transparentBackground by rememberSaveable { mutableStateOf(false) }
     var cornerRadiusProgress by rememberSaveable { mutableStateOf(DEFAULT_CORNER_RADIUS_PROGRESS) }
     var contentSizeProgress by rememberSaveable { mutableStateOf(DEFAULT_CONTENT_SIZE_PROGRESS) }
     var textDialogVisible by rememberSaveable { mutableStateOf(false) }
@@ -130,6 +131,7 @@ private fun IconDesignerRoute(
                     context = context,
                     outputUri = uri,
                     background = previewBackground,
+                    transparentBackground = transparentBackground,
                     cornerRadiusProgress = cornerRadiusProgress,
                     contentSizeProgress = contentSizeProgress,
                     imageUri = imageUri,
@@ -149,11 +151,16 @@ private fun IconDesignerRoute(
     IconDesignerScreen(
         previewBitmap = previewBitmap,
         backgroundColor = previewBackground,
+        transparentBackground = transparentBackground,
         cornerRadiusProgress = cornerRadiusProgress,
         contentSizeProgress = contentSizeProgress,
         displayText = displayText,
         imageLabel = imageLabel.ifBlank { context.getString(R.string.icon_designer_not_set) },
-        backgroundLabel = backgroundHex,
+        backgroundLabel = if (transparentBackground) {
+            context.getString(R.string.icon_designer_transparent_background)
+        } else {
+            backgroundHex
+        },
         exporting = exporting,
         onBack = onBack,
         onSave = {
@@ -206,9 +213,11 @@ private fun IconDesignerRoute(
         ColorPickerDialog(
             title = stringResource(R.string.icon_designer_background_color),
             value = backgroundHex,
+            transparentBackground = transparentBackground,
             onDismiss = { colorDialogVisible = false },
-            onApply = {
-                backgroundHex = it
+            onApply = { value, transparent ->
+                backgroundHex = value
+                transparentBackground = transparent
                 colorDialogVisible = false
             }
         )
@@ -220,6 +229,7 @@ private fun IconDesignerRoute(
 private fun IconDesignerScreen(
     previewBitmap: ImageBitmap?,
     backgroundColor: Color,
+    transparentBackground: Boolean,
     cornerRadiusProgress: Float,
     contentSizeProgress: Float,
     displayText: String,
@@ -275,6 +285,7 @@ private fun IconDesignerScreen(
                         IconPreviewCard(
                             previewBitmap = previewBitmap,
                             backgroundColor = backgroundColor,
+                            transparentBackground = transparentBackground,
                             cornerRadiusProgress = cornerRadiusProgress,
                             contentSizeProgress = contentSizeProgress,
                             text = displayText
@@ -319,6 +330,7 @@ private fun IconDesignerScreen(
                     title = stringResource(R.string.icon_designer_background_color),
                     value = backgroundLabel,
                     swatchColor = backgroundColor,
+                    transparentSwatch = transparentBackground,
                     onClick = onEditBackground
                 )
             }
@@ -330,11 +342,12 @@ private fun IconDesignerScreen(
 private fun IconPreviewCard(
     previewBitmap: ImageBitmap?,
     backgroundColor: Color,
+    transparentBackground: Boolean,
     cornerRadiusProgress: Float,
     contentSizeProgress: Float,
     text: String
 ) {
-    val foreground = contentColorFor(backgroundColor)
+    val foreground = if (transparentBackground) DEFAULT_TRANSPARENT_ICON_FOREGROUND else contentColorFor(backgroundColor)
     val hasImage = previewBitmap != null
     val hasText = text.isNotBlank()
 
@@ -356,36 +369,58 @@ private fun IconPreviewCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(cornerRadiusPercent))
-                    .background(backgroundColor)
-                    .border(1.dp, foreground.copy(alpha = 0.14f), RoundedCornerShape(cornerRadiusPercent))
-                    .padding(innerPadding)
+                    .border(
+                        1.dp,
+                        if (transparentBackground) {
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.24f)
+                        } else {
+                            foreground.copy(alpha = 0.14f)
+                        },
+                        RoundedCornerShape(cornerRadiusPercent)
+                    )
             ) {
-                if (hasImage) {
+                if (transparentBackground) {
+                    TransparencyCheckerboard(modifier = Modifier.matchParentSize())
+                } else {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.Center)
-                            .fillMaxSize(contentFraction)
-                    ) {
-                        Image(
-                            bitmap = checkNotNull(previewBitmap),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit
-                        )
-                    }
+                            .matchParentSize()
+                            .background(backgroundColor)
+                    )
                 }
 
-                if (hasText) {
-                    Text(
-                        text = text,
-                        modifier = Modifier.align(Alignment.Center),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontSize = textSize,
-                        fontWeight = FontWeight.Bold,
-                        color = foreground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                ) {
+                    if (hasImage) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .fillMaxSize(contentFraction)
+                        ) {
+                            Image(
+                                bitmap = checkNotNull(previewBitmap),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
+
+                    if (hasText) {
+                        Text(
+                            text = text,
+                            modifier = Modifier.align(Alignment.Center),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontSize = textSize,
+                            fontWeight = FontWeight.Bold,
+                            color = foreground,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
@@ -435,6 +470,7 @@ private fun ActionRow(
     title: String,
     value: String,
     swatchColor: Color? = null,
+    transparentSwatch: Boolean = false,
     onClick: () -> Unit
 ) {
     Surface(
@@ -461,8 +497,28 @@ private fun ActionRow(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            if (swatchColor != null) {
-                Surface(modifier = Modifier.size(24.dp), shape = RoundedCornerShape(8.dp), color = swatchColor) {}
+            if (swatchColor != null || transparentSwatch) {
+                Surface(
+                    modifier = Modifier.size(24.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Transparent
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(8.dp))
+                    ) {
+                        if (transparentSwatch) {
+                            TransparencyCheckerboard(modifier = Modifier.matchParentSize())
+                        } else if (swatchColor != null) {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .background(swatchColor)
+                            )
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.width(10.dp))
             }
             Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)

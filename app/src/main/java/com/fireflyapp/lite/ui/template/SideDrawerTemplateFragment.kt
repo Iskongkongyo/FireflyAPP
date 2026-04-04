@@ -8,7 +8,6 @@ import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -45,6 +44,8 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
     private var currentStatusTopInset: Int = 0
 
     private val mainViewModel: MainViewModel by activityViewModels()
+    private val projectId: String?
+        get() = mainViewModel.uiState.value.projectId
     private val webFragment: WebContainerFragment?
         get() = childFragmentManager.findFragmentByTag(WEB_FRAGMENT_TAG) as? WebContainerFragment
 
@@ -82,19 +83,13 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         )
         followPageTitle = shellConfig.topBarFollowPageTitle
         binding.toolbar.isTitleCentered = shellConfig.topBarTitleCentered
-        binding.toolbar.navigationIcon = AppCompatResources.getDrawable(
-            requireContext(),
-            TemplateActionIconResolver.resolveDrawer(shellConfig.drawerMenuIcon)
-        )
-        binding.toolbar.menu.findItem(R.id.action_home)?.icon = AppCompatResources.getDrawable(
-            requireContext(),
-            TemplateActionIconResolver.resolveHome(shellConfig.topBarHomeIcon)
-        )
+        binding.toolbar.navigationIcon =
+            TemplateActionIconResolver.resolveDrawer(requireContext(), projectId, shellConfig.drawerMenuIcon)
+        binding.toolbar.menu.findItem(R.id.action_home)?.icon =
+            TemplateActionIconResolver.resolveHome(requireContext(), projectId, shellConfig.topBarHomeIcon)
         binding.toolbar.menu.findItem(R.id.action_home)?.isVisible = shellConfig.topBarShowHomeButton
-        binding.toolbar.menu.findItem(R.id.action_refresh)?.icon = AppCompatResources.getDrawable(
-            requireContext(),
-            TemplateActionIconResolver.resolveRefresh(shellConfig.topBarRefreshIcon)
-        )
+        binding.toolbar.menu.findItem(R.id.action_refresh)?.icon =
+            TemplateActionIconResolver.resolveRefresh(requireContext(), projectId, shellConfig.topBarRefreshIcon)
         binding.toolbar.menu.findItem(R.id.action_refresh)?.isVisible = shellConfig.topBarShowRefreshButton
         val topBarColor = TemplateThemeStyler.resolveThemeColor(
             colorValue = shellConfig.topBarThemeColor,
@@ -141,6 +136,8 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
             binding.toolbar.title = initialItem.title
         }
         TemplateNavigationStateIconHelper.applyToDrawer(
+            context = requireContext(),
+            projectId = projectId,
             navigationView = binding.drawerNavigation,
             items = navigationItems,
             selectedItemId = currentNavigationItemId
@@ -254,7 +251,7 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
                 index,
                 TemplateNavigationBadgeHelper.formatDrawerTitle(item)
             )
-                .setIcon(TemplateNavigationIconResolver.resolve(item, index))
+                .setIcon(TemplateNavigationIconResolver.resolve(requireContext(), projectId, item, index))
         }
         binding.drawerNavigation.setNavigationItemSelectedListener { menuItem ->
             val item = items.firstOrNull { it.id.hashCode() == menuItem.itemId }
@@ -264,6 +261,8 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
             if (currentNavigationItemId != menuItem.itemId || webFragment == null) {
                 currentNavigationItemId = menuItem.itemId
                 TemplateNavigationStateIconHelper.applyToDrawer(
+                    context = requireContext(),
+                    projectId = projectId,
                     navigationView = binding.drawerNavigation,
                     items = items,
                     selectedItemId = currentNavigationItemId
@@ -291,6 +290,8 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
             currentNavigationItemId = rootItem.id.hashCode()
             binding.drawerNavigation.setCheckedItem(rootItem.id.hashCode())
             TemplateNavigationStateIconHelper.applyToDrawer(
+                context = requireContext(),
+                projectId = projectId,
                 navigationView = binding.drawerNavigation,
                 items = items,
                 selectedItemId = currentNavigationItemId
@@ -302,6 +303,8 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         currentNavigationItemId = rootItem.id.hashCode()
         binding.drawerNavigation.setCheckedItem(rootItem.id.hashCode())
         TemplateNavigationStateIconHelper.applyToDrawer(
+            context = requireContext(),
+            projectId = projectId,
             navigationView = binding.drawerNavigation,
             items = items,
             selectedItemId = currentNavigationItemId
@@ -324,6 +327,8 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
                     currentNavigationItemId = targetItem.id.hashCode()
                     binding.drawerNavigation.setCheckedItem(targetItem.id.hashCode())
                     TemplateNavigationStateIconHelper.applyToDrawer(
+                        context = requireContext(),
+                        projectId = projectId,
                         navigationView = binding.drawerNavigation,
                         items = items,
                         selectedItemId = currentNavigationItemId
@@ -470,6 +475,8 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
             binding.drawerNavigation.setCheckedItem(it.id.hashCode())
         }
         TemplateNavigationStateIconHelper.applyToDrawer(
+            context = requireContext(),
+            projectId = projectId,
             navigationView = binding.drawerNavigation,
             items = config.navigation.items,
             selectedItemId = currentNavigationItemId

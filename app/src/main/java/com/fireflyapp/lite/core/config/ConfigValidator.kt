@@ -10,17 +10,26 @@ import com.fireflyapp.lite.data.model.PageEventRule
 import com.fireflyapp.lite.data.model.SecurityConfig
 import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_STRICT
 import com.fireflyapp.lite.data.model.supportedSslErrorHandlingModes
+import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
+import com.fireflyapp.lite.ui.template.TemplateIconCatalog
 
 class ConfigValidator {
     fun sanitize(config: AppConfig): AppConfig {
         val sanitizedNavigationItems = config.navigation.items
-            .map { item ->
+            .mapIndexed { index, item ->
+                val fallbackIconId = defaultNavigationFallbackId(index)
+                val sanitizedIconId = sanitizeIconReference(item.icon, fallbackIconId)
                 item.copy(
                     id = item.id.trim().ifBlank { "nav_${item.title.hashCode()}" },
                     title = item.title.trim().ifBlank { "Untitled" },
                     url = item.url.trim(),
-                    icon = item.icon.trim().ifBlank { "home" },
-                    selectedIcon = item.selectedIcon.trim(),
+                    icon = sanitizedIconId,
+                    selectedIcon = item.selectedIcon.trim().let { selectedIcon ->
+                        when {
+                            selectedIcon.isBlank() -> sanitizedIconId
+                            else -> sanitizeIconReference(selectedIcon, fallbackIconId = sanitizedIconId)
+                        }
+                    },
                     badgeCount = item.badgeCount.trim(),
                     showUnreadDot = item.showUnreadDot
                 )
@@ -136,9 +145,9 @@ class ConfigValidator {
                 topBarTitleCentered = config.shell.topBarTitleCentered,
                 topBarCornerRadiusDp = config.shell.topBarCornerRadiusDp.coerceIn(0, 40),
                 topBarShadowDp = config.shell.topBarShadowDp.coerceIn(0, 24),
-                topBarBackIcon = config.shell.topBarBackIcon.trim().ifBlank { "back" },
-                topBarHomeIcon = config.shell.topBarHomeIcon.trim().ifBlank { "home" },
-                topBarRefreshIcon = config.shell.topBarRefreshIcon.trim().ifBlank { "refresh" },
+                topBarBackIcon = sanitizeIconReference(config.shell.topBarBackIcon, "back"),
+                topBarHomeIcon = sanitizeIconReference(config.shell.topBarHomeIcon, "home"),
+                topBarRefreshIcon = sanitizeIconReference(config.shell.topBarRefreshIcon, "refresh"),
                 bottomBarShowTextLabels = config.shell.bottomBarShowTextLabels,
                 bottomBarCornerRadiusDp = config.shell.bottomBarCornerRadiusDp.coerceIn(0, 40),
                 bottomBarShadowDp = config.shell.bottomBarShadowDp.coerceIn(0, 24),
@@ -167,7 +176,7 @@ class ConfigValidator {
                 drawerHeaderImageScaleMode = config.shell.drawerHeaderImageScaleMode.trim().ifBlank { "crop" },
                 drawerHeaderImageOverlayPreset = config.shell.drawerHeaderImageOverlayPreset.trim().ifBlank { "custom" },
                 drawerHeaderImageOverlayColor = config.shell.drawerHeaderImageOverlayColor.trim(),
-                drawerMenuIcon = config.shell.drawerMenuIcon.trim().ifBlank { "menu" },
+                drawerMenuIcon = sanitizeIconReference(config.shell.drawerMenuIcon, "menu"),
                 defaultNavigationItemId = config.shell.defaultNavigationItemId.trim(),
                 navigationBackBehavior = config.shell.navigationBackBehavior
                     .trim()
@@ -206,6 +215,7 @@ class ConfigValidator {
         const val DEFAULT_NAVIGATION_BACK_BEHAVIOR = "web_history"
         const val DEFAULT_PAGE_EVENT_TRIGGER = "page_finished"
         const val DEFAULT_PAGE_EVENT_ACTION = "toast"
+        fun defaultNavigationFallbackId(index: Int): String = if (index % 2 == 0) "home" else "docs"
         val supportedBackActions = setOf(
             "go_back_or_exit",
             "go_back_or_home",
@@ -258,5 +268,21 @@ class ConfigValidator {
         return runCatching {
             Uri.parse(url).host?.trim()?.lowercase()
         }.getOrNull()
+    }
+
+    private fun sanitizeIconReference(iconValue: String, fallbackIconId: String): String {
+        val normalizedIconValue = iconValue.trim()
+        ProjectCustomIconReference.relativePathOrNull(normalizedIconValue)
+            ?.let(ProjectCustomIconReference::create)
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+        TemplateIconCatalog.find(normalizedIconValue)
+            ?.id
+            ?.let { return it }
+        ProjectCustomIconReference.relativePathOrNull(fallbackIconId)
+            ?.let(ProjectCustomIconReference::create)
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return it }
+        return TemplateIconCatalog.resolveIdOrDefault(fallbackIconId, "home")
     }
 }

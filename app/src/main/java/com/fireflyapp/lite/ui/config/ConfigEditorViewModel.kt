@@ -6,6 +6,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fireflyapp.lite.R
+import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
 import com.fireflyapp.lite.data.model.AppConfig
 import com.fireflyapp.lite.data.model.AppInfo
 import com.fireflyapp.lite.data.model.BrowserConfig
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 private const val MAX_NAVIGATION_ITEMS = 5
 
@@ -71,9 +73,26 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updateTopBarTitleCentered(value: Boolean) = updateForm { copy(topBarTitleCentered = value) }
     fun updateTopBarCornerRadiusText(value: String) = updateForm { copy(topBarCornerRadiusText = value) }
     fun updateTopBarShadowText(value: String) = updateForm { copy(topBarShadowText = value) }
-    fun updateTopBarBackIcon(value: String) = updateForm { copy(topBarBackIcon = value) }
-    fun updateTopBarHomeIcon(value: String) = updateForm { copy(topBarHomeIcon = value) }
-    fun updateTopBarRefreshIcon(value: String) = updateForm { copy(topBarRefreshIcon = value) }
+    fun updateTopBarBackIcon(value: String) = updateIconField(
+        currentValue = _uiState.value.formState.topBarBackIcon,
+        nextValue = value
+    ) {
+        updateForm { copy(topBarBackIcon = value) }
+    }
+
+    fun updateTopBarHomeIcon(value: String) = updateIconField(
+        currentValue = _uiState.value.formState.topBarHomeIcon,
+        nextValue = value
+    ) {
+        updateForm { copy(topBarHomeIcon = value) }
+    }
+
+    fun updateTopBarRefreshIcon(value: String) = updateIconField(
+        currentValue = _uiState.value.formState.topBarRefreshIcon,
+        nextValue = value
+    ) {
+        updateForm { copy(topBarRefreshIcon = value) }
+    }
     fun updateBottomBarShowTextLabels(value: Boolean) = updateForm { copy(bottomBarShowTextLabels = value) }
     fun updateBottomBarCornerRadiusText(value: String) = updateForm { copy(bottomBarCornerRadiusText = value) }
     fun updateBottomBarShadowText(value: String) = updateForm { copy(bottomBarShadowText = value) }
@@ -97,7 +116,12 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updateDrawerHeaderImageScaleMode(value: String) = updateForm { copy(drawerHeaderImageScaleMode = value) }
     fun updateDrawerHeaderImageOverlayPreset(value: String) = updateForm { copy(drawerHeaderImageOverlayPreset = value) }
     fun updateDrawerHeaderImageOverlayColor(value: String) = updateForm { copy(drawerHeaderImageOverlayColor = value) }
-    fun updateDrawerMenuIcon(value: String) = updateForm { copy(drawerMenuIcon = value) }
+    fun updateDrawerMenuIcon(value: String) = updateIconField(
+        currentValue = _uiState.value.formState.drawerMenuIcon,
+        nextValue = value
+    ) {
+        updateForm { copy(drawerMenuIcon = value) }
+    }
     fun updateDefaultNavigationItemId(value: String) = updateForm { copy(defaultNavigationItemId = value) }
     fun updateEnableSwipeNavigation(value: Boolean) = updateForm { copy(enableSwipeNavigation = value) }
     fun updateNavigationBackBehavior(value: String) = updateForm { copy(navigationBackBehavior = value) }
@@ -136,9 +160,10 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
             return
         }
         updateForm {
+            val nextNavigationId = generateNextNavigationItemId(navigationItems)
             copy(
                 navigationItems = navigationItems + NavigationItemForm(
-                    id = "nav_${navigationItems.size + 1}",
+                    id = nextNavigationId,
                     title = "",
                     url = "",
                     icon = "home"
@@ -148,6 +173,7 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     }
 
     fun removeNavigationItem(index: Int) {
+        val removedItem = _uiState.value.formState.navigationItems.getOrNull(index) ?: return
         updateForm {
             copy(
                 navigationItems = navigationItems.filterIndexed { currentIndex, _ ->
@@ -155,13 +181,26 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
                 }
             )
         }
+        cleanupObsoleteCustomIcon(removedItem.icon, "")
+        cleanupObsoleteCustomIcon(removedItem.selectedIcon, "")
     }
 
     fun updateNavigationId(index: Int, value: String) = updateNavigationItem(index) { copy(id = value) }
     fun updateNavigationTitle(index: Int, value: String) = updateNavigationItem(index) { copy(title = value) }
     fun updateNavigationUrl(index: Int, value: String) = updateNavigationItem(index) { copy(url = value) }
-    fun updateNavigationIcon(index: Int, value: String) = updateNavigationItem(index) { copy(icon = value) }
-    fun updateNavigationSelectedIcon(index: Int, value: String) = updateNavigationItem(index) { copy(selectedIcon = value) }
+    fun updateNavigationIcon(index: Int, value: String) {
+        val currentValue = _uiState.value.formState.navigationItems.getOrNull(index)?.icon.orEmpty()
+        updateIconField(currentValue = currentValue, nextValue = value) {
+            updateNavigationItem(index) { copy(icon = value) }
+        }
+    }
+
+    fun updateNavigationSelectedIcon(index: Int, value: String) {
+        val currentValue = _uiState.value.formState.navigationItems.getOrNull(index)?.selectedIcon.orEmpty()
+        updateIconField(currentValue = currentValue, nextValue = value) {
+            updateNavigationItem(index) { copy(selectedIcon = value) }
+        }
+    }
     fun updateNavigationBadgeCount(index: Int, value: String) = updateNavigationItem(index) { copy(badgeCount = value) }
     fun updateNavigationShowUnreadDot(index: Int, value: Boolean) = updateNavigationItem(index) { copy(showUnreadDot = value) }
 
@@ -478,6 +517,102 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    fun importCustomIcon(target: EditorIconTarget, uri: Uri) {
+        val projectId = currentProjectId ?: return
+        val currentState = _uiState.value
+        val previousReference = resolveTargetCurrentIconValue(currentState.formState, target)
+        val slotName = resolveCustomIconSlotName(currentState.formState, target)
+        _uiState.value = _uiState.value.copy(isSaving = true, userMessage = null)
+        viewModelScope.launch {
+            repository.importProjectCustomIcon(projectId, slotName, uri)
+                .onSuccess { reference ->
+                    val nextFormState = applyIconValue(
+                        state = currentState.formState,
+                        target = target,
+                        value = reference
+                    )
+                    val nextSourceConfig = applyCommittedIconValue(
+                        config = currentState.sourceConfig,
+                        state = nextFormState,
+                        target = target,
+                    )
+                    repository.saveConfig(projectId, nextSourceConfig)
+                        .onSuccess { savedConfig ->
+                            _uiState.value = _uiState.value.copy(
+                                isSaving = false,
+                                sourceConfig = savedConfig,
+                                formState = applyIconValue(
+                                    state = _uiState.value.formState,
+                                    target = target,
+                                    value = reference
+                                ),
+                                rawJson = repository.stringify(savedConfig),
+                                userMessage = appString(
+                                    R.string.config_editor_message_custom_icon_imported,
+                                    ProjectCustomIconReference.displayName(reference)
+                                ),
+                                appliedChangeCount = _uiState.value.appliedChangeCount + 1
+                            )
+                            cleanupObsoleteCustomIcon(previousReference, reference)
+                        }
+                        .onFailure { throwable ->
+                            repository.deleteProjectCustomIcon(projectId, reference)
+                            _uiState.value = _uiState.value.copy(
+                                isSaving = false,
+                                userMessage = errorMessage(R.string.config_editor_error_save_configuration, throwable)
+                            )
+                        }
+                }
+                .onFailure { throwable ->
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false,
+                        userMessage = errorMessage(R.string.config_editor_error_import_custom_icon, throwable)
+                    )
+                }
+        }
+    }
+
+    fun commitIconValue(target: EditorIconTarget, value: String) {
+        val projectId = currentProjectId ?: return
+        val currentState = _uiState.value
+        val nextValue = value.trim()
+        val previousValue = resolveTargetCurrentIconValue(currentState.formState, target)
+        val nextFormState = applyIconValue(
+            state = currentState.formState,
+            target = target,
+            value = nextValue
+        )
+        val nextSourceConfig = applyCommittedIconValue(
+            config = currentState.sourceConfig,
+            state = nextFormState,
+            target = target
+        )
+        _uiState.value = currentState.copy(
+            formState = nextFormState,
+            isSaving = true,
+            userMessage = null
+        )
+        viewModelScope.launch {
+            repository.saveConfig(projectId, nextSourceConfig)
+                .onSuccess { savedConfig ->
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false,
+                        sourceConfig = savedConfig,
+                        rawJson = repository.stringify(savedConfig),
+                        userMessage = null,
+                        appliedChangeCount = _uiState.value.appliedChangeCount + 1
+                    )
+                    cleanupObsoleteCustomIcon(previousValue, nextValue)
+                }
+                .onFailure { throwable ->
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false,
+                        userMessage = errorMessage(R.string.config_editor_error_save_configuration, throwable)
+                    )
+                }
+        }
+    }
+
     fun importDrawerWallpaper(uri: Uri) {
         val projectId = currentProjectId ?: return
         _uiState.value = _uiState.value.copy(isSaving = true, userMessage = null)
@@ -730,7 +865,7 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    private fun applyLoadedConfig(
+    private suspend fun applyLoadedConfig(
         projectId: String,
         config: AppConfig,
         projectManifest: ProjectManifest,
@@ -842,6 +977,155 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
             )
         }
     }
+
+    private fun updateIconField(
+        currentValue: String,
+        nextValue: String,
+        apply: () -> Unit
+    ) {
+        val previousValue = currentValue.trim()
+        val updatedValue = nextValue.trim()
+        apply()
+        cleanupObsoleteCustomIcon(previousValue, updatedValue)
+    }
+
+    private fun cleanupObsoleteCustomIcon(
+        previousValue: String,
+        nextValue: String
+    ) {
+        val projectId = currentProjectId ?: return
+        if (!ProjectCustomIconReference.isCustomReference(previousValue)) {
+            return
+        }
+        if (previousValue.trim().equals(nextValue.trim(), ignoreCase = true)) {
+            return
+        }
+        viewModelScope.launch {
+            repository.deleteProjectCustomIcon(projectId, previousValue)
+        }
+    }
+
+    private fun resolveTargetCurrentIconValue(
+        state: ConfigEditorFormState,
+        target: EditorIconTarget
+    ): String {
+        return when (target) {
+            EditorIconTarget.TopBarBack -> state.topBarBackIcon
+            EditorIconTarget.TopBarHome -> state.topBarHomeIcon
+            EditorIconTarget.TopBarRefresh -> state.topBarRefreshIcon
+            EditorIconTarget.DrawerMenu -> state.drawerMenuIcon
+            is EditorIconTarget.Navigation -> state.navigationItems
+                .getOrNull(target.index)
+                ?.let { item -> if (target.selected) item.selectedIcon else item.icon }
+                .orEmpty()
+        }
+    }
+
+    private fun resolveCustomIconSlotName(
+        state: ConfigEditorFormState,
+        target: EditorIconTarget
+    ): String {
+        return when (target) {
+            EditorIconTarget.TopBarBack -> "back"
+            EditorIconTarget.TopBarHome -> "home"
+            EditorIconTarget.TopBarRefresh -> "refresh"
+            EditorIconTarget.DrawerMenu -> "drawer_menu"
+            is EditorIconTarget.Navigation -> {
+                val item = state.navigationItems.getOrNull(target.index)
+                val indexLabel = target.index + 1
+                val rawSuffix = item?.id
+                    ?.trim()
+                    ?.lowercase(Locale.US)
+                    ?.replace(Regex("[^a-z0-9]+"), "_")
+                    ?.trim('_')
+                    .orEmpty()
+                    .ifBlank { "item" }
+                buildString {
+                    append("nav_")
+                    append(indexLabel)
+                    append('_')
+                    append(rawSuffix)
+                    if (target.selected) {
+                        append("_selected")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun generateNextNavigationItemId(items: List<NavigationItemForm>): String {
+        val usedIds = items.map { it.id.trim() }.toSet()
+        var index = items.size + 1
+        while (true) {
+            val candidate = "nav_$index"
+            if (candidate !in usedIds) {
+                return candidate
+            }
+            index += 1
+        }
+    }
+
+    private fun applyIconValue(
+        state: ConfigEditorFormState,
+        target: EditorIconTarget,
+        value: String
+    ): ConfigEditorFormState {
+        return when (target) {
+            EditorIconTarget.TopBarBack -> state.copy(topBarBackIcon = value)
+            EditorIconTarget.TopBarHome -> state.copy(topBarHomeIcon = value)
+            EditorIconTarget.TopBarRefresh -> state.copy(topBarRefreshIcon = value)
+            EditorIconTarget.DrawerMenu -> state.copy(drawerMenuIcon = value)
+            is EditorIconTarget.Navigation -> state.copy(
+                navigationItems = state.navigationItems.mapIndexed { index, item ->
+                    if (index != target.index) {
+                        item
+                    } else if (target.selected) {
+                        item.copy(selectedIcon = value)
+                    } else {
+                        item.copy(icon = value)
+                    }
+                }
+            )
+        }
+    }
+
+    private fun applyCommittedIconValue(
+        config: AppConfig,
+        state: ConfigEditorFormState,
+        target: EditorIconTarget
+    ): AppConfig {
+        return when (target) {
+            EditorIconTarget.TopBarBack -> config.copy(
+                shell = config.shell.copy(topBarBackIcon = state.topBarBackIcon)
+            )
+            EditorIconTarget.TopBarHome -> config.copy(
+                shell = config.shell.copy(topBarHomeIcon = state.topBarHomeIcon)
+            )
+            EditorIconTarget.TopBarRefresh -> config.copy(
+                shell = config.shell.copy(topBarRefreshIcon = state.topBarRefreshIcon)
+            )
+            EditorIconTarget.DrawerMenu -> config.copy(
+                shell = config.shell.copy(drawerMenuIcon = state.drawerMenuIcon)
+            )
+            is EditorIconTarget.Navigation -> {
+                val formItem = state.navigationItems.getOrNull(target.index) ?: return config
+                config.copy(
+                    navigation = config.navigation.copy(
+                        items = config.navigation.items.mapIndexed { index, item ->
+                            if (index != target.index) {
+                                item
+                            } else {
+                                item.copy(
+                                    icon = formItem.icon,
+                                    selectedIcon = formItem.selectedIcon
+                                )
+                            }
+                        }
+                    )
+                )
+            }
+        }
+    }
 }
 
 data class ConfigEditorUiState(
@@ -856,6 +1140,14 @@ data class ConfigEditorUiState(
     val userMessage: String? = null,
     val appliedChangeCount: Int = 0
 )
+
+sealed interface EditorIconTarget {
+    object TopBarBack : EditorIconTarget
+    object TopBarHome : EditorIconTarget
+    object TopBarRefresh : EditorIconTarget
+    object DrawerMenu : EditorIconTarget
+    data class Navigation(val index: Int, val selected: Boolean) : EditorIconTarget
+}
 
 enum class EditorTab {
     BASIC,

@@ -38,8 +38,6 @@
 
 ## 📱 截图
 
----
-
 <div style="display:flex;gap:16px;flex-wrap:wrap;max-width:100%;"><img style="width:360px;max-width:100%;height:auto;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.08);" src="./md_images/home.jpg" alt="home"/><img style="width:360px;max-width:100%;height:auto;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.08);" src="./md_images/edit.jpg" alt="edit"/></div>
 
 ---
@@ -174,6 +172,8 @@ cd FireflyApp
   "shell": {
     "topBarShowBackButton": true,
     "topBarShowRefreshButton": true,
+    "topBarHomeBehavior": "default_home",
+    "topBarRefreshBehavior": "reload",
     "topBarFollowPageTitle": true,
     "topBarCornerRadiusDp": 18,
     "bottomBarShowTextLabels": true,
@@ -192,7 +192,7 @@ cd FireflyApp
         "title": "Home",
         "url": "https://example.com",
         "icon": "home",
-        "selectedIcon": "home",
+        "selectedIcon": "home",          // supports built-in IDs or custom://branding/custom-icons/...
         "badgeCount": "",
         "showUnreadDot": false
       }
@@ -364,7 +364,7 @@ unsigned 壳 APK（含占位符）
 | 入口 | 说明 |
 |------|------|
 | 📄 **说明文档** | 内置中英双语帮助文档，通过 `WebViewAssetLoader` 加载本地 HTML |
-| 🎨 **图标设计** | 自定义应用图标：选图/文字 + 调背景色 + 圆角 + 尺寸 → 导出 PNG |
+| 🎨 **图标设计** | 自定义应用图标：选图/文字 + 调背景色/透明背景 + 圆角 + 尺寸 → 导出 PNG |
 | 📦 **图标仓库** | 浏览内置 Material 图标目录，一键复制图标名到配置 |
 | 🌐 **多语言切换** | 中文 / English / 跟随系统 三模式切换 |
 | 👁 **数据面板** | 显示/隐藏项目中心的统计仪表盘 |
@@ -427,6 +427,15 @@ keyPassword=your_key_password
 ```
 
 ---
+
+## ✨ 近期更新
+
+- 新增了一个真正的“顶部 + 标签页”模板，并保留了现有的“顶部 + 底部栏”模板。
+- 在“基础设置”中，为“主页”和“刷新”按钮的行为新增了 `run_js` 支持。
+- 图标选择器现支持从相册导入自定义的 `PNG / JPEG / WebP` 格式图标。
+- 图标设计器现支持导出带有透明背景的图标素材。
+- “基础设置 -> 安全”现支持配置 SSL 证书错误的处理方式。
+- 滑动导航过渡效果、打包历史归档命名方式，以及权限授予后的安装流程均已得到改进。
 
 ## 🤝 贡献
 

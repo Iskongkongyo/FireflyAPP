@@ -30,6 +30,8 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
     private var rootNavigationItemId: Int? = null
 
     private val mainViewModel: MainViewModel by activityViewModels()
+    private val projectId: String?
+        get() = mainViewModel.uiState.value.projectId
     private val webFragment: WebContainerFragment?
         get() = childFragmentManager.findFragmentByTag(WEB_FRAGMENT_TAG) as? WebContainerFragment
 
@@ -83,6 +85,8 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
             requireActivity().title = initialItem.title
         }
         TemplateNavigationStateIconHelper.applyToBottomBar(
+            context = requireContext(),
+            projectId = projectId,
             bottomNavigation = binding.bottomNavigation,
             items = items,
             selectedItemId = currentNavigationItemId
@@ -95,6 +99,8 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
             val item = items.firstOrNull { it.id.hashCode() == menuItem.itemId } ?: return@setOnItemSelectedListener false
             currentNavigationItemId = menuItem.itemId
             TemplateNavigationStateIconHelper.applyToBottomBar(
+                context = requireContext(),
+                projectId = projectId,
                 bottomNavigation = binding.bottomNavigation,
                 items = items,
                 selectedItemId = currentNavigationItemId
@@ -162,7 +168,7 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
         binding.bottomNavigation.menu.clear()
         items.forEachIndexed { index, item ->
             binding.bottomNavigation.menu.add(Menu.NONE, item.id.hashCode(), index, item.title)
-                .setIcon(TemplateNavigationIconResolver.resolve(item, index))
+                .setIcon(TemplateNavigationIconResolver.resolve(requireContext(), projectId, item, index))
         }
         TemplateNavigationBadgeHelper.apply(
             bottomNavigation = binding.bottomNavigation,
@@ -220,6 +226,8 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
                     currentNavigationItemId = targetItem.id.hashCode()
                     binding.bottomNavigation.selectedItemId = targetItem.id.hashCode()
                     TemplateNavigationStateIconHelper.applyToBottomBar(
+                        context = requireContext(),
+                        projectId = projectId,
                         bottomNavigation = binding.bottomNavigation,
                         items = items,
                         selectedItemId = currentNavigationItemId
@@ -245,6 +253,8 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
             currentNavigationItemId = rootItem.id.hashCode()
             binding.bottomNavigation.selectedItemId = rootItem.id.hashCode()
             TemplateNavigationStateIconHelper.applyToBottomBar(
+                context = requireContext(),
+                projectId = projectId,
                 bottomNavigation = binding.bottomNavigation,
                 items = items,
                 selectedItemId = currentNavigationItemId
@@ -255,6 +265,8 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
         currentNavigationItemId = rootItem.id.hashCode()
         binding.bottomNavigation.selectedItemId = rootItem.id.hashCode()
         TemplateNavigationStateIconHelper.applyToBottomBar(
+            context = requireContext(),
+            projectId = projectId,
             bottomNavigation = binding.bottomNavigation,
             items = items,
             selectedItemId = currentNavigationItemId

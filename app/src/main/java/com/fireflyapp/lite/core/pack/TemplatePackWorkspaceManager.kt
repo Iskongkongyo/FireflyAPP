@@ -12,6 +12,8 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.util.DisplayMetrics
 import android.util.TypedValue
+import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
+import com.fireflyapp.lite.data.model.AppConfig
 import com.fireflyapp.lite.data.model.ProjectManifest
 import com.fireflyapp.lite.data.model.TemplatePackWorkspace
 import com.fireflyapp.lite.data.model.TemplatePackWorkspaceStatus
@@ -494,26 +496,38 @@ class TemplatePackWorkspaceManager(
         rawConfig: String
     ): String {
         val config = runCatching {
-            json.decodeFromString(PackShellAssetConfig.serializer(), rawConfig)
-        }.getOrNull() ?: return "Drawer media skipped: config parse failed."
+            json.decodeFromString(AppConfig.serializer(), rawConfig)
+        }.getOrNull() ?: return "Shell assets skipped: config parse failed."
 
         val copiedAssets = mutableListOf<String>()
         copyShellAsset(
             unpackedDir = unpackedDir,
             projectDir = projectDir,
-            relativePath = config.shell.drawerWallpaperPath,
+            relativePath = config.shell.drawerWallpaperPath.trim(),
             copiedAssets = copiedAssets
         )
         copyShellAsset(
             unpackedDir = unpackedDir,
             projectDir = projectDir,
-            relativePath = config.shell.drawerAvatarPath,
+            relativePath = config.shell.drawerAvatarPath.trim(),
             copiedAssets = copiedAssets
         )
-        if (copiedAssets.isEmpty()) {
-            return "No drawer media injected."
+        listOf(
+            config.shell.topBarBackIcon,
+            config.shell.topBarHomeIcon,
+            config.shell.topBarRefreshIcon,
+            config.shell.drawerMenuIcon
+        ).mapNotNullTo(copiedAssets) { iconValue ->
+            copyCustomIconAsset(unpackedDir, projectDir, iconValue)
         }
-        return "Injected drawer media: ${copiedAssets.joinToString()}"
+        config.navigation.items.forEach { item ->
+            copyCustomIconAsset(unpackedDir, projectDir, item.icon)?.let(copiedAssets::add)
+            copyCustomIconAsset(unpackedDir, projectDir, item.selectedIcon)?.let(copiedAssets::add)
+        }
+        if (copiedAssets.isEmpty()) {
+            return "No shell assets injected."
+        }
+        return "Injected shell assets: ${copiedAssets.distinct().joinToString()}"
     }
 
     private fun copyShellAsset(
@@ -534,6 +548,22 @@ class TemplatePackWorkspaceManager(
         targetFile.parentFile?.mkdirs()
         sourceFile.copyTo(targetFile, overwrite = true)
         copiedAssets += targetFile.relativeTo(unpackedDir).invariantSeparatorsPath
+    }
+
+    private fun copyCustomIconAsset(
+        unpackedDir: File,
+        projectDir: File,
+        iconValue: String
+    ): String? {
+        val relativePath = ProjectCustomIconReference.relativePathOrNull(iconValue) ?: return null
+        val copiedAssets = mutableListOf<String>()
+        copyShellAsset(
+            unpackedDir = unpackedDir,
+            projectDir = projectDir,
+            relativePath = relativePath,
+            copiedAssets = copiedAssets
+        )
+        return copiedAssets.firstOrNull()
     }
 
     private fun resolveLauncherIconSize(resourceDirectoryName: String): Int? {
@@ -667,17 +697,6 @@ class TemplatePackWorkspaceManager(
     private data class PackagedSplashConfig(
         val skipEnabled: Boolean = true,
         val skipSeconds: Int = 3
-    )
-
-    @Serializable
-    private data class PackShellAssetConfig(
-        val shell: PackShellAssetSection = PackShellAssetSection()
-    )
-
-    @Serializable
-    private data class PackShellAssetSection(
-        val drawerWallpaperPath: String = "",
-        val drawerAvatarPath: String = ""
     )
 
     private data class LauncherDensityMapping(

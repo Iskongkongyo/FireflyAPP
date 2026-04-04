@@ -84,6 +84,7 @@ import java.util.Date
 class PackagerActivity : ComponentActivity() {
     private val viewModel: PackagerViewModel by viewModels()
     private val installManager = ApkInstallManager()
+    private var pendingInstallAfterPermissionApkPath: String? = null
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(AppLanguageManager.wrapContext(newBase))
@@ -91,6 +92,8 @@ class PackagerActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingInstallAfterPermissionApkPath =
+            savedInstanceState?.getString(STATE_PENDING_INSTALL_APK_PATH)
         val projectId = intent.getStringExtra(EXTRA_PROJECT_ID).orEmpty()
         val projectName = intent.getStringExtra(EXTRA_PROJECT_NAME).orEmpty()
         if (projectId.isBlank()) {
@@ -126,12 +129,19 @@ class PackagerActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        resumePendingInstallIfPossible()
         viewModel.refreshPreflight()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString(STATE_PENDING_INSTALL_APK_PATH, pendingInstallAfterPermissionApkPath)
     }
 
     companion object {
         private const val EXTRA_PROJECT_ID = "project_id"
         private const val EXTRA_PROJECT_NAME = "project_name"
+        private const val STATE_PENDING_INSTALL_APK_PATH = "pending_install_apk_path"
 
         fun createIntent(context: Context, projectId: String, projectName: String): Intent {
             return Intent(context, PackagerActivity::class.java).apply {
@@ -145,6 +155,7 @@ class PackagerActivity : ComponentActivity() {
         if (!installManager.canRequestPackageInstalls(this)) {
             val intent = installManager.createUnknownSourcesIntent(this)
             if (intent != null) {
+                pendingInstallAfterPermissionApkPath = apkPath
                 startActivity(intent)
                 Toast.makeText(
                     this,
@@ -157,6 +168,23 @@ class PackagerActivity : ComponentActivity() {
             return
         }
 
+        pendingInstallAfterPermissionApkPath = null
+        installManager.launchInstall(this, apkPath)
+            .onFailure { throwable ->
+                Toast.makeText(
+                    this,
+                    throwable.message ?: getString(R.string.packager_installer_launch_failed),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+    }
+
+    private fun resumePendingInstallIfPossible() {
+        val apkPath = pendingInstallAfterPermissionApkPath ?: return
+        if (!installManager.canRequestPackageInstalls(this)) {
+            return
+        }
+        pendingInstallAfterPermissionApkPath = null
         installManager.launchInstall(this, apkPath)
             .onFailure { throwable ->
                 Toast.makeText(

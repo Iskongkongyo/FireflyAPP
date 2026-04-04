@@ -1,19 +1,22 @@
 package com.fireflyapp.lite.ui.template
 
+import android.content.Context
+import android.graphics.drawable.Drawable
+
 object TemplateActionIconResolver {
-    fun resolveBack(iconName: String): Int {
-        return TemplateIconCatalog.resolveOrDefault(iconName, fallbackId = "back")
+    fun resolveBack(context: Context, projectId: String?, iconName: String): Drawable? {
+        return TemplateRuntimeIconLoader.resolveDrawable(context, projectId, iconName, fallbackId = "back")
     }
 
-    fun resolveHome(iconName: String): Int {
-        return TemplateIconCatalog.resolveOrDefault(iconName, fallbackId = "home")
+    fun resolveHome(context: Context, projectId: String?, iconName: String): Drawable? {
+        return TemplateRuntimeIconLoader.resolveDrawable(context, projectId, iconName, fallbackId = "home")
     }
 
-    fun resolveRefresh(iconName: String): Int {
-        return TemplateIconCatalog.resolveOrDefault(iconName, fallbackId = "refresh")
+    fun resolveRefresh(context: Context, projectId: String?, iconName: String): Drawable? {
+        return TemplateRuntimeIconLoader.resolveDrawable(context, projectId, iconName, fallbackId = "refresh")
     }
 
-    fun resolveDrawer(iconName: String): Int {
-        return TemplateIconCatalog.resolveOrDefault(iconName, fallbackId = "menu")
+    fun resolveDrawer(context: Context, projectId: String?, iconName: String): Drawable? {
+        return TemplateRuntimeIconLoader.resolveDrawable(context, projectId, iconName, fallbackId = "menu")
     }
 }

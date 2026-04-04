@@ -12,10 +12,16 @@ import android.net.Uri
 import android.text.TextPaint
 import android.text.TextUtils
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,6 +29,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -56,34 +64,71 @@ import kotlin.math.min
 fun ColorPickerDialog(
     title: String,
     value: String,
+    transparentBackground: Boolean,
     onDismiss: () -> Unit,
-    onApply: (String) -> Unit
+    onApply: (String, Boolean) -> Unit
 ) {
     var draftValue by remember(value) { mutableStateOf(value) }
+    var draftTransparent by remember(transparentBackground) { mutableStateOf(transparentBackground) }
     val draftColor = parseOptionalColor(draftValue) ?: DEFAULT_ICON_BACKGROUND_COLOR
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
                     shape = RoundedCornerShape(14.dp),
-                    color = draftColor
+                    color = Color.Transparent
                 ) {
-                    androidx.compose.foundation.layout.Box(
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        contentAlignment = androidx.compose.ui.Alignment.Center
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        contentAlignment = Alignment.Center
                     ) {
+                        if (draftTransparent) {
+                            TransparencyCheckerboard(
+                                modifier = Modifier.matchParentSize().clip(RoundedCornerShape(14.dp))
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .background(draftColor)
+                            )
+                        }
                         Text(
-                            text = draftValue,
-                            color = contentColorFor(draftColor),
+                            text = if (draftTransparent) {
+                                stringResource(R.string.icon_designer_transparent_background)
+                            } else {
+                                draftValue
+                            },
+                            color = if (draftTransparent) {
+                                DEFAULT_TRANSPARENT_ICON_FOREGROUND
+                            } else {
+                                contentColorFor(draftColor)
+                            },
                             style = MaterialTheme.typography.labelLarge
                         )
                     }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.icon_designer_transparent_background),
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Switch(
+                        checked = draftTransparent,
+                        onCheckedChange = { draftTransparent = it }
+                    )
                 }
                 ColorPanel(
                     initialColor = draftColor,
@@ -95,7 +140,7 @@ fun ColorPickerDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.icon_designer_hex_value)) }
                 )
-                if (parseOptionalColor(draftValue) == null) {
+                if (!draftTransparent && parseOptionalColor(draftValue) == null) {
                     Text(
                         text = stringResource(R.string.icon_designer_invalid_color),
                         style = MaterialTheme.typography.bodySmall,
@@ -105,7 +150,10 @@ fun ColorPickerDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onApply(draftValue.trim()) }, enabled = parseOptionalColor(draftValue) != null) {
+            TextButton(
+                onClick = { onApply(draftValue.trim(), draftTransparent) },
+                enabled = draftTransparent || parseOptionalColor(draftValue) != null
+            ) {
                 Text(stringResource(R.string.icon_designer_apply))
             }
         },
@@ -279,6 +327,7 @@ fun exportIconDesign(
     context: Context,
     outputUri: Uri,
     background: Color,
+    transparentBackground: Boolean,
     cornerRadiusProgress: Float,
     contentSizeProgress: Float,
     imageUri: Uri?,
@@ -288,14 +337,16 @@ fun exportIconDesign(
     return runCatching {
         val output = Bitmap.createBitmap(EXPORT_SIZE_PX, EXPORT_SIZE_PX, Bitmap.Config.ARGB_8888)
         val canvas = AndroidCanvas(output)
-        val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = background.toArgb() }
         val cornerRadiusPx = EXPORT_SIZE_PX * iconCornerRadiusFraction(cornerRadiusProgress)
-        canvas.drawRoundRect(
-            RectF(0f, 0f, EXPORT_SIZE_PX.toFloat(), EXPORT_SIZE_PX.toFloat()),
-            cornerRadiusPx,
-            cornerRadiusPx,
-            backgroundPaint
-        )
+        if (!transparentBackground) {
+            val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = background.toArgb() }
+            canvas.drawRoundRect(
+                RectF(0f, 0f, EXPORT_SIZE_PX.toFloat(), EXPORT_SIZE_PX.toFloat()),
+                cornerRadiusPx,
+                cornerRadiusPx,
+                backgroundPaint
+            )
+        }
 
         val hasText = text.isNotBlank()
         val iconBitmap = if (hasText) {
@@ -320,7 +371,11 @@ fun exportIconDesign(
 
         if (hasText) {
             val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = contentColorFor(background).toArgb()
+                color = if (transparentBackground) {
+                    DEFAULT_TRANSPARENT_ICON_FOREGROUND.toArgb()
+                } else {
+                    contentColorFor(background).toArgb()
+                }
                 textAlign = Paint.Align.CENTER
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textSize = EXPORT_SIZE_PX * iconTextSizeScale(contentSizeProgress)
@@ -397,6 +452,37 @@ fun formatRgbHex(color: Color): String {
     return String.format(Locale.US, "#%06X", 0xFFFFFF and color.toArgb())
 }
 
+@Composable
+fun TransparencyCheckerboard(
+    modifier: Modifier = Modifier,
+    lightColor: Color = Color(0xFFF8FAFC),
+    darkColor: Color = Color(0xFFE2E8F0)
+) {
+    Canvas(modifier = modifier) {
+        val cellSize = 12.dp.toPx().coerceAtLeast(1f)
+        var row = 0
+        var top = 0f
+        while (top < size.height) {
+            var column = 0
+            var left = 0f
+            while (left < size.width) {
+                drawRect(
+                    color = if ((row + column) % 2 == 0) lightColor else darkColor,
+                    topLeft = Offset(left, top),
+                    size = androidx.compose.ui.geometry.Size(
+                        width = minOf(cellSize, size.width - left),
+                        height = minOf(cellSize, size.height - top)
+                    )
+                )
+                left += cellSize
+                column += 1
+            }
+            top += cellSize
+            row += 1
+        }
+    }
+}
+
 fun lerpFloat(start: Float, stop: Float, fraction: Float): Float {
     return start + ((stop - start) * fraction.coerceIn(0f, 1f))
 }
@@ -423,5 +509,6 @@ const val DEFAULT_CORNER_RADIUS_PROGRESS = 0.34f
 const val DEFAULT_CONTENT_SIZE_PROGRESS = 0.52f
 const val DEFAULT_ICON_BACKGROUND_HEX = "#EAF4EB"
 val DEFAULT_ICON_BACKGROUND_COLOR = Color(0xFFEAF4EB)
+val DEFAULT_TRANSPARENT_ICON_FOREGROUND = Color(0xFF0F172A)
 const val ICON_PREVIEW_BOX_FRACTION = 0.56f
 const val ICON_INNER_PADDING_FRACTION = 0.08f

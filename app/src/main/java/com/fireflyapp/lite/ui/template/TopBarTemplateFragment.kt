@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
@@ -27,6 +26,8 @@ class TopBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPa
     private var currentStatusTopInset: Int = 0
 
     private val mainViewModel: MainViewModel by activityViewModels()
+    private val projectId: String?
+        get() = mainViewModel.uiState.value.projectId
     private val webFragment: WebContainerFragment?
         get() = childFragmentManager.findFragmentByTag(WEB_FRAGMENT_TAG) as? WebContainerFragment
 
@@ -48,22 +49,15 @@ class TopBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPa
         binding.toolbar.title = config.app.name
         binding.toolbar.isTitleCentered = config.shell.topBarTitleCentered
         binding.toolbar.navigationIcon = if (config.shell.topBarShowBackButton) {
-            AppCompatResources.getDrawable(
-                requireContext(),
-                TemplateActionIconResolver.resolveBack(config.shell.topBarBackIcon)
-            )
+            TemplateActionIconResolver.resolveBack(requireContext(), projectId, config.shell.topBarBackIcon)
         } else {
             null
         }
-        binding.toolbar.menu.findItem(R.id.action_home)?.icon = AppCompatResources.getDrawable(
-            requireContext(),
-            TemplateActionIconResolver.resolveHome(config.shell.topBarHomeIcon)
-        )
+        binding.toolbar.menu.findItem(R.id.action_home)?.icon =
+            TemplateActionIconResolver.resolveHome(requireContext(), projectId, config.shell.topBarHomeIcon)
         binding.toolbar.menu.findItem(R.id.action_home)?.isVisible = config.shell.topBarShowHomeButton
-        binding.toolbar.menu.findItem(R.id.action_refresh)?.icon = AppCompatResources.getDrawable(
-            requireContext(),
-            TemplateActionIconResolver.resolveRefresh(config.shell.topBarRefreshIcon)
-        )
+        binding.toolbar.menu.findItem(R.id.action_refresh)?.icon =
+            TemplateActionIconResolver.resolveRefresh(requireContext(), projectId, config.shell.topBarRefreshIcon)
         binding.toolbar.menu.findItem(R.id.action_refresh)?.isVisible = config.shell.topBarShowRefreshButton
         val topBarColor = TemplateThemeStyler.resolveThemeColor(
             colorValue = config.shell.topBarThemeColor,

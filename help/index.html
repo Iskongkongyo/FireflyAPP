@@ -171,6 +171,17 @@
       color: #fff;
       border-color: var(--accent);
     }
+    .github-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      color: var(--text-heading);
+    }
+    .github-btn:hover {
+      background: rgba(255,255,255,0.8);
+      color: var(--text-heading);
+    }
 
     /* ===== Container ===== */
     .container {
@@ -513,6 +524,7 @@
       border: none;
       z-index: 100;
       -webkit-appearance: none;
+      appearance: none;
     }
     .back-top.visible {
       opacity: 1;
@@ -547,6 +559,8 @@
     <a class="nav-link en" data-target="sec-events">Events</a>
     <a class="nav-link zh" data-target="sec-pipeline">打包原理</a>
     <a class="nav-link en" data-target="sec-pipeline">Pipeline</a>
+    <a class="nav-link zh" data-target="sec-tools">侧边栏工具</a>
+    <a class="nav-link en" data-target="sec-tools">Sidebar Tools</a>
     <a class="nav-link zh" data-target="sec-security">安全机制</a>
     <a class="nav-link en" data-target="sec-security">Security</a>
     <a class="nav-link zh" data-target="sec-faq">常见问题</a>
@@ -560,6 +574,9 @@
     <p class="zh">将网站打包成精致的 Android 原生应用</p>
     <p class="en">Turn websites into polished Android apps</p>
     <div class="lang-toggle">
+      <a class="lang-btn github-btn" href="https://github.com/Iskongkongyo/FireflyApp" target="_blank" title="GitHub">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"></path></svg>
+      </a>
       <button class="lang-btn active" onclick="setLang('zh')">中文</button>
       <button class="lang-btn" onclick="setLang('en')">English</button>
     </div>
@@ -574,9 +591,14 @@
         <span class="zh">核心特性</span><span class="en">Features</span>
       </div>
       <div class="features-grid">
+        <div class="feature-card" style="grid-column:1 / -1">
+          <h3 class="zh">近期更新</h3><h3 class="en">Recent Updates</h3>
+          <p class="zh">现已包含真正的 Top + Tabs 模板、可配置的 SSL 证书错误处理，以及相册导入自定义图标能力。</p>
+          <p class="en">Now includes a true Top + Tabs template, configurable SSL certificate handling, and gallery-imported custom icons.</p>
+        </div>
         <div class="feature-card">
           <span class="fc-icon">🎨</span>
-          <h3 class="zh">6 种 UI 模板</h3><h3 class="en">6 UI Templates</h3>
+          <h3 class="zh">7 种 UI 模板</h3><h3 class="en">7 UI Templates</h3>
           <p class="zh">底部导航 / 顶部工具栏 / 侧滑抽屉 / 沉浸全屏等，覆盖主流 App 布局。</p>
           <p class="en">Bottom Bar / Top Bar / Side Drawer / Immersive, covering mainstream layouts.</p>
         </div>
@@ -594,15 +616,15 @@
         </div>
         <div class="feature-card">
           <span class="fc-icon">🌐</span>
-          <h3 class="zh">完整浏览器能力</h3><h3 class="en">Full Browser Capability</h3>
-          <p class="zh">Cookie / localStorage / 文件上传下载 / 地理位置 / 全屏视频。</p>
-          <p class="en">Cookie / localStorage / Upload & Download / Geolocation / Fullscreen.</p>
+          <h3 class="zh">完整浏览器权限</h3><h3 class="en">Full Web Capability</h3>
+          <p class="zh">支持 Cookie、存储、文件及前置安全提示（摄像头/麦克风/定位/通知等）。</p>
+          <p class="en">Supports Cookie, storage, files & secure prompts (cam/mic/location/notify).</p>
         </div>
         <div class="feature-card">
           <span class="fc-icon">🔒</span>
           <h3 class="zh">安全策略</h3><h3 class="en">Security Policies</h3>
-          <p class="zh">域名白名单、外链拦截、SSL 强制校验、路径穿越防护。</p>
-          <p class="en">Host whitelist, SSL enforcement, path traversal protection.</p>
+          <p class="zh">域名白名单、外链拦截、SSL 证书错误处理可配置、路径穿越防护。</p>
+          <p class="en">Host whitelist, configurable SSL handling, and path traversal protection.</p>
         </div>
         <div class="feature-card">
           <span class="fc-icon">🎯</span>
@@ -669,9 +691,17 @@
         <div class="template-item">
           <div class="template-badge" style="background:rgba(219,39,119,0.07)">🔲</div>
           <div class="template-info">
-            <h4>Top + Tabs <span class="template-id">top_bar_bottom_tabs</span></h4>
-            <p class="zh">顶部工具栏 + 底部 Tab 组合，适合内容丰富的应用。</p>
-            <p class="en">Top bar & bottom tabs combined, ideal for content-rich apps.</p>
+            <h4>Top + Tabs <span class="template-id">top_bar_tabs</span></h4>
+            <p class="zh">顶部工具栏 + 顶部 Tab 组合，适合内容丰富的应用。</p>
+            <p class="en">Top bar with top tabs, ideal for fast section switching.</p>
+          </div>
+        </div>
+        <div class="template-item">
+          <div class="template-badge" style="background:rgba(37,99,235,0.07)">📱</div>
+          <div class="template-info">
+            <h4>Top + BottomBar <span class="template-id">top_bar_bottom_tabs</span></h4>
+            <p class="zh">顶部工具栏 + 底栏导航，适合内容丰富的应用。</p>
+            <p class="en">Top bar with bottom navigation, ideal for content-rich apps.</p>
           </div>
         </div>
         <div class="template-item">
@@ -723,6 +753,8 @@
       </div>
       <p class="section-desc zh">所有行为由 <code>app-config.json</code> 驱动。以下是主要配置项。</p>
       <p class="section-desc en">All behavior is driven by <code>app-config.json</code>. Key fields listed below.</p>
+      <p class="section-desc zh">补充说明：当前版本还支持 <code>sslErrorHandling</code>、首页/刷新按钮 <code>run_js</code> 行为，以及 <code>custom://branding/custom-icons/...</code> 自定义图标引用。</p>
+      <p class="section-desc en">Additional fields now include <code>sslErrorHandling</code>, <code>run_js</code> for Home/Refresh button behaviors, and custom icon references such as <code>custom://branding/custom-icons/...</code>.</p>
 
       <div class="config-group">
         <div class="config-group-title">📋 app</div>
@@ -840,10 +872,46 @@
           <p class="en">Repackage → zipalign → Sign with AndroidKeyStore or custom JKS.</p>
         </div></div>
         <div class="step"><div class="step-num">⑤</div><div class="step-content">
-          <h4 class="zh">安装或分享</h4><h4 class="en">Install or Share</h4>
-          <p class="zh">生成签名 APK，可直接安装、分享或复制路径。</p>
-          <p class="en">Output a signed APK. Install, share, or copy the file path.</p>
+          <h4 class="zh">产物自检及导出</h4><h4 class="en">Self-Check & Export</h4>
+          <p class="zh">执行产物自检（Manifest完整性、签名及系统解析校验），生成最终可用 APK 以供安装或分享。</p>
+          <p class="en">Perform artifact self-check (Manifest, Sig validation) and output final APK to install or share.</p>
         </div></div>
+      </div>
+    </section>
+
+    <!-- ===== Tools ===== -->
+    <section class="section" id="sec-tools">
+      <div class="section-title">
+        <span class="icon" style="background:rgba(59,130,246,0.08);color:#3b82f6">🗂</span>
+        <span class="zh">侧边栏工具</span><span class="en">Sidebar Tools</span>
+      </div>
+      <p class="section-desc zh">项目中心（Project Hub）提供以下快捷工具：</p>
+      <p class="section-desc en">Quick access tools in the Project Hub drawer:</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="fc-icon">📄</span>
+          <h3 class="zh">说明文档</h3><h3 class="en">Help Documentation</h3>
+          <p class="zh">即当前应用内置的中英双语离线使用手册。</p>
+          <p class="en">The built-in bilingual offline manual you're currently viewing.</p>
+        </div>
+        <div class="feature-card">
+          <span class="fc-icon">🎨</span>
+          <h3 class="zh">图标设计器</h3><h3 class="en">Icon Designer</h3>
+          <p class="zh">可视化定制应用图标（底色、文字、圆角、尺寸）并导出。</p>
+          <p class="en">Visually customize app icons (bg, transparent bg, text, radius, size) and export.</p>
+        </div>
+        <div class="feature-card">
+          <span class="fc-icon">📦</span>
+          <h3 class="zh">图标仓库</h3><h3 class="en">Icon Catalog</h3>
+          <p class="zh">浏览项目内置 Material 图标库，辅助配置向导。</p>
+          <p class="en">Browse built-in icons and combine them with gallery-imported custom icons in the editor.</p>
+        </div>
+        <div class="feature-card">
+          <span class="fc-icon">🌐</span>
+          <h3 class="zh">语言及状态切换</h3><h3 class="en">State Toggles</h3>
+          <p class="zh">支持多语言自由切换，亦可随时隐藏或展示 Dashboard 图表概览。</p>
+          <p class="en">Support multi-lang toggles and hiding/showing the dashboard overview.</p>
+        </div>
       </div>
     </section>
 
@@ -853,6 +921,8 @@
         <span class="icon" style="background:rgba(234,88,12,0.08);color:#ea580c">🛡</span>
         <span class="zh">安全机制</span><span class="en">Security</span>
       </div>
+      <p class="section-desc zh">当前版本支持将 SSL 证书错误处理设置为严格校验或忽略，默认仍为严格校验。</p>
+      <p class="section-desc en">Current versions support SSL certificate handling as either strict or ignore. Strict remains the default.</p>
       <div class="security-grid">
         <div class="security-item">
           <span class="si-icon">🌐</span>
@@ -925,6 +995,15 @@
       </div></div>
 
       <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">
+        <span class="zh">网页调用摄像头、前置权限或系统级接口怎么办？</span>
+        <span class="en">How does the app handle camera, mic or native APIs?</span>
+        <span class="arrow">▶</span>
+      </div><div class="faq-a">
+        <span class="zh">APP 建立了完善的安全网机制（类似现代浏览器）。页面请求敏感权限（定位、通知系统等）会先触发双语前置提示，用户的信任选择会被持久化记忆；各类软硬件接口如文件选取也会接管为系统原生的。</span>
+        <span class="en">The app guarantees a secure sandboxed approach. When requesting sensitive APIs (cam, mic, notification, GPS), a bilingual confirmation prompt pops up guaranteeing safety before native trigger. File upload menus act natively too.</span>
+      </div></div>
+
+      <div class="faq-item"><div class="faq-q" onclick="toggleFaq(this)">
         <span class="zh">SPA 单页应用的路由变化能监听吗？</span>
         <span class="en">Can I detect SPA route changes?</span>
         <span class="arrow">▶</span>
@@ -970,7 +1049,11 @@
         var s = localStorage.getItem('firefly-help-lang');
         if (s === 'en' || s === 'zh') { setLang(s); return; }
       } catch(e) {}
-      setLang((navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en');
+      var navLang = navigator.language || navigator.userLanguage || '';
+      if (navigator.languages && navigator.languages.length > 0) {
+        navLang = navigator.languages[0];
+      }
+      setLang(navLang.toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en');
     })();
 
     /* ===== FAQ Accordion ===== */

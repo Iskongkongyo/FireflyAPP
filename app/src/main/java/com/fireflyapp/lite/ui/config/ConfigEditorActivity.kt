@@ -94,6 +94,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
@@ -113,6 +114,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.app.AppLanguageManager
+import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
 import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_IGNORE
 import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_STRICT
 import com.fireflyapp.lite.data.model.TemplateType
@@ -161,6 +163,7 @@ class ConfigEditorActivity : ComponentActivity() {
         setContent {
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             var pendingDrawerMediaTarget by remember { mutableStateOf<DrawerMediaTarget?>(null) }
+            var pendingCustomIconTarget by remember { mutableStateOf<EditorIconTarget?>(null) }
             val exportLauncher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.CreateDocument("application/zip")
             ) { uri ->
@@ -239,6 +242,16 @@ class ConfigEditorActivity : ComponentActivity() {
                     )
                     drawerMediaCropLauncher.launch(cropIntent)
                 }
+            }
+            val customIconImportLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                val target = pendingCustomIconTarget
+                if (uri != null && target != null) {
+                    grantReadPermission(uri)
+                    viewModel.importCustomIcon(target, uri)
+                }
+                pendingCustomIconTarget = null
             }
 
             LaunchedEffect(state.userMessage) {
@@ -359,6 +372,11 @@ class ConfigEditorActivity : ComponentActivity() {
                     onNavigationSelectedIconChanged = viewModel::updateNavigationSelectedIcon,
                     onNavigationBadgeCountChanged = viewModel::updateNavigationBadgeCount,
                     onNavigationShowUnreadDotChanged = viewModel::updateNavigationShowUnreadDot,
+                    onImportCustomIconRequested = { target ->
+                        pendingCustomIconTarget = target
+                        customIconImportLauncher.launch(arrayOf("image/png", "image/jpeg", "image/webp"))
+                    },
+                    onApplyIconValue = viewModel::commitIconValue,
                     onAddPageRule = viewModel::addPageRule,
                     onRemovePageRule = viewModel::removePageRule,
                     onPageRuleUrlEqualsChanged = viewModel::updatePageRuleUrlEquals,
@@ -574,6 +592,8 @@ private fun ConfigEditorScreen(
     onNavigationSelectedIconChanged: (Int, String) -> Unit,
     onNavigationBadgeCountChanged: (Int, String) -> Unit,
     onNavigationShowUnreadDotChanged: (Int, Boolean) -> Unit,
+    onImportCustomIconRequested: (EditorIconTarget) -> Unit,
+    onApplyIconValue: (EditorIconTarget, String) -> Unit,
     onAddPageRule: () -> Unit,
     onRemovePageRule: (Int) -> Unit,
     onPageRuleUrlEqualsChanged: (Int, String) -> Unit,
@@ -771,7 +791,9 @@ private fun ConfigEditorScreen(
                 onNavigationIconChanged = onNavigationIconChanged,
                 onNavigationSelectedIconChanged = onNavigationSelectedIconChanged,
                 onNavigationBadgeCountChanged = onNavigationBadgeCountChanged,
-                onNavigationShowUnreadDotChanged = onNavigationShowUnreadDotChanged
+                onNavigationShowUnreadDotChanged = onNavigationShowUnreadDotChanged,
+                onImportCustomIconRequested = onImportCustomIconRequested,
+                onApplyIconValue = onApplyIconValue
             )
 
             EditorTab.RULES -> PageRulesContent(
@@ -967,23 +989,30 @@ private fun ProjectAssetPreview(
     shape: androidx.compose.ui.graphics.Shape = MaterialTheme.shapes.medium
 ) {
     val context = LocalContext.current
+    val assetFile = remember(projectId, relativePath) {
+        val path = relativePath.trim()
+        val id = projectId.orEmpty().trim()
+        if (path.isBlank() || id.isBlank()) {
+            null
+        } else {
+            context.filesDir.resolve("projects").resolve(id).resolve(path)
+        }
+    }
+    val assetVersion = assetFile
+        ?.takeIf { it.exists() && it.isFile }
+        ?.let { "${it.lastModified()}:${it.length()}" }
     val previewBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
         initialValue = null,
         projectId,
-        relativePath
+        relativePath,
+        assetVersion
     ) {
         value = withContext(Dispatchers.IO) {
-            val path = relativePath.trim()
-            val id = projectId.orEmpty().trim()
-            if (path.isBlank() || id.isBlank()) {
+            val imageFile = assetFile
+            if (imageFile == null || !imageFile.exists() || !imageFile.isFile) {
                 null
             } else {
-                val imageFile = context.filesDir.resolve("projects").resolve(id).resolve(path)
-                if (!imageFile.exists() || !imageFile.isFile) {
-                    null
-                } else {
-                    BitmapFactory.decodeFile(imageFile.absolutePath)?.asImageBitmap()
-                }
+                BitmapFactory.decodeFile(imageFile.absolutePath)?.asImageBitmap()
             }
         }
     }
@@ -1088,7 +1117,9 @@ private fun ConfigFormContent(
     onNavigationIconChanged: (Int, String) -> Unit,
     onNavigationSelectedIconChanged: (Int, String) -> Unit,
     onNavigationBadgeCountChanged: (Int, String) -> Unit,
-    onNavigationShowUnreadDotChanged: (Int, Boolean) -> Unit
+    onNavigationShowUnreadDotChanged: (Int, Boolean) -> Unit,
+    onImportCustomIconRequested: (EditorIconTarget) -> Unit,
+    onApplyIconValue: (EditorIconTarget, String) -> Unit
 ) {
     val selectedTemplateSpec = TemplateCatalog.specFor(state.templateType)
     val context = LocalContext.current
@@ -1148,6 +1179,7 @@ private fun ConfigFormContent(
         item {
             TemplatePreviewCard(
                 state = state,
+                projectId = projectId,
                 selectedTemplateSpec = selectedTemplateSpec
             )
         }
@@ -1210,6 +1242,7 @@ private fun ConfigFormContent(
                     if (selectedItem != null) {
                         NavigationItemEditor(
                             index = selectedNavigationIndex,
+                            projectId = projectId,
                             item = selectedItem,
                             onRemove = {
                                 onRemoveNavigationItem(selectedNavigationIndex)
@@ -1224,7 +1257,9 @@ private fun ConfigFormContent(
                             onIconChanged = { onNavigationIconChanged(selectedNavigationIndex, it) },
                             onSelectedIconChanged = { onNavigationSelectedIconChanged(selectedNavigationIndex, it) },
                             onBadgeCountChanged = { onNavigationBadgeCountChanged(selectedNavigationIndex, it) },
-                            onShowUnreadDotChanged = { onNavigationShowUnreadDotChanged(selectedNavigationIndex, it) }
+                            onShowUnreadDotChanged = { onNavigationShowUnreadDotChanged(selectedNavigationIndex, it) },
+                            onImportCustomIconRequested = onImportCustomIconRequested,
+                            onApplyIconValue = onApplyIconValue
                         )
                     }
                 } else {
@@ -1304,6 +1339,7 @@ private fun ConfigFormContent(
         if (selectedTemplateSpec.supportsTopBar) {
             item {
                 TopBarShellSection(
+                    projectId = projectId,
                     supportsTopBarBackButton = selectedTemplateSpec.supportsTopBarBackButton,
                     state = state,
                     onTopBarShowBackButtonChanged = onTopBarShowBackButtonChanged,
@@ -1320,7 +1356,9 @@ private fun ConfigFormContent(
                     onTopBarBackIconChanged = onTopBarBackIconChanged,
                     onTopBarHomeIconChanged = onTopBarHomeIconChanged,
                     onTopBarRefreshIconChanged = onTopBarRefreshIconChanged,
-                    onTopBarThemeColorChanged = onTopBarThemeColorChanged
+                    onTopBarThemeColorChanged = onTopBarThemeColorChanged,
+                    onImportCustomIconRequested = onImportCustomIconRequested,
+                    onApplyIconValue = onApplyIconValue
                 )
             }
         }
@@ -1347,7 +1385,9 @@ private fun ConfigFormContent(
                     onDrawerHeaderImageScaleModeChanged = onDrawerHeaderImageScaleModeChanged,
                     onDrawerHeaderImageOverlayPresetChanged = onDrawerHeaderImageOverlayPresetChanged,
                     onDrawerHeaderImageOverlayColorChanged = onDrawerHeaderImageOverlayColorChanged,
-                    onDrawerMenuIconChanged = onDrawerMenuIconChanged
+                    onDrawerMenuIconChanged = onDrawerMenuIconChanged,
+                    onImportCustomIconRequested = onImportCustomIconRequested,
+                    onApplyIconValue = onApplyIconValue
                 )
             }
         }
@@ -1540,6 +1580,7 @@ private fun ConfigFormContent(
 
 @Composable
 private fun TopBarShellSection(
+    projectId: String?,
     supportsTopBarBackButton: Boolean,
     state: ConfigEditorFormState,
     onTopBarShowBackButtonChanged: (Boolean) -> Unit,
@@ -1556,7 +1597,9 @@ private fun TopBarShellSection(
     onTopBarBackIconChanged: (String) -> Unit,
     onTopBarHomeIconChanged: (String) -> Unit,
     onTopBarRefreshIconChanged: (String) -> Unit,
-    onTopBarThemeColorChanged: (String) -> Unit
+    onTopBarThemeColorChanged: (String) -> Unit,
+    onImportCustomIconRequested: (EditorIconTarget) -> Unit,
+    onApplyIconValue: (EditorIconTarget, String) -> Unit
 ) {
     SectionCard(title = stringResource(R.string.config_editor_section_top_bar)) {
         val context = LocalContext.current
@@ -1642,23 +1685,35 @@ private fun TopBarShellSection(
         Spacer(modifier = Modifier.height(12.dp))
         IconPickerField(
             label = stringResource(R.string.config_editor_top_bar_back_icon),
+            projectId = projectId,
             value = state.topBarBackIcon,
             onValueChange = onTopBarBackIconChanged,
-            preferredIds = listOf("back", "close", "home", "menu")
+            onAppliedValueChange = { onApplyIconValue(EditorIconTarget.TopBarBack, it) },
+            preferredIds = listOf("back", "close", "home", "menu"),
+            fallbackIconId = "back",
+            onImportCustomIconRequested = { onImportCustomIconRequested(EditorIconTarget.TopBarBack) }
         )
         Spacer(modifier = Modifier.height(12.dp))
         IconPickerField(
             label = stringResource(R.string.config_editor_top_bar_home_icon),
+            projectId = projectId,
             value = state.topBarHomeIcon,
             onValueChange = onTopBarHomeIconChanged,
-            preferredIds = listOf("home", "search", "menu", "profile")
+            onAppliedValueChange = { onApplyIconValue(EditorIconTarget.TopBarHome, it) },
+            preferredIds = listOf("home", "search", "menu", "profile"),
+            fallbackIconId = "home",
+            onImportCustomIconRequested = { onImportCustomIconRequested(EditorIconTarget.TopBarHome) }
         )
         Spacer(modifier = Modifier.height(12.dp))
         IconPickerField(
             label = stringResource(R.string.config_editor_top_bar_refresh_icon),
+            projectId = projectId,
             value = state.topBarRefreshIcon,
             onValueChange = onTopBarRefreshIconChanged,
-            preferredIds = listOf("refresh", "search", "settings")
+            onAppliedValueChange = { onApplyIconValue(EditorIconTarget.TopBarRefresh, it) },
+            preferredIds = listOf("refresh", "search", "settings"),
+            fallbackIconId = "refresh",
+            onImportCustomIconRequested = { onImportCustomIconRequested(EditorIconTarget.TopBarRefresh) }
         )
         Spacer(modifier = Modifier.height(12.dp))
         ColorPickerField(
@@ -1702,7 +1757,9 @@ private fun DrawerShellSection(
     onDrawerHeaderImageScaleModeChanged: (String) -> Unit,
     onDrawerHeaderImageOverlayPresetChanged: (String) -> Unit,
     onDrawerHeaderImageOverlayColorChanged: (String) -> Unit,
-    onDrawerMenuIconChanged: (String) -> Unit
+    onDrawerMenuIconChanged: (String) -> Unit,
+    onImportCustomIconRequested: (EditorIconTarget) -> Unit,
+    onApplyIconValue: (EditorIconTarget, String) -> Unit
 ) {
     SectionCard(title = stringResource(R.string.config_editor_section_drawer)) {
         LabeledTextField(
@@ -1799,9 +1856,13 @@ private fun DrawerShellSection(
         Spacer(modifier = Modifier.height(12.dp))
         IconPickerField(
             label = stringResource(R.string.config_editor_drawer_menu_icon),
+            projectId = projectId,
             value = state.drawerMenuIcon,
             onValueChange = onDrawerMenuIconChanged,
-            preferredIds = listOf("menu", "back", "home", "profile")
+            onAppliedValueChange = { onApplyIconValue(EditorIconTarget.DrawerMenu, it) },
+            preferredIds = listOf("menu", "back", "home", "profile"),
+            fallbackIconId = "menu",
+            onImportCustomIconRequested = { onImportCustomIconRequested(EditorIconTarget.DrawerMenu) }
         )
     }
 }
@@ -2665,6 +2726,7 @@ private fun ConfigJsonContent(
 @Composable
 private fun TemplatePreviewCard(
     state: ConfigEditorFormState,
+    projectId: String?,
     selectedTemplateSpec: RuntimeShellTemplateSpec
 ) {
     val context = LocalContext.current
@@ -2722,9 +2784,10 @@ private fun TemplatePreviewCard(
                         when (selectedTemplateSpec.type) {
                             TemplateType.BROWSER -> MiniBrowserPreview(state)
                             TemplateType.IMMERSIVE_SINGLE_PAGE -> MiniImmersivePreview(state)
-                            TemplateType.TOP_BAR -> MiniTopBarPreview(state, topBarColor)
+                            TemplateType.TOP_BAR -> MiniTopBarPreview(state, projectId, topBarColor)
                             TemplateType.BOTTOM_BAR -> MiniBottomBarPreview(
                                 state = state,
+                                projectId = projectId,
                                 bottomBarColor = bottomBarColor,
                                 bottomBarSelectedColor = bottomBarSelectedColor,
                                 navigationItems = navigationItems,
@@ -2732,12 +2795,14 @@ private fun TemplatePreviewCard(
                             )
                             TemplateType.SIDE_DRAWER -> MiniSideDrawerPreview(
                                 state = state,
+                                projectId = projectId,
                                 topBarColor = topBarColor,
                                 navigationItems = navigationItems,
                                 selectedNavigationId = selectedNavigationId
                             )
                             TemplateType.TOP_BAR_TABS -> MiniTopTabsPreview(
                                 state = state,
+                                projectId = projectId,
                                 topBarColor = topBarColor,
                                 tabsColor = bottomBarColor,
                                 tabsSelectedColor = bottomBarSelectedColor,
@@ -2746,6 +2811,7 @@ private fun TemplatePreviewCard(
                             )
                             TemplateType.TOP_BAR_BOTTOM_TABS -> MiniTopBarBottomTabsPreview(
                                 state = state,
+                                projectId = projectId,
                                 topBarColor = topBarColor,
                                 bottomBarColor = bottomBarColor,
                                 bottomBarSelectedColor = bottomBarSelectedColor,
@@ -2835,6 +2901,7 @@ private fun MiniImmersivePreview(state: ConfigEditorFormState) {
 @Composable
 private fun MiniTopBarPreview(
     state: ConfigEditorFormState,
+    projectId: String?,
     topBarColor: Color
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -2844,6 +2911,7 @@ private fun MiniTopBarPreview(
         )
         MiniTopBar(
             title = state.appName.ifBlank { stringResource(R.string.config_editor_preview_title_top_bar) },
+            projectId = projectId,
             showBack = state.topBarShowBackButton,
             showHome = state.topBarShowHomeButton,
             showRefresh = state.topBarShowRefreshButton,
@@ -2864,6 +2932,7 @@ private fun MiniTopBarPreview(
 @Composable
 private fun MiniBottomBarPreview(
     state: ConfigEditorFormState,
+    projectId: String?,
     bottomBarColor: Color,
     bottomBarSelectedColor: Color,
     navigationItems: List<NavigationItemForm>,
@@ -2877,6 +2946,7 @@ private fun MiniBottomBarPreview(
             accent = bottomBarColor
         )
         MiniBottomBar(
+            projectId = projectId,
             background = bottomBarColor,
             selectedColor = bottomBarSelectedColor,
             items = navigationItems,
@@ -2889,6 +2959,7 @@ private fun MiniBottomBarPreview(
 @Composable
 private fun MiniTopBarBottomTabsPreview(
     state: ConfigEditorFormState,
+    projectId: String?,
     topBarColor: Color,
     bottomBarColor: Color,
     bottomBarSelectedColor: Color,
@@ -2902,6 +2973,7 @@ private fun MiniTopBarBottomTabsPreview(
         )
         MiniTopBar(
             title = state.appName.ifBlank { stringResource(R.string.config_editor_preview_title_hybrid_shell) },
+            projectId = projectId,
             showBack = state.topBarShowBackButton,
             showHome = state.topBarShowHomeButton,
             showRefresh = state.topBarShowRefreshButton,
@@ -2917,6 +2989,7 @@ private fun MiniTopBarBottomTabsPreview(
             accent = topBarColor
         )
         MiniBottomBar(
+            projectId = projectId,
             background = bottomBarColor,
             selectedColor = bottomBarSelectedColor,
             items = navigationItems,
@@ -2929,6 +3002,7 @@ private fun MiniTopBarBottomTabsPreview(
 @Composable
 private fun MiniTopTabsPreview(
     state: ConfigEditorFormState,
+    projectId: String?,
     topBarColor: Color,
     tabsColor: Color,
     tabsSelectedColor: Color,
@@ -2942,6 +3016,7 @@ private fun MiniTopTabsPreview(
         )
         MiniTopBar(
             title = state.appName.ifBlank { stringResource(R.string.config_editor_preview_title_top_tabs_shell) },
+            projectId = projectId,
             showBack = state.topBarShowBackButton,
             showHome = state.topBarShowHomeButton,
             showRefresh = state.topBarShowRefreshButton,
@@ -3039,6 +3114,7 @@ private fun MiniTabsBar(
 @Composable
 private fun MiniSideDrawerPreview(
     state: ConfigEditorFormState,
+    projectId: String?,
     topBarColor: Color,
     navigationItems: List<NavigationItemForm>,
     selectedNavigationId: String
@@ -3061,6 +3137,7 @@ private fun MiniSideDrawerPreview(
         )
         MiniTopBar(
             title = state.appName.ifBlank { stringResource(R.string.config_editor_preview_title_drawer_shell) },
+            projectId = projectId,
             showBack = false,
             showHome = state.topBarShowHomeButton,
             showRefresh = state.topBarShowRefreshButton,
@@ -3105,7 +3182,7 @@ private fun MiniSideDrawerPreview(
                         )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
-                    navigationItems.take(4).forEach { item ->
+                    navigationItems.take(4).forEachIndexed { index, item ->
                         val selected = item.id == selectedNavigationId
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -3122,10 +3199,12 @@ private fun MiniSideDrawerPreview(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 MiniNavigationGlyph(
-                                    iconName = if (selected) item.selectedIcon.ifBlank { item.icon } else item.icon,
+                                    projectId = projectId,
+                                    iconName = if (selected) item.selectedIcon else item.icon,
                                     selected = selected,
                                     activeColor = contentColorFor(topBarColor),
-                                    inactiveColor = contentColorFor(topBarColor).copy(alpha = 0.72f)
+                                    inactiveColor = contentColorFor(topBarColor).copy(alpha = 0.72f),
+                                    fallbackIconId = navigationPreviewFallbackIconId(item, index, selected)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
@@ -3176,6 +3255,7 @@ private fun MiniStatusStrip(
 @Composable
 private fun MiniTopBar(
     title: String,
+    projectId: String?,
     showBack: Boolean,
     showHome: Boolean,
     showRefresh: Boolean,
@@ -3199,9 +3279,9 @@ private fun MiniTopBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (leadingIconName != null) {
-                MiniActionGlyph(iconName = leadingIconName, tint = foreground, fallbackLabel = "M")
+                MiniActionGlyph(projectId = projectId, iconName = leadingIconName, tint = foreground, fallbackIconId = "menu")
             } else if (showBack) {
-                MiniActionGlyph(iconName = backIconName, tint = foreground, fallbackLabel = "<")
+                MiniActionGlyph(projectId = projectId, iconName = backIconName, tint = foreground, fallbackIconId = "back")
             } else {
                 Spacer(modifier = Modifier.width(18.dp))
             }
@@ -3219,11 +3299,11 @@ private fun MiniTopBar(
             )
             Spacer(modifier = Modifier.width(10.dp))
             if (showHome) {
-                MiniActionGlyph(iconName = homeIconName, tint = foreground, fallbackLabel = "H")
+                MiniActionGlyph(projectId = projectId, iconName = homeIconName, tint = foreground, fallbackIconId = "home")
                 Spacer(modifier = Modifier.width(6.dp))
             }
             if (showRefresh) {
-                MiniActionGlyph(iconName = refreshIconName, tint = foreground, fallbackLabel = "R")
+                MiniActionGlyph(projectId = projectId, iconName = refreshIconName, tint = foreground, fallbackIconId = "refresh")
             } else {
                 Spacer(modifier = Modifier.width(18.dp))
             }
@@ -3233,6 +3313,7 @@ private fun MiniTopBar(
 
 @Composable
 private fun MiniBottomBar(
+    projectId: String?,
     background: Color,
     selectedColor: Color,
     items: List<NavigationItemForm>,
@@ -3249,7 +3330,7 @@ private fun MiniBottomBar(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        items.take(4).forEach { item ->
+        items.take(4).forEachIndexed { index, item ->
             val selected = item.id == selectedNavigationId
             Column(
                 modifier = Modifier.weight(1f),
@@ -3258,10 +3339,12 @@ private fun MiniBottomBar(
             ) {
                 Box {
                     MiniNavigationGlyph(
-                        iconName = if (selected) item.selectedIcon.ifBlank { item.icon } else item.icon,
+                        projectId = projectId,
+                        iconName = if (selected) item.selectedIcon else item.icon,
                         selected = selected,
                         activeColor = foreground,
-                        inactiveColor = inactive
+                        inactiveColor = inactive,
+                        fallbackIconId = navigationPreviewFallbackIconId(item, index, selected)
                     )
                     when {
                         item.badgeCount.isNotBlank() -> {
@@ -3372,61 +3455,48 @@ private fun MiniWebCanvas(
 
 @Composable
 private fun MiniActionGlyph(
+    projectId: String?,
     iconName: String,
     tint: Color,
-    fallbackLabel: String
+    fallbackIconId: String
 ) {
-    val drawableRes = TemplateIconCatalog.find(iconName)?.drawableRes
     Box(
         modifier = Modifier
             .size(18.dp)
             .background(tint.copy(alpha = 0.18f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        if (drawableRes != null) {
-            Icon(
-                painter = painterResource(id = drawableRes),
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(12.dp)
-            )
-        } else {
-            Text(
-                text = fallbackLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = tint
-            )
-        }
+        EditorIconGlyph(
+            projectId = projectId,
+            iconValue = iconName,
+            fallbackIconId = fallbackIconId,
+            tint = tint,
+            size = 12.dp
+        )
     }
 }
 
 @Composable
 private fun MiniNavigationGlyph(
+    projectId: String?,
     iconName: String,
     selected: Boolean,
     activeColor: Color,
-    inactiveColor: Color
+    inactiveColor: Color,
+    fallbackIconId: String
 ) {
     val tint = if (selected) activeColor else inactiveColor
-    val drawableRes = TemplateIconCatalog.find(iconName)?.drawableRes
     Box(
         modifier = Modifier.size(22.dp),
         contentAlignment = Alignment.Center
     ) {
-        if (drawableRes != null) {
-            Icon(
-                painter = painterResource(id = drawableRes),
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(14.dp)
-            )
-        } else {
-            Text(
-                text = iconName.trim().take(1).uppercase().ifBlank { "*" },
-                style = MaterialTheme.typography.labelSmall,
-                color = tint
-            )
-        }
+        EditorIconGlyph(
+            projectId = projectId,
+            iconValue = iconName,
+            fallbackIconId = fallbackIconId,
+            tint = tint,
+            size = 14.dp
+        )
     }
 }
 
@@ -3465,6 +3535,31 @@ private fun inferUserAgentPreset(userAgent: String): String {
         USER_AGENT_SAFARI_MAC -> USER_AGENT_PRESET_SAFARI_MAC
         USER_AGENT_CHROME_PC -> USER_AGENT_PRESET_CHROME_PC
         else -> USER_AGENT_PRESET_CUSTOM
+    }
+}
+
+private fun defaultNavigationFallbackIconId(index: Int): String {
+    return if (index % 2 == 0) "home" else "docs"
+}
+
+private fun selectedNavigationFallbackIconId(item: NavigationItemForm, index: Int): String {
+    val fallbackIconId = defaultNavigationFallbackIconId(index)
+    ProjectCustomIconReference.relativePathOrNull(item.icon)
+        ?.let(ProjectCustomIconReference::create)
+        ?.takeIf { it.isNotBlank() }
+        ?.let { return it }
+    return TemplateIconCatalog.resolveIdOrDefault(item.icon, fallbackIconId)
+}
+
+private fun navigationPreviewFallbackIconId(
+    item: NavigationItemForm,
+    index: Int,
+    selected: Boolean
+): String {
+    return if (selected) {
+        selectedNavigationFallbackIconId(item, index)
+    } else {
+        defaultNavigationFallbackIconId(index)
     }
 }
 
@@ -3817,6 +3912,7 @@ private fun resolveOutputApkPreviewName(context: Context, state: ConfigEditorFor
 @Composable
 private fun NavigationItemEditor(
     index: Int,
+    projectId: String?,
     item: NavigationItemForm,
     onRemove: () -> Unit,
     onIdChanged: (String) -> Unit,
@@ -3825,7 +3921,9 @@ private fun NavigationItemEditor(
     onIconChanged: (String) -> Unit,
     onSelectedIconChanged: (String) -> Unit,
     onBadgeCountChanged: (String) -> Unit,
-    onShowUnreadDotChanged: (Boolean) -> Unit
+    onShowUnreadDotChanged: (Boolean) -> Unit,
+    onImportCustomIconRequested: (EditorIconTarget) -> Unit,
+    onApplyIconValue: (EditorIconTarget, String) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -3851,13 +3949,29 @@ private fun NavigationItemEditor(
         )
         IconPickerField(
             label = stringResource(R.string.config_field_nav_icon),
+            projectId = projectId,
             value = item.icon,
-            onValueChange = onIconChanged
+            onValueChange = onIconChanged,
+            onAppliedValueChange = {
+                onApplyIconValue(EditorIconTarget.Navigation(index = index, selected = false), it)
+            },
+            fallbackIconId = defaultNavigationFallbackIconId(index),
+            onImportCustomIconRequested = {
+                onImportCustomIconRequested(EditorIconTarget.Navigation(index = index, selected = false))
+            }
         )
         IconPickerField(
             label = stringResource(R.string.config_editor_selected_icon),
+            projectId = projectId,
             value = item.selectedIcon,
-            onValueChange = onSelectedIconChanged
+            onValueChange = onSelectedIconChanged,
+            onAppliedValueChange = {
+                onApplyIconValue(EditorIconTarget.Navigation(index = index, selected = true), it)
+            },
+            fallbackIconId = selectedNavigationFallbackIconId(item, index),
+            onImportCustomIconRequested = {
+                onImportCustomIconRequested(EditorIconTarget.Navigation(index = index, selected = true))
+            }
         )
         LabeledTextField(
             label = stringResource(R.string.config_editor_badge_count),
@@ -4357,17 +4471,123 @@ private fun formatRgbHex(color: Color): String {
     )
 }
 
+private fun resolveEditorIconSpec(
+    iconId: String
+): com.fireflyapp.lite.ui.template.TemplateIconSpec? {
+    return TemplateIconCatalog.find(iconId)
+}
+
+private fun resolveEditorIconSummary(
+    context: Context,
+    iconId: String
+): String {
+    TemplateIconCatalog.find(iconId)?.let { spec ->
+        return context.getString(R.string.config_editor_selected_icon_summary, spec.label, spec.id)
+    }
+    ProjectCustomIconReference.displayName(iconId)
+        .takeIf { it.isNotBlank() }
+        ?.let { fileName ->
+            return context.getString(R.string.config_editor_project_custom_icon_summary, fileName)
+        }
+    return context.getString(R.string.config_editor_icon_picker_hint)
+}
+
+@Composable
+private fun rememberProjectAssetBitmap(
+    projectId: String?,
+    relativePath: String?
+): androidx.compose.ui.graphics.ImageBitmap? {
+    val context = LocalContext.current
+    val assetFile = remember(projectId, relativePath) {
+        val path = relativePath.orEmpty().trim()
+        val id = projectId.orEmpty().trim()
+        if (path.isBlank() || id.isBlank()) {
+            null
+        } else {
+            context.filesDir.resolve("projects").resolve(id).resolve(path)
+        }
+    }
+    val assetVersion = assetFile
+        ?.takeIf { it.exists() && it.isFile }
+        ?.let { "${it.lastModified()}:${it.length()}" }
+    val previewBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
+        initialValue = null,
+        projectId,
+        relativePath,
+        assetVersion
+    ) {
+        value = withContext(Dispatchers.IO) {
+            val imageFile = assetFile
+            if (imageFile == null || !imageFile.exists() || !imageFile.isFile) {
+                null
+            } else {
+                BitmapFactory.decodeFile(imageFile.absolutePath)?.asImageBitmap()
+            }
+        }
+    }
+    return previewBitmap
+}
+
+@Composable
+private fun EditorIconGlyph(
+    projectId: String?,
+    iconValue: String,
+    fallbackIconId: String?,
+    tint: Color,
+    size: androidx.compose.ui.unit.Dp
+) {
+    val effectiveIconValue = remember(iconValue, fallbackIconId) {
+        when {
+            ProjectCustomIconReference.isCustomReference(iconValue) -> iconValue.trim()
+            TemplateIconCatalog.find(iconValue) != null -> TemplateIconCatalog.find(iconValue)?.id.orEmpty()
+            !fallbackIconId.isNullOrBlank() -> fallbackIconId
+            else -> "home"
+        }
+    }
+    val customRelativePath = remember(effectiveIconValue) {
+        ProjectCustomIconReference.relativePathOrNull(effectiveIconValue)
+    }
+    val customBitmap = rememberProjectAssetBitmap(projectId, customRelativePath)
+    when {
+        customRelativePath != null && customBitmap != null -> {
+            Image(
+                bitmap = customBitmap,
+                contentDescription = null,
+                modifier = Modifier.size(size),
+                colorFilter = ColorFilter.tint(tint)
+            )
+        }
+
+        else -> {
+            val drawableRes = if (TemplateIconCatalog.find(effectiveIconValue) != null) {
+                TemplateIconCatalog.resolveOrDefault(effectiveIconValue, "home")
+            } else {
+                TemplateIconCatalog.resolveOrDefault(fallbackIconId ?: "home", "home")
+            }
+            Icon(
+                painter = painterResource(id = drawableRes),
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(size)
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun IconPickerField(
     label: String,
+    projectId: String?,
     value: String,
     onValueChange: (String) -> Unit,
-    preferredIds: List<String> = emptyList()
+    onAppliedValueChange: ((String) -> Unit)? = null,
+    preferredIds: List<String> = emptyList(),
+    fallbackIconId: String? = null,
+    onImportCustomIconRequested: (() -> Unit)? = null
 ) {
     var dialogOpen by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val selectedSpec = TemplateIconCatalog.find(value)
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -4391,20 +4611,13 @@ private fun IconPickerField(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (selectedSpec != null) {
-                        Icon(
-                            painter = painterResource(id = selectedSpec.drawableRes),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    } else {
-                        Text(
-                            text = value.trim().take(1).uppercase().ifBlank { "?" },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    EditorIconGlyph(
+                        projectId = projectId,
+                        iconValue = value,
+                        fallbackIconId = fallbackIconId ?: "home",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        size = 16.dp
+                    )
                 }
             }
         }
@@ -4420,8 +4633,7 @@ private fun IconPickerField(
             }
         )
         Text(
-            text = selectedSpec?.let { context.getString(R.string.config_editor_selected_icon_summary, it.label, it.id) }
-                ?: stringResource(R.string.config_editor_icon_picker_hint),
+            text = resolveEditorIconSummary(context, value),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -4430,7 +4642,7 @@ private fun IconPickerField(
     if (dialogOpen) {
         var draftValue by remember(value) { mutableStateOf(value) }
         var searchQuery by remember { mutableStateOf("") }
-        val draftSpec = TemplateIconCatalog.find(draftValue)
+        val draftSpec = resolveEditorIconSpec(draftValue)
         val allSpecs = TemplateIconCatalog.allSpecs
         val normalizedQuery = searchQuery.trim().lowercase()
         val filteredSpecs = allSpecs.filter { spec ->
@@ -4439,7 +4651,9 @@ private fun IconPickerField(
                 spec.label.lowercase().contains(normalizedQuery) ||
                 spec.category.lowercase().contains(normalizedQuery) ||
                 spec.aliases.any { it.contains(normalizedQuery) }
-        }
+        }.sortedWith(compareBy<com.fireflyapp.lite.ui.template.TemplateIconSpec> { spec ->
+            preferredIds.indexOf(spec.id).let { if (it >= 0) it else Int.MAX_VALUE }
+        }.thenBy { it.label })
 
         AlertDialog(
             onDismissRequest = { dialogOpen = false },
@@ -4467,33 +4681,49 @@ private fun IconPickerField(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    if (draftSpec != null) {
-                                        Icon(
-                                            painter = painterResource(id = draftSpec.drawableRes),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurface,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    } else {
-                                        Text(
-                                            text = draftValue.trim().take(1).uppercase().ifBlank { "?" },
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
+                                    EditorIconGlyph(
+                                        projectId = projectId,
+                                        iconValue = draftValue,
+                                        fallbackIconId = fallbackIconId ?: "home",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        size = 20.dp
+                                    )
                                 }
                             }
                             Column {
                                 Text(
-                                    text = draftSpec?.label ?: stringResource(R.string.config_editor_custom_icon_id),
+                                    text = when {
+                                        draftSpec != null -> draftSpec.label
+                                        ProjectCustomIconReference.isCustomReference(draftValue) -> stringResource(R.string.config_editor_project_custom_icon)
+                                        else -> stringResource(R.string.config_editor_custom_icon_id)
+                                    },
                                     style = MaterialTheme.typography.titleSmall
                                 )
                                 Text(
-                                    text = draftValue.trim().ifBlank { stringResource(R.string.config_editor_no_icon_selected) },
+                                    text = ProjectCustomIconReference.displayName(draftValue)
+                                        .ifBlank { draftValue.trim() }
+                                        .ifBlank { stringResource(R.string.config_editor_no_icon_selected) },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                        }
+                    }
+                    if (onImportCustomIconRequested != null) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = {
+                                    dialogOpen = false
+                                    onImportCustomIconRequested()
+                                }
+                            ) {
+                                Text(stringResource(R.string.config_editor_import_custom_icon))
+                            }
+                            Text(
+                                text = stringResource(R.string.config_editor_import_custom_icon_note),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                     OutlinedTextField(
@@ -4504,14 +4734,15 @@ private fun IconPickerField(
                     )
                     IconCatalogGrid(
                         specs = filteredSpecs,
-                        selectedIconId = draftValue,
+                        selectedIconId = draftSpec?.id.orEmpty(),
                         onIconSelected = { draftValue = it }
                     )
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    onValueChange(draftValue.trim())
+                    val applyValue = onAppliedValueChange ?: onValueChange
+                    applyValue(draftValue.trim())
                     dialogOpen = false
                 }) {
                     Text(stringResource(R.string.config_editor_apply))
@@ -4520,7 +4751,8 @@ private fun IconPickerField(
             dismissButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = {
-                        onValueChange("")
+                        val applyValue = onAppliedValueChange ?: onValueChange
+                        applyValue("")
                         dialogOpen = false
                     }) {
                         Text(stringResource(R.string.config_editor_clear))

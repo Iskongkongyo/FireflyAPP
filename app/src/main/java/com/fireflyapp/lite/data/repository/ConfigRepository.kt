@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.webkit.MimeTypeMap
 import com.fireflyapp.lite.core.config.AppConfigManager
+import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
 import com.fireflyapp.lite.core.pack.AndroidBuildProjectManager
 import com.fireflyapp.lite.core.pack.LocalBuildExecutor
 import com.fireflyapp.lite.core.pack.LocalBuildWorkspaceManager
@@ -35,6 +36,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import java.io.BufferedInputStream
 import java.io.File
 import java.security.MessageDigest
+import java.util.Locale
 
 class ConfigRepository(
     private val context: Context,
@@ -397,6 +399,40 @@ class ConfigRepository(
         }
     }
 
+    suspend fun importProjectCustomIcon(
+        projectId: String,
+        slotName: String,
+        uri: Uri
+    ): Result<String> {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                ensureProjectWorkspace()
+                val extension = resolveImageExtension(uri)
+                val relativePath = resolveProjectCustomIconRelativePath(slotName, extension)
+                val targetFile = projectDir(projectId).resolve(relativePath)
+                deleteProjectCustomIconSlotFiles(projectId, slotName)
+                targetFile.parentFile?.mkdirs()
+                openInputStreamForUri(uri)?.use { input ->
+                    targetFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                } ?: error("Unable to read custom icon file")
+                ProjectCustomIconReference.create(relativePath)
+            }
+        }
+    }
+
+    suspend fun deleteProjectCustomIcon(projectId: String, iconReference: String): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                ensureProjectWorkspace()
+                val relativePath = ProjectCustomIconReference.relativePathOrNull(iconReference)
+                    ?: return@runCatching
+                deleteProjectCustomIconFile(projectId, relativePath)
+            }
+        }
+    }
+
     suspend fun importProjectKeystore(projectId: String, uri: Uri): Result<ProjectManifest> {
         return withContext(Dispatchers.IO) {
             runCatching {
@@ -671,22 +707,13 @@ class ConfigRepository(
                 ensureProjectWorkspace()
                 val projectDirectory = projectDir(projectId)
                 checkNotNull(readProjectSummary(projectDirectory)) { "Project not found" }
-                val artifactPath = entry.artifactPath.trim()
-                if (artifactPath.isNotBlank()) {
-                    val artifactFile = File(artifactPath)
-                    if (artifactFile.exists()) {
-                        val projectRootPath = projectDirectory.canonicalFile.absolutePath + File.separator
-                        val artifactCanonicalPath = artifactFile.canonicalFile.absolutePath
-                        if (!artifactCanonicalPath.startsWith(projectRootPath)) {
-                            error("Refusing to delete an APK outside this project workspace.")
-                        }
-                        if (!artifactFile.delete()) {
-                            error("Unable to delete the selected APK file.")
-                        }
-                    }
-                }
                 val remainingEntries = readTemplatePackHistory(projectId)
                     .filterNot { it.matchesHistoryEntry(entry) }
+                deleteTemplatePackArtifactIfUnreferenced(
+                    projectDirectory = projectDirectory,
+                    artifactPath = entry.artifactPath,
+                    retainedEntries = remainingEntries
+                )
                 writeTemplatePackHistory(projectId, remainingEntries)
                 remainingEntries
             }
@@ -925,12 +952,22 @@ class ConfigRepository(
         if (artifactPath.isBlank()) {
             return
         }
+        val projectDirectory = projectDir(projectId)
         val artifactFile = File(artifactPath)
+        val packedAt = System.currentTimeMillis()
+        val resolvedArtifactFileName = workspace.artifactFileName
+            .trim()
+            .ifBlank { artifactFile.name.ifBlank { "output.apk" } }
+        val archivedArtifactFile = archiveTemplatePackArtifact(
+            projectId = projectId,
+            artifactFile = artifactFile,
+            preferredFileName = resolvedArtifactFileName
+        )
         val entry = TemplatePackHistoryEntry(
-            packedAt = System.currentTimeMillis(),
-            artifactPath = artifactPath,
-            artifactFileName = artifactFile.name.ifBlank { workspace.artifactFileName },
-            artifactSizeBytes = artifactFile.takeIf { it.exists() }?.length() ?: 0L,
+            packedAt = packedAt,
+            artifactPath = archivedArtifactFile.absolutePath,
+            artifactFileName = resolvedArtifactFileName,
+            artifactSizeBytes = archivedArtifactFile.length(),
             applicationLabel = workspace.applicationLabel.ifBlank { projectManifest.appIdentity.applicationLabel },
             versionName = workspace.versionName.ifBlank { projectManifest.appIdentity.versionName },
             versionCode = workspace.versionCode.takeIf { it > 0 } ?: projectManifest.appIdentity.versionCode,
@@ -944,10 +981,64 @@ class ConfigRepository(
             signingSummary = projectManifest.toSigningSummary()
         )
         val updatedHistory = listOf(entry) + readTemplatePackHistory(projectId)
+        val retainedHistory = updatedHistory.take(MAX_TEMPLATE_PACK_HISTORY_ENTRIES)
         writeTemplatePackHistory(
             projectId = projectId,
-            entries = updatedHistory.take(MAX_TEMPLATE_PACK_HISTORY_ENTRIES)
+            entries = retainedHistory
         )
+        updatedHistory.drop(MAX_TEMPLATE_PACK_HISTORY_ENTRIES).forEach { droppedEntry ->
+            deleteTemplatePackArtifactIfUnreferenced(
+                projectDirectory = projectDirectory,
+                artifactPath = droppedEntry.artifactPath,
+                retainedEntries = retainedHistory
+            )
+        }
+    }
+
+    private fun archiveTemplatePackArtifact(
+        projectId: String,
+        artifactFile: File,
+        preferredFileName: String
+    ): File {
+        require(artifactFile.exists() && artifactFile.isFile) {
+            "Pack output APK is missing and cannot be added to history."
+        }
+        val archiveDirectory = templatePackHistoryArtifactsDir(projectId).apply { mkdirs() }
+        val archivedFile = resolveUniqueHistoryArtifactFile(
+            archiveDirectory = archiveDirectory,
+            preferredFileName = preferredFileName
+        )
+        artifactFile.copyTo(archivedFile, overwrite = true)
+        return archivedFile
+    }
+
+    private fun resolveUniqueHistoryArtifactFile(
+        archiveDirectory: File,
+        preferredFileName: String
+    ): File {
+        val normalizedFileName = preferredFileName.trim().ifBlank { "output.apk" }
+        val extension = normalizedFileName.substringAfterLast('.', "")
+        val baseName = normalizedFileName.substringBeforeLast('.')
+            .ifBlank { normalizedFileName.removeSuffix(".$extension").ifBlank { "output" } }
+
+        val firstCandidate = archiveDirectory.resolve(normalizedFileName)
+        if (!firstCandidate.exists()) {
+            return firstCandidate
+        }
+
+        var index = 1
+        while (true) {
+            val candidateName = if (extension.isBlank()) {
+                "$baseName($index)"
+            } else {
+                "$baseName($index).$extension"
+            }
+            val candidate = archiveDirectory.resolve(candidateName)
+            if (!candidate.exists()) {
+                return candidate
+            }
+            index += 1
+        }
     }
 
     private fun readTemplatePackHistory(projectId: String): List<TemplatePackHistoryEntry> {
@@ -981,6 +1072,32 @@ class ConfigRepository(
         return packedAt == other.packedAt &&
             artifactPath == other.artifactPath &&
             artifactFileName == other.artifactFileName
+    }
+
+    private fun deleteTemplatePackArtifactIfUnreferenced(
+        projectDirectory: File,
+        artifactPath: String,
+        retainedEntries: List<TemplatePackHistoryEntry>
+    ) {
+        val normalizedArtifactPath = artifactPath.trim()
+        if (normalizedArtifactPath.isBlank()) {
+            return
+        }
+        if (retainedEntries.any { it.artifactPath.trim() == normalizedArtifactPath }) {
+            return
+        }
+        val artifactFile = File(normalizedArtifactPath)
+        if (!artifactFile.exists()) {
+            return
+        }
+        val projectRootPath = projectDirectory.canonicalFile.absolutePath + File.separator
+        val artifactCanonicalPath = artifactFile.canonicalFile.absolutePath
+        if (!artifactCanonicalPath.startsWith(projectRootPath)) {
+            error("Refusing to delete an APK outside this project workspace.")
+        }
+        if (!artifactFile.delete()) {
+            error("Unable to delete the selected APK file.")
+        }
     }
 
     private fun loadProjectRawConfigInternal(projectId: String): String {
@@ -1127,6 +1244,9 @@ class ConfigRepository(
 
     private fun templatePackHistoryFile(projectId: String): File = templatePackRootDir(projectId)
         .resolve(TEMPLATE_PACK_HISTORY_FILE)
+
+    private fun templatePackHistoryArtifactsDir(projectId: String): File = templatePackRootDir(projectId)
+        .resolve(TEMPLATE_PACK_HISTORY_ARTIFACTS_DIR)
 
     private fun prepareTemplatePackWorkspaceInternal(projectId: String): TemplatePackWorkspace {
         val summary = checkNotNull(readProjectSummary(projectDir(projectId))) { "Project not found" }
@@ -1303,6 +1423,55 @@ class ConfigRepository(
         return "$PROJECT_BRANDING_DIR/${prefix}_${System.currentTimeMillis()}.$extension"
     }
 
+    private fun resolveProjectCustomIconRelativePath(slotName: String, extension: String): String {
+        val normalizedSlot = slotName.trim()
+            .lowercase(Locale.US)
+            .replace(Regex("[^a-z0-9_]+"), "_")
+            .trim('_')
+            .ifBlank { "icon" }
+        return "${ProjectCustomIconReference.DIRECTORY}/$normalizedSlot.$extension"
+    }
+
+    private fun deleteProjectCustomIconSlotFiles(projectId: String, slotName: String) {
+        val normalizedSlot = slotName.trim()
+            .lowercase(Locale.US)
+            .replace(Regex("[^a-z0-9_]+"), "_")
+            .trim('_')
+            .ifBlank { "icon" }
+        val customIconsDir = projectDir(projectId).resolve(ProjectCustomIconReference.DIRECTORY)
+        if (!customIconsDir.exists() || !customIconsDir.isDirectory) {
+            return
+        }
+        customIconsDir.walkTopDown()
+            .maxDepth(1)
+            .filter { it.isFile && it.nameWithoutExtension.equals(normalizedSlot, ignoreCase = true) }
+            .forEach { file ->
+                deleteProjectCustomIconFile(
+                    projectId = projectId,
+                    relativePath = file.relativeTo(projectDir(projectId)).invariantSeparatorsPath
+                )
+            }
+    }
+
+    private fun deleteProjectCustomIconFile(projectId: String, relativePath: String) {
+        val normalizedRelativePath = sanitizeRelativeProjectPath(relativePath)
+        if (normalizedRelativePath.isBlank() || !normalizedRelativePath.startsWith("${ProjectCustomIconReference.DIRECTORY}/")) {
+            return
+        }
+        val targetFile = projectDir(projectId).resolve(normalizedRelativePath)
+        if (!targetFile.exists()) {
+            return
+        }
+        val projectRootPath = projectDir(projectId).canonicalFile.absolutePath + File.separator
+        val targetCanonicalPath = targetFile.canonicalFile.absolutePath
+        if (!targetCanonicalPath.startsWith(projectRootPath)) {
+            error("Refusing to delete a custom icon outside this project workspace.")
+        }
+        if (!targetFile.delete()) {
+            error("Unable to delete the selected custom icon file.")
+        }
+    }
+
     private fun truncateToUtf8Bytes(value: String, maxBytes: Int): String {
         if (value.toByteArray(Charsets.UTF_8).size <= maxBytes) {
             return value
@@ -1429,6 +1598,7 @@ class ConfigRepository(
         const val LOCAL_PACKAGER_DIR_NAME = "local-packager"
         const val TEMPLATE_PACKAGER_DIR_NAME = "template-packager"
         const val TEMPLATE_PACK_HISTORY_FILE = "pack-history.json"
+        const val TEMPLATE_PACK_HISTORY_ARTIFACTS_DIR = "history-artifacts"
         const val DEFAULT_VERSION_NAME = "1.0.0"
         const val DEFAULT_VERSION_CODE = 1
         const val DEFAULT_SPLASH_SKIP_ENABLED = true

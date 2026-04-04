@@ -181,6 +181,11 @@
     <string name="config_editor_selected_icon_summary">已选：%1$s（%2$s）</string>
     <string name="config_editor_icon_picker_hint">点击“选择”从内置图标仓库里挑选，或者直接手动输入图标 ID。</string>
     <string name="config_editor_custom_icon_id">自定义图标 ID</string>
+    <string name="config_editor_project_custom_icon">导入图标</string>
+    <string name="config_editor_project_custom_icon_summary">导入图标：%1$s</string>
+    <string name="config_editor_project_custom_icons">导入图标</string>
+    <string name="config_editor_import_custom_icon">从相册导入</string>
+    <string name="config_editor_import_custom_icon_note">请导入透明 PNG/WebP 图标；导入图标会跟随主题着色，不保留原色。</string>
     <string name="config_editor_no_icon_selected">未选择图标</string>
     <string name="config_editor_search_icons">搜索图标</string>
     <string name="config_editor_page_rules_desc">可视化编辑目前覆盖了常用规则字段。更高级的颜色设置和少见覆盖项，仍然可以在 JSON 标签页中处理。</string>
@@ -493,6 +498,7 @@
     <string name="config_editor_message_configuration_reset">配置已重置为内置默认值。</string>
     <string name="config_editor_message_build_metadata_reset">构建信息已重置为默认值。</string>
     <string name="config_editor_message_icon_imported">图标已导入。</string>
+    <string name="config_editor_message_custom_icon_imported">自定义图标已导入：%1$s</string>
     <string name="config_editor_message_icon_cleared">图标已清除。</string>
     <string name="config_editor_message_splash_imported">启动图已导入。</string>
     <string name="config_editor_message_splash_cleared">启动图已清除。</string>
@@ -510,6 +516,7 @@
     <string name="config_editor_error_save_project_metadata">保存项目元数据失败</string>
     <string name="config_editor_error_load_configuration">加载配置失败</string>
     <string name="config_editor_error_reset_build_metadata">重置构建信息失败</string>
+    <string name="config_editor_error_import_custom_icon">导入自定义图标失败</string>
     <string name="config_editor_error_import_icon">导入图标失败</string>
     <string name="config_editor_error_clear_icon">清除图标失败</string>
     <string name="config_editor_error_import_splash">导入启动图失败</string>
@@ -591,6 +598,7 @@
     <string name="icon_designer_text_hint">输入文字</string>
     <string name="icon_designer_hex_value">颜色值</string>
     <string name="icon_designer_invalid_color">请输入有效的十六进制颜色。</string>
+    <string name="icon_designer_transparent_background">透明背景</string>
     <string name="icon_designer_apply">应用</string>
     <string name="icon_designer_export_success">PNG 已导出。</string>
     <string name="icon_designer_export_failed">PNG 导出失败。</string>
