@@ -91,14 +91,17 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         binding.toolbar.menu.findItem(R.id.action_refresh)?.icon =
             TemplateActionIconResolver.resolveRefresh(requireContext(), projectId, shellConfig.topBarRefreshIcon)
         binding.toolbar.menu.findItem(R.id.action_refresh)?.isVisible = shellConfig.topBarShowRefreshButton
-        val topBarColor = TemplateThemeStyler.resolveThemeColor(
+        val topBarColor = TemplateThemeStyler.resolveDisplayedThemeColor(
             colorValue = shellConfig.topBarThemeColor,
-            fallbackView = binding.toolbar
+            fallbackView = binding.toolbar,
+            shadowDp = shellConfig.topBarShadowDp
         )
         binding.topBarContainer.setBackgroundColor(topBarColor)
         TemplateThemeStyler.applyTopBarTheme(
             toolbar = binding.toolbar,
             colorValue = shellConfig.topBarThemeColor,
+            heightDp = shellConfig.topBarHeightDp,
+            iconSizeDp = shellConfig.topBarIconSizeDp,
             cornerRadiusDp = shellConfig.topBarCornerRadiusDp,
             shadowDp = shellConfig.topBarShadowDp
         )
@@ -107,7 +110,8 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
                 window = requireActivity().window,
                 anchorView = binding.root,
                 colorValue = shellConfig.topBarThemeColor,
-                fallbackView = binding.toolbar
+                fallbackView = binding.toolbar,
+                shadowDp = shellConfig.topBarShadowDp
             )
         }
         TemplateThemeStyler.applyDrawerWidth(binding.drawerContainer, shellConfig.drawerWidthDp)
@@ -132,9 +136,10 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
                 )
                 .commitNow()
             currentNavigationItemId = initialItem.id.hashCode()
-            binding.drawerNavigation.setCheckedItem(initialItem.id.hashCode())
             binding.toolbar.title = initialItem.title
         }
+        syncNavigationContext(navigationItems)
+        currentNavigationItemId?.let { binding.drawerNavigation.setCheckedItem(it) }
         TemplateNavigationStateIconHelper.applyToDrawer(
             context = requireContext(),
             projectId = projectId,
@@ -175,6 +180,7 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         if (followPageTitle && title.isNotBlank() && ruleTitleOverride.isNullOrBlank()) {
             binding.toolbar.title = title
         }
+        syncNavigationStateFromCurrentUrl(updateTitleFallback = false)
     }
 
     override fun onPageProgressChanged(progress: Int) {
@@ -188,6 +194,7 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         pageWantsTopBar = state.showTopBar
         binding.topBarContainer.isVisible = state.showTopBar
         applyTopInset()
+        syncNavigationStateFromCurrentUrl(updateTitleFallback = state.title.isNullOrBlank())
         if (!state.title.isNullOrBlank()) {
             binding.toolbar.title = state.title
         }
@@ -270,7 +277,7 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
                 if (!item.title.isNullOrBlank()) {
                     binding.toolbar.title = item.title
                 }
-                webFragment?.loadUrl(item.url, resetHistory = shouldResetHistoryOnNavigation())
+                webFragment?.loadNavigationUrl(item, resetHistory = shouldResetHistoryOnNavigation())
             }
             true
         }
@@ -309,7 +316,7 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
             items = items,
             selectedItemId = currentNavigationItemId
         )
-        webFragment?.loadUrl(rootItem.url, resetHistory = true)
+        webFragment?.loadNavigationUrl(rootItem, resetHistory = true)
         binding.toolbar.title = rootItem.title
         binding.drawerLayout.closeDrawer(GravityCompat.START)
         return true
@@ -337,8 +344,8 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
                         binding.toolbar.title = targetItem.title
                     }
                     binding.drawerLayout.closeDrawer(GravityCompat.START)
-                    webFragment?.loadUrlWithSwipeTransition(
-                        url = targetItem.url,
+                    webFragment?.loadNavigationUrlWithSwipeTransition(
+                        item = targetItem,
                         direction = direction,
                         resetHistory = shouldResetHistoryOnNavigation()
                     )
@@ -347,6 +354,30 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
                 null
             }
         )
+    }
+
+    private fun syncNavigationStateFromCurrentUrl(updateTitleFallback: Boolean) {
+        val binding = _binding ?: return
+        val items = mainViewModel.requireConfig().navigation.items
+        val matchedItem = TemplateNavigationResolver.resolveItemForUrl(items, webFragment?.currentUrl())
+            ?: return
+        val matchedItemId = matchedItem.id.hashCode()
+        val navigationChanged = currentNavigationItemId != matchedItemId
+        if (navigationChanged) {
+            currentNavigationItemId = matchedItemId
+            binding.drawerNavigation.setCheckedItem(matchedItemId)
+            TemplateNavigationStateIconHelper.applyToDrawer(
+                context = requireContext(),
+                projectId = projectId,
+                navigationView = binding.drawerNavigation,
+                items = items,
+                selectedItemId = currentNavigationItemId
+            )
+        }
+        if (updateTitleFallback && navigationChanged && matchedItem.title.isNotBlank()) {
+            binding.toolbar.title = matchedItem.title
+        }
+        syncNavigationContext(items)
     }
 
     private fun shouldResetHistoryOnNavigation(): Boolean {
@@ -482,10 +513,22 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
             selectedItemId = currentNavigationItemId
         )
         binding.drawerLayout.closeDrawer(GravityCompat.START)
-        webFragment?.loadUrl(homeTarget.url, resetHistory = shouldResetHistoryOnNavigation())
+        if (matchingItem != null) {
+            webFragment?.loadNavigationUrl(matchingItem, resetHistory = shouldResetHistoryOnNavigation())
+        } else {
+            webFragment?.loadUrl(homeTarget.url, resetHistory = shouldResetHistoryOnNavigation())
+        }
         if (!homeTarget.title.isNullOrBlank()) {
             binding.toolbar.title = homeTarget.title
         }
+    }
+
+    private fun syncNavigationContext(items: List<NavigationItem>) {
+        val resolvedItem = items.firstOrNull { it.id.hashCode() == currentNavigationItemId }
+            ?: TemplateNavigationResolver.resolveItemForUrl(items, webFragment?.currentUrl())
+            ?: items.firstOrNull()
+        currentNavigationItemId = resolvedItem?.id?.hashCode()
+        webFragment?.setNavigationItems(items, resolvedItem?.id)
     }
 
     private fun resolveProjectAssetSource(relativePath: String): String {

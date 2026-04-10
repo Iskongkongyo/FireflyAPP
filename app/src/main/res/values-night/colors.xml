@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="firefly_primary">#8FB1FF</color>
+    <color name="firefly_surface">#121417</color>
+    <color name="firefly_on_surface">#F2F4F8</color>
+</resources>

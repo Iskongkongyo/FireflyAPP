@@ -59,14 +59,17 @@ class TopBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPa
         binding.toolbar.menu.findItem(R.id.action_refresh)?.icon =
             TemplateActionIconResolver.resolveRefresh(requireContext(), projectId, config.shell.topBarRefreshIcon)
         binding.toolbar.menu.findItem(R.id.action_refresh)?.isVisible = config.shell.topBarShowRefreshButton
-        val topBarColor = TemplateThemeStyler.resolveThemeColor(
+        val topBarColor = TemplateThemeStyler.resolveDisplayedThemeColor(
             colorValue = config.shell.topBarThemeColor,
-            fallbackView = binding.toolbar
+            fallbackView = binding.toolbar,
+            shadowDp = config.shell.topBarShadowDp
         )
         binding.topBarContainer.setBackgroundColor(topBarColor)
         TemplateThemeStyler.applyTopBarTheme(
             toolbar = binding.toolbar,
             colorValue = config.shell.topBarThemeColor,
+            heightDp = config.shell.topBarHeightDp,
+            iconSizeDp = config.shell.topBarIconSizeDp,
             cornerRadiusDp = config.shell.topBarCornerRadiusDp,
             shadowDp = config.shell.topBarShadowDp
         )
@@ -75,7 +78,8 @@ class TopBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPa
                 window = requireActivity().window,
                 anchorView = binding.root,
                 colorValue = config.shell.topBarThemeColor,
-                fallbackView = binding.toolbar
+                fallbackView = binding.toolbar,
+                shadowDp = config.shell.topBarShadowDp
             )
         }
         if (config.shell.topBarShowBackButton) {

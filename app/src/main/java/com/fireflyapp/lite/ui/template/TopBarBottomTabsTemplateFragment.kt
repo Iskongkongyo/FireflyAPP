@@ -77,14 +77,17 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
             } else {
                 NavigationBarView.LABEL_VISIBILITY_UNLABELED
             }
-        val topBarColor = TemplateThemeStyler.resolveThemeColor(
+        val topBarColor = TemplateThemeStyler.resolveDisplayedThemeColor(
             colorValue = shellConfig.topBarThemeColor,
-            fallbackView = binding.toolbar
+            fallbackView = binding.toolbar,
+            shadowDp = shellConfig.topBarShadowDp
         )
         binding.topBarContainer.setBackgroundColor(topBarColor)
         TemplateThemeStyler.applyTopBarTheme(
             toolbar = binding.toolbar,
             colorValue = shellConfig.topBarThemeColor,
+            heightDp = shellConfig.topBarHeightDp,
+            iconSizeDp = shellConfig.topBarIconSizeDp,
             cornerRadiusDp = shellConfig.topBarCornerRadiusDp,
             shadowDp = shellConfig.topBarShadowDp
         )
@@ -93,13 +96,16 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
                 window = requireActivity().window,
                 anchorView = binding.root,
                 colorValue = shellConfig.topBarThemeColor,
-                fallbackView = binding.toolbar
+                fallbackView = binding.toolbar,
+                shadowDp = shellConfig.topBarShadowDp
             )
         }
         TemplateThemeStyler.applyBottomBarTheme(
             bottomNavigation = binding.bottomNavigation,
             colorValue = shellConfig.bottomBarThemeColor,
             selectedColorValue = shellConfig.bottomBarSelectedColor,
+            heightDp = shellConfig.bottomBarHeightDp,
+            iconSizeDp = shellConfig.bottomBarIconSizeDp,
             cornerRadiusDp = shellConfig.bottomBarCornerRadiusDp,
             shadowDp = shellConfig.bottomBarShadowDp
         )
@@ -121,6 +127,8 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
             binding.bottomNavigation.selectedItemId = initialItem.id.hashCode()
             binding.toolbar.title = initialItem.title
         }
+        syncNavigationContext(items)
+        currentNavigationItemId?.let { binding.bottomNavigation.selectedItemId = it }
         TemplateNavigationStateIconHelper.applyToBottomBar(
             context = requireContext(),
             projectId = projectId,
@@ -157,6 +165,7 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
         if (followPageTitle && title.isNotBlank() && ruleTitleOverride.isNullOrBlank()) {
             binding.toolbar.title = title
         }
+        syncNavigationStateFromCurrentUrl(updateTitleFallback = false)
     }
 
     override fun onPageProgressChanged(progress: Int) {
@@ -172,6 +181,7 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
         pageWantsBottomBar = state.showBottomBar
         applyTopInset()
         updateBottomNavigationVisibility()
+        syncNavigationStateFromCurrentUrl(updateTitleFallback = state.title.isNullOrBlank())
         if (!state.title.isNullOrBlank()) {
             binding.toolbar.title = state.title
         }
@@ -246,7 +256,11 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
             items = items,
             selectedItemId = currentNavigationItemId
         )
-        webFragment?.loadUrl(homeTarget.url, resetHistory = shouldResetHistoryOnNavigation())
+        if (matchingItem != null) {
+            webFragment?.loadNavigationUrl(matchingItem, resetHistory = shouldResetHistoryOnNavigation())
+        } else {
+            webFragment?.loadUrl(homeTarget.url, resetHistory = shouldResetHistoryOnNavigation())
+        }
         if (!homeTarget.title.isNullOrBlank()) {
             binding.toolbar.title = homeTarget.title
         }
@@ -288,7 +302,7 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
             if (!item.title.isNullOrBlank()) {
                 binding.toolbar.title = item.title
             }
-            webFragment?.loadUrl(item.url, resetHistory = shouldResetHistoryOnNavigation())
+            webFragment?.loadNavigationUrl(item, resetHistory = shouldResetHistoryOnNavigation())
             true
         }
         binding.bottomNavigation.setOnItemReselectedListener { }
@@ -326,9 +340,33 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
             items = items,
             selectedItemId = currentNavigationItemId
         )
-        webFragment?.loadUrl(rootItem.url, resetHistory = true)
+        webFragment?.loadNavigationUrl(rootItem, resetHistory = true)
         binding.toolbar.title = rootItem.title
         return true
+    }
+
+    private fun syncNavigationStateFromCurrentUrl(updateTitleFallback: Boolean) {
+        val binding = _binding ?: return
+        val items = mainViewModel.requireConfig().navigation.items.take(MAX_ITEMS)
+        val matchedItem = TemplateNavigationResolver.resolveItemForUrl(items, webFragment?.currentUrl())
+            ?: return
+        val matchedItemId = matchedItem.id.hashCode()
+        val navigationChanged = currentNavigationItemId != matchedItemId
+        if (navigationChanged) {
+            currentNavigationItemId = matchedItemId
+            binding.bottomNavigation.selectedItemId = matchedItemId
+            TemplateNavigationStateIconHelper.applyToBottomBar(
+                context = requireContext(),
+                projectId = projectId,
+                bottomNavigation = binding.bottomNavigation,
+                items = items,
+                selectedItemId = currentNavigationItemId
+            )
+        }
+        if (updateTitleFallback && navigationChanged && matchedItem.title.isNotBlank()) {
+            binding.toolbar.title = matchedItem.title
+        }
+        syncNavigationContext(items)
     }
 
     private fun bindSwipeNavigation(items: List<NavigationItem>) {
@@ -352,8 +390,8 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
                     if (!targetItem.title.isNullOrBlank()) {
                         binding.toolbar.title = targetItem.title
                     }
-                    webFragment?.loadUrlWithSwipeTransition(
-                        url = targetItem.url,
+                    webFragment?.loadNavigationUrlWithSwipeTransition(
+                        item = targetItem,
                         direction = direction,
                         resetHistory = shouldResetHistoryOnNavigation()
                     )
@@ -362,6 +400,14 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
                 null
             }
         )
+    }
+
+    private fun syncNavigationContext(items: List<NavigationItem>) {
+        val resolvedItem = items.firstOrNull { it.id.hashCode() == currentNavigationItemId }
+            ?: TemplateNavigationResolver.resolveItemForUrl(items, webFragment?.currentUrl())
+            ?: items.firstOrNull()
+        currentNavigationItemId = resolvedItem?.id?.hashCode()
+        webFragment?.setNavigationItems(items, resolvedItem?.id)
     }
 
     private fun shouldResetHistoryOnNavigation(): Boolean {

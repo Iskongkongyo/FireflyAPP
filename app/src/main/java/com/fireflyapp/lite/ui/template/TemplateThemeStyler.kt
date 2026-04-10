@@ -2,8 +2,10 @@ package com.fireflyapp.lite.ui.template
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.view.Window
 import android.view.Menu
 import android.view.View
@@ -15,6 +17,8 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.fireflyapp.lite.R
+import com.google.android.material.color.MaterialColors
+import com.google.android.material.elevation.ElevationOverlayProvider
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.navigation.NavigationBarView
 import com.google.android.material.navigation.NavigationView
@@ -27,13 +31,20 @@ object TemplateThemeStyler {
     fun applyTopBarTheme(
         toolbar: MaterialToolbar,
         colorValue: String,
+        heightDp: Int = DEFAULT_TOP_BAR_HEIGHT_DP,
+        iconSizeDp: Int = DEFAULT_TOP_BAR_ICON_SIZE_DP,
         cornerRadiusDp: Int = 0,
         shadowDp: Int = 0,
         roundBottomCorners: Boolean = cornerRadiusDp > 0
     ) {
         val customColor = parseColorOrNull(colorValue)
-        val backgroundColor = customColor ?: resolveBackgroundColor(toolbar)
+        val backgroundColor = resolveConfiguredSurfaceColor(toolbar, colorValue)
         val foregroundColor = resolveReadableForeground(backgroundColor)
+        val resolvedHeightDp = heightDp.takeIf { it > 0 } ?: DEFAULT_TOP_BAR_HEIGHT_DP
+        val resolvedIconSizePx = dpToPx(
+            toolbar.context,
+            iconSizeDp.takeIf { it > 0 } ?: DEFAULT_TOP_BAR_ICON_SIZE_DP
+        )
         applySurfaceShape(
             view = toolbar,
             backgroundColor = backgroundColor,
@@ -41,26 +52,36 @@ object TemplateThemeStyler {
             shadowDp = shadowDp.takeIf { it > 0 } ?: DEFAULT_TOP_BAR_SHADOW_DP,
             roundTopCorners = false,
             roundBottomCorners = roundBottomCorners && cornerRadiusDp > 0,
-            applyElevationOverlay = customColor == null
+            applyElevationOverlay = customColor == null || shouldFallbackToThemeSurface(toolbar.context, customColor)
         )
+        applyViewHeight(toolbar, resolvedHeightDp)
         toolbar.contentInsetStartWithNavigation = dpToPx(toolbar.context, 14)
         toolbar.contentInsetEndWithActions = dpToPx(toolbar.context, 10)
         toolbar.titleMarginStart = dpToPx(toolbar.context, 8)
         toolbar.titleMarginEnd = dpToPx(toolbar.context, 12)
         toolbar.setTitleTextColor(foregroundColor)
         toolbar.setSubtitleTextColor(foregroundColor)
-        toolbar.navigationIcon?.setTint(foregroundColor)
-        toolbar.overflowIcon?.setTint(foregroundColor)
-        tintMenuIcons(toolbar.menu, foregroundColor)
+        toolbar.navigationIcon = resizeDrawable(toolbar.navigationIcon, resolvedIconSizePx)?.also {
+            it.setTint(foregroundColor)
+        }
+        toolbar.overflowIcon = resizeDrawable(toolbar.overflowIcon, resolvedIconSizePx)?.also {
+            it.setTint(foregroundColor)
+        }
+        tintMenuIcons(toolbar.menu, foregroundColor, resolvedIconSizePx)
     }
 
     fun applyTopBarStatusBarTheme(
         window: Window,
         anchorView: View,
         colorValue: String,
-        fallbackView: View
+        fallbackView: View,
+        shadowDp: Int = 0
     ): Int {
-        val backgroundColor = resolveThemeColor(colorValue, fallbackView)
+        val backgroundColor = resolveDisplayedSurfaceColor(
+            view = fallbackView,
+            colorValue = colorValue,
+            shadowDp = shadowDp
+        )
         window.statusBarColor = backgroundColor
         WindowInsetsControllerCompat(window, anchorView).isAppearanceLightStatusBars =
             ColorUtils.calculateLuminance(backgroundColor) > 0.5
@@ -69,21 +90,33 @@ object TemplateThemeStyler {
 
     @ColorInt
     fun resolveThemeColor(colorValue: String, fallbackView: View): Int {
-        return parseColorOrNull(colorValue) ?: resolveBackgroundColor(fallbackView)
+        return resolveConfiguredSurfaceColor(fallbackView, colorValue)
+    }
+
+    @ColorInt
+    fun resolveDisplayedThemeColor(colorValue: String, fallbackView: View, shadowDp: Int = 0): Int {
+        return resolveDisplayedSurfaceColor(
+            view = fallbackView,
+            colorValue = colorValue,
+            shadowDp = shadowDp
+        )
     }
 
     fun applyBottomBarTheme(
         bottomNavigation: NavigationBarView,
         colorValue: String,
         selectedColorValue: String = "",
+        heightDp: Int = DEFAULT_BOTTOM_BAR_HEIGHT_DP,
+        iconSizeDp: Int = DEFAULT_BOTTOM_BAR_ICON_SIZE_DP,
         cornerRadiusDp: Int = 0,
         shadowDp: Int = 0
     ) {
         val customColor = parseColorOrNull(colorValue)
-        val backgroundColor = customColor ?: resolveBackgroundColor(bottomNavigation)
+        val backgroundColor = resolveConfiguredSurfaceColor(bottomNavigation, colorValue)
         val foregroundColor = resolveReadableForeground(backgroundColor)
         val selectedColor = parseColorOrNull(selectedColorValue) ?: foregroundColor
         val unselectedColor = resolveBottomBarUnselectedColor(backgroundColor)
+        val resolvedHeightDp = heightDp.takeIf { it > 0 } ?: DEFAULT_BOTTOM_BAR_HEIGHT_DP
         applySurfaceShape(
             view = bottomNavigation,
             backgroundColor = backgroundColor,
@@ -91,7 +124,12 @@ object TemplateThemeStyler {
             shadowDp = shadowDp.takeIf { it > 0 } ?: DEFAULT_BOTTOM_BAR_SHADOW_DP,
             roundTopCorners = cornerRadiusDp > 0,
             roundBottomCorners = false,
-            applyElevationOverlay = customColor == null
+            applyElevationOverlay = customColor == null || shouldFallbackToThemeSurface(bottomNavigation.context, customColor)
+        )
+        applyViewHeight(bottomNavigation, resolvedHeightDp)
+        bottomNavigation.itemIconSize = dpToPx(
+            bottomNavigation.context,
+            iconSizeDp.takeIf { it > 0 } ?: DEFAULT_BOTTOM_BAR_ICON_SIZE_DP
         )
         bottomNavigation.itemIconTintList = buildNavigationTintList(selectedColor, unselectedColor)
         bottomNavigation.itemTextColor = buildNavigationTintList(selectedColor, unselectedColor)
@@ -108,7 +146,7 @@ object TemplateThemeStyler {
         shadowDp: Int = 0
     ) {
         val customColor = parseColorOrNull(colorValue)
-        val backgroundColor = customColor ?: resolveBackgroundColor(tabLayout)
+        val backgroundColor = resolveConfiguredSurfaceColor(tabLayout, colorValue)
         val selectedColor = parseColorOrNull(selectedColorValue) ?: resolveReadableForeground(backgroundColor)
         val unselectedColor = resolveBottomBarUnselectedColor(backgroundColor)
         applySurfaceShape(
@@ -118,7 +156,7 @@ object TemplateThemeStyler {
             shadowDp = shadowDp.takeIf { it > 0 } ?: DEFAULT_BOTTOM_BAR_SHADOW_DP,
             roundTopCorners = false,
             roundBottomCorners = cornerRadiusDp > 0,
-            applyElevationOverlay = customColor == null
+            applyElevationOverlay = customColor == null || shouldFallbackToThemeSurface(tabLayout.context, customColor)
         )
         tabLayout.setTabTextColors(unselectedColor, selectedColor)
         tabLayout.setSelectedTabIndicatorColor(selectedColor)
@@ -132,7 +170,7 @@ object TemplateThemeStyler {
         colorValue: String,
         cornerRadiusDp: Int = DEFAULT_DRAWER_RADIUS_DP
     ) {
-        val backgroundColor = parseColorOrNull(colorValue) ?: resolveBackgroundColor(navigationView)
+        val backgroundColor = resolveConfiguredSurfaceColor(navigationView, colorValue)
         val foregroundColor = resolveReadableForeground(backgroundColor)
         val shapeAppearance = ShapeAppearanceModel.builder()
             .setTopRightCorner(CornerFamily.ROUNDED, dpToPx(navigationView.context, cornerRadiusDp.coerceAtLeast(0)).toFloat())
@@ -181,10 +219,19 @@ object TemplateThemeStyler {
         drawerContainer.layoutParams = layoutParams
     }
 
-    private fun tintMenuIcons(menu: Menu, @ColorInt foregroundColor: Int) {
+    private fun tintMenuIcons(menu: Menu, @ColorInt foregroundColor: Int, iconSizePx: Int) {
         for (index in 0 until menu.size()) {
-            menu.getItem(index).icon?.setTint(foregroundColor)
+            menu.getItem(index).icon = resizeDrawable(menu.getItem(index).icon, iconSizePx)?.also {
+                it.setTint(foregroundColor)
+            }
         }
+    }
+
+    private fun resizeDrawable(drawable: Drawable?, sizePx: Int): Drawable? {
+        val source = drawable ?: return null
+        val resized = source.constantState?.newDrawable()?.mutate() ?: source.mutate()
+        resized.setBounds(0, 0, sizePx, sizePx)
+        return resized
     }
 
     private fun buildNavigationTintList(
@@ -249,8 +296,40 @@ object TemplateThemeStyler {
         return when (val background = view.background) {
             is ColorDrawable -> background.color
             is MaterialShapeDrawable -> background.fillColor?.defaultColor ?: Color.WHITE
-            else -> Color.WHITE
+            else -> MaterialColors.getColor(view, com.google.android.material.R.attr.colorSurface, Color.WHITE)
         }
+    }
+
+    @ColorInt
+    private fun resolveConfiguredSurfaceColor(view: View, colorValue: String): Int {
+        val customColor = parseColorOrNull(colorValue)
+        return when {
+            customColor == null -> resolveBackgroundColor(view)
+            shouldFallbackToThemeSurface(view.context, customColor) -> resolveBackgroundColor(view)
+            else -> customColor
+        }
+    }
+
+    @ColorInt
+    private fun resolveDisplayedSurfaceColor(view: View, colorValue: String, shadowDp: Int): Int {
+        val backgroundColor = resolveConfiguredSurfaceColor(view, colorValue)
+        val customColor = parseColorOrNull(colorValue)
+        val shouldApplyElevationOverlay =
+            customColor == null || shouldFallbackToThemeSurface(view.context, customColor)
+        if (!shouldApplyElevationOverlay) {
+            return backgroundColor
+        }
+        val elevationPx = dpToPx(view.context, shadowDp.coerceAtLeast(0)).toFloat()
+        return ElevationOverlayProvider(view.context).compositeOverlayIfNeeded(backgroundColor, elevationPx)
+    }
+
+    private fun shouldFallbackToThemeSurface(context: Context, @ColorInt color: Int): Boolean {
+        val nightMode = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return nightMode == Configuration.UI_MODE_NIGHT_YES &&
+            Color.alpha(color) == 255 &&
+            Color.red(color) == 255 &&
+            Color.green(color) == 255 &&
+            Color.blue(color) == 255
     }
 
     private fun applySurfaceShape(
@@ -293,6 +372,16 @@ object TemplateThemeStyler {
         ViewCompat.setElevation(view, elevationPx)
     }
 
+    private fun applyViewHeight(view: View, heightDp: Int) {
+        val resolvedHeightPx = dpToPx(view.context, heightDp)
+        view.minimumHeight = resolvedHeightPx
+        val layoutParams = view.layoutParams ?: return
+        if (layoutParams.height != resolvedHeightPx) {
+            layoutParams.height = resolvedHeightPx
+            view.layoutParams = layoutParams
+        }
+    }
+
     private fun dpToPx(context: Context, valueDp: Int): Int {
         return (valueDp.coerceAtLeast(0) * context.resources.displayMetrics.density).toInt()
     }
@@ -308,8 +397,12 @@ object TemplateThemeStyler {
 
     private const val DEFAULT_TOP_BAR_RADIUS_DP = 0
     private const val DEFAULT_TOP_BAR_SHADOW_DP = 0
+    private const val DEFAULT_TOP_BAR_HEIGHT_DP = 60
+    private const val DEFAULT_TOP_BAR_ICON_SIZE_DP = 24
     private const val DEFAULT_BOTTOM_BAR_RADIUS_DP = 0
     private const val DEFAULT_BOTTOM_BAR_SHADOW_DP = 0
+    private const val DEFAULT_BOTTOM_BAR_HEIGHT_DP = 68
+    private const val DEFAULT_BOTTOM_BAR_ICON_SIZE_DP = 22
     private const val DEFAULT_BOTTOM_BAR_UNSELECTED_LIGHT = 0xFF4B5563.toInt()
     private const val DEFAULT_BOTTOM_BAR_UNSELECTED_DARK = 0xB3FFFFFF.toInt()
     private const val DEFAULT_DRAWER_WIDTH_DP = 320

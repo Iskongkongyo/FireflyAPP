@@ -3,23 +3,30 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="?attr/colorSurface"
     android:orientation="vertical">
 
-    <com.google.android.material.progressindicator.LinearProgressIndicator
-        android:id="@+id/progressIndicator"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="18dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="18dp"
-        android:visibility="gone" />
-
-    <androidx.fragment.app.FragmentContainerView
-        android:id="@+id/webContainer"
+    <FrameLayout
+        android:id="@+id/contentContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:layout_weight="1">
+
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/webContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progressIndicator"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_gravity="top"
+            android:elevation="12dp"
+            android:visibility="gone"
+            app:trackCornerRadius="0dp"
+            app:trackThickness="3dp" />
+    </FrameLayout>
 
     <FrameLayout
         android:id="@+id/bottomBarContainer"

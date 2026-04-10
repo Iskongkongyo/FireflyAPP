@@ -1,15 +1,17 @@
 {
-  "schemaVersion": 1,
   "app": {
     "name": "Firefly Demo",
-    "template": "top_bar_bottom_tabs",
-    "defaultUrl": "https://example.com"
+    "template": "top_bar_bottom_tabs"
+  },
+  "browser": {
+    "showLoadingOverlay": false
   },
   "shell": {
     "topBarShowHomeButton": true,
     "topBarFollowPageTitle": false,
     "topBarTitleCentered": false,
     "topBarShadowDp": 6,
+    "bottomBarHeightDp": 80,
     "bottomBarShadowDp": 8,
     "bottomBarBadgeColor": "#E11D48",
     "bottomBarBadgeTextColor": "#FFFFFF",

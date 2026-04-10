@@ -46,7 +46,6 @@
     <string name="config_editor_import_splash">导入启动图</string>
     <string name="config_editor_project_name">项目名称</string>
     <string name="config_editor_template">模板</string>
-    <string name="config_editor_common_icon_names">常见图标名：home、docs、profile、menu、location、camera、upload、download、settings、info、search、favorite、news、chat。</string>
     <string name="config_editor_item_fallback">项目%1$d</string>
     <string name="config_field_app_name">应用名称</string>
     <string name="config_field_default_url">默认 URL</string>
@@ -74,7 +73,14 @@
     <string name="config_editor_default_navigation_item_id">默认导航项 ID</string>
     <string name="config_editor_enable_swipe_navigation">启用滑动切换导航</string>
     <string name="config_editor_navigation_back_behavior">导航返回行为</string>
+    <string name="config_editor_preserve_navigation_page_stack">保留当前导航页栈</string>
+    <string name="config_editor_preserve_navigation_page_stack_desc">在当前导航项内最多保留最近 5 个页面的完整内容，更早的页面会降级为仅保留 URL 的占位记录，返回时仍可重新加载恢复。切换到其他导航项后会立即清空已保存的页栈。</string>
+    <string name="config_editor_navigation_preload_count">导航预加载数量</string>
+    <string name="config_editor_navigation_preload_desc">按当前导航最近优先，在后台预加载最多 %1$d 个相邻导航根页。预加载页面在首次真正打开前不会记入网页历史，且隐藏页的下载、权限、外跳等副作用会被统一屏蔽。</string>
+    <string name="config_editor_navigation_preload_single_item_hint">至少需要 2 个导航项时，才可以开启导航预加载。</string>
+    <string name="config_editor_navigation_preload_conflict_hint">启用导航预加载后，导航返回行为会固定为“切换导航时重置”，并且“保留当前导航页栈”会保持关闭。</string>
     <string name="config_editor_navigation_behavior_desc">留空时默认打开第一个导航项。设置后，支持导航的模板会优先打开对应 ID 的导航项。启用滑动导航后，左右滑动可以切换相邻导航项。选择“切换导航时重置”后，切换导航项会清空当前页面历史，返回键会先回到首页导航项。</string>
+    <string name="config_editor_navigation_back_behavior_preserve_stack_hint">启用“保留当前导航页栈”后，导航返回行为会固定为“切换导航时重置”。如需使用“网页历史”，请先关闭页栈保留。</string>
     <string name="config_editor_shell_no_navigation_items">%1$s 模板当前不会渲染原生导航项。</string>
     <string name="config_editor_section_shell">壳设置</string>
     <string name="config_editor_shell_no_bar_controls">%1$s 模板在当前版本没有暴露顶栏或底栏参数。</string>
@@ -101,6 +107,8 @@
     <string name="config_editor_top_bar_show_refresh_button">显示刷新按钮</string>
     <string name="config_editor_top_bar_show_back_button">显示返回按钮</string>
     <string name="config_editor_top_bar_show_home_button">显示首页按钮</string>
+    <string name="config_editor_top_bar_height">顶栏高度 (dp)</string>
+    <string name="config_editor_top_bar_icon_size">顶栏图标大小 (dp)</string>
     <string name="config_editor_home_button_behavior">首页按钮行为</string>
     <string name="config_editor_refresh_button_behavior">刷新按钮行为</string>
     <string name="config_editor_home_button_javascript">首页按钮 JavaScript</string>
@@ -111,8 +119,6 @@
     <string name="config_editor_top_bar_home_icon">首页图标</string>
     <string name="config_editor_top_bar_refresh_icon">刷新图标</string>
     <string name="config_editor_top_bar_theme_color">顶栏主题色</string>
-    <string name="config_editor_optional_hex_example_teal">可选十六进制颜色，例如 #14B8A6。</string>
-    <string name="config_editor_action_icon_names">动作图标常用名：back、close、home、search、refresh、settings、menu。</string>
     <string name="config_editor_drawer_header_title">侧边栏标题</string>
     <string name="config_editor_drawer_header_subtitle">侧边栏副标题</string>
     <string name="config_editor_drawer_width">侧边栏宽度 (dp)</string>
@@ -129,6 +135,8 @@
     <string name="config_editor_wallpaper_avatar_desc">壁纸和头像会保存在项目内，并复用于预览、运行时壳、导出和打包。</string>
     <string name="config_editor_drawer_menu_icon">侧边栏菜单图标</string>
     <string name="config_editor_bottom_bar_show_text_labels">显示文字标签</string>
+    <string name="config_editor_bottom_bar_height">底栏高度 (dp)</string>
+    <string name="config_editor_bottom_bar_icon_size">底栏图标大小 (dp)</string>
     <string name="config_editor_bottom_bar_corner_radius">底栏圆角 (dp)</string>
     <string name="config_editor_bottom_bar_shadow">底栏阴影 (dp)</string>
     <string name="config_editor_section_tabs">标签</string>
@@ -160,7 +168,7 @@
     <string name="config_editor_apk_file_name_template">APK 文件名模板</string>
     <string name="config_editor_apk_template_blank_desc">支持占位符：{projectName}、{appName}、{versionName}、{versionCode}、{packageName}。留空则使用默认命名规则。</string>
     <string name="config_editor_preview">预览</string>
-    <string name="config_editor_signing_desc">Pack 可以使用默认 AndroidKeyStore 签名，也可以使用你为当前项目导入的自定义 keystore。</string>
+    <string name="config_editor_signing_desc">Pack 可以使用默认 AndroidKeyStore 签名，也可以使用你为当前项目导入的自定义 keystore。支持格式：.jks、.keystore、.p12、.pfx。</string>
     <string name="config_editor_current_keystore">当前 keystore：%1$s</string>
     <string name="config_editor_current_signer_default">当前签名：默认 AndroidKeyStore</string>
     <string name="config_editor_import_keystore">导入 keystore</string>
@@ -376,7 +384,7 @@
     <string name="project_hub_language_english">English</string>
     <string name="project_hub_language_hint">如果系统语言未适配，应用会默认回退到英文。</string>
     <string name="project_hub_user_agreement_title">使用协议</string>
-    <string name="project_hub_user_agreement_intro">在使用 Firefly 之前，请先阅读并同意以下协议内容：</string>
+    <string name="project_hub_user_agreement_intro">在使用 FireflyAPP 之前，请先阅读并同意以下协议内容：</string>
     <string name="project_hub_user_agreement_item_1">1. 本应用是一个本地网页转 APP 打包工具。你必须确保自己有权使用项目中涉及的网站内容、品牌素材、账号以及相关数据。</string>
     <string name="project_hub_user_agreement_item_2">2. 你需要自行对项目配置、打包产物、分发行为，以及适用法律法规、平台政策和第三方服务条款的合规性负责。</string>
     <string name="project_hub_user_agreement_item_3">3. 更新检测和通知请求只会在你同意本协议之后才会执行。</string>
@@ -526,6 +534,8 @@
     <string name="config_editor_error_import_drawer_avatar">导入侧边栏头像失败</string>
     <string name="config_editor_error_clear_drawer_avatar">清除侧边栏头像失败</string>
     <string name="config_editor_error_import_keystore">导入 keystore 失败</string>
+    <string name="config_editor_error_unsupported_keystore_format">不支持的 keystore 格式，请使用 .jks、.keystore、.p12 或 .pfx 文件。</string>
+    <string name="config_editor_error_invalid_keystore_content">所选文件不是有效的 keystore。</string>
     <string name="config_editor_error_clear_keystore">清除自定义 keystore 失败</string>
     <string name="config_editor_error_reset_branding">重置品牌设置失败</string>
     <string name="config_editor_error_export_configuration">导出配置失败</string>
@@ -606,5 +616,27 @@
     <string name="config_editor_ssl_error_handling_strict">严格校验（推荐）</string>
     <string name="config_editor_ssl_error_handling_ignore">忽略 SSL 证书错误</string>
     <string name="config_editor_ssl_error_handling_warning">危险：证书无效、过期或被伪造时，页面仍会继续加载。仅建议用于你完全信任的内网站点或自签名站点。</string>
+    <string name="web_loading_message">正在加载页面...</string>
+    <string name="web_error_title">页面暂时不可用</string>
+    <string name="web_error_message">页面加载失败，请检查配置或网络连接。</string>
+    <string name="web_retry_action">重试</string>
+    <string name="web_error_no_network_title">网络未连接</string>
+    <string name="web_error_no_network_message">请检查网络连接后重试。</string>
+    <string name="web_error_timeout_title">请求超时</string>
+    <string name="web_error_timeout_message">服务器响应时间过长，请稍后再试。</string>
+    <string name="web_error_not_found_title">页面不存在</string>
+    <string name="web_error_not_found_message">未找到请求的页面。</string>
+    <string name="web_error_certificate_title">证书错误</string>
+    <string name="web_error_certificate_message">站点证书无法验证，请检查网络或证书设置。</string>
+    <string name="web_error_generic_title">页面暂时不可用</string>
+    <string name="web_error_generic_message">页面暂时无法打开，请稍后再试。</string>
+    <string name="web_external_app_blocked">已禁止打开其他应用。</string>
+    <string name="web_external_target_fallback">其他应用</string>
+    <string name="web_external_target_browser_like">浏览器或支持该链接的应用</string>
+    <string name="web_external_dialog_title">打开 %1$s？</string>
+    <string name="web_external_dialog_message">当前页面想要打开 %1$s。\n%2$s</string>
+    <string name="web_external_dialog_open">打开</string>
+    <string name="web_external_no_handler">没有应用可以处理这个链接。</string>
+    <string name="web_renderer_recovered">页面渲染进程崩溃，预览已恢复。</string>
 </resources>
     

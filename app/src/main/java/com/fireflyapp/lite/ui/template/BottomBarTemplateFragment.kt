@@ -64,6 +64,8 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
             bottomNavigation = binding.bottomNavigation,
             colorValue = shellConfig.bottomBarThemeColor,
             selectedColorValue = shellConfig.bottomBarSelectedColor,
+            heightDp = shellConfig.bottomBarHeightDp,
+            iconSizeDp = shellConfig.bottomBarIconSizeDp,
             cornerRadiusDp = shellConfig.bottomBarCornerRadiusDp,
             shadowDp = shellConfig.bottomBarShadowDp
         )
@@ -84,6 +86,8 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
             currentNavigationItemId = initialItem.id.hashCode()
             requireActivity().title = initialItem.title
         }
+        syncNavigationContext(items)
+        currentNavigationItemId?.let { binding.bottomNavigation.selectedItemId = it }
         TemplateNavigationStateIconHelper.applyToBottomBar(
             context = requireContext(),
             projectId = projectId,
@@ -105,7 +109,7 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
                 items = items,
                 selectedItemId = currentNavigationItemId
             )
-            openNavigationPage(item.url, item.title)
+            openNavigationPage(item)
             true
         }
         binding.bottomNavigation.setOnItemReselectedListener { }
@@ -144,6 +148,7 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
         if (title.isNotBlank() && ruleTitleOverride.isNullOrBlank()) {
             requireActivity().title = title
         }
+        syncNavigationStateFromCurrentUrl(updateTitleFallback = false)
     }
 
     override fun onPageProgressChanged(progress: Int) {
@@ -156,6 +161,7 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
         ruleTitleOverride = state.title
         pageWantsBottomBar = state.showBottomBar
         updateBottomNavigationVisibility()
+        syncNavigationStateFromCurrentUrl(updateTitleFallback = state.title.isNullOrBlank())
         if (!state.title.isNullOrBlank()) {
             requireActivity().title = state.title
         }
@@ -192,23 +198,22 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
         super.onDestroyView()
     }
 
-    private fun openNavigationPage(url: String, title: String?) {
-        if (!title.isNullOrBlank()) {
-            requireActivity().title = title
+    private fun openNavigationPage(item: NavigationItem) {
+        if (!item.title.isNullOrBlank()) {
+            requireActivity().title = item.title
         }
-        webFragment?.loadUrl(url, resetHistory = shouldResetHistoryOnNavigation())
+        webFragment?.loadNavigationUrl(item, resetHistory = shouldResetHistoryOnNavigation())
     }
 
     private fun openNavigationPageWithSwipeTransition(
-        url: String,
-        title: String?,
+        item: NavigationItem,
         direction: NavigationSwipeDirection
     ) {
-        if (!title.isNullOrBlank()) {
-            requireActivity().title = title
+        if (!item.title.isNullOrBlank()) {
+            requireActivity().title = item.title
         }
-        webFragment?.loadUrlWithSwipeTransition(
-            url = url,
+        webFragment?.loadNavigationUrlWithSwipeTransition(
+            item = item,
             direction = direction,
             resetHistory = shouldResetHistoryOnNavigation()
         )
@@ -232,7 +237,7 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
                         items = items,
                         selectedItemId = currentNavigationItemId
                     )
-                    openNavigationPageWithSwipeTransition(targetItem.url, targetItem.title, direction)
+                    openNavigationPageWithSwipeTransition(targetItem, direction)
                 }
             } else {
                 null
@@ -271,9 +276,41 @@ class BottomBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, We
             items = items,
             selectedItemId = currentNavigationItemId
         )
-        webFragment?.loadUrl(rootItem.url, resetHistory = true)
+        webFragment?.loadNavigationUrl(rootItem, resetHistory = true)
         requireActivity().title = rootItem.title
         return true
+    }
+
+    private fun syncNavigationStateFromCurrentUrl(updateTitleFallback: Boolean) {
+        val binding = _binding ?: return
+        val items = mainViewModel.requireConfig().navigation.items.take(MAX_ITEMS)
+        val matchedItem = TemplateNavigationResolver.resolveItemForUrl(items, webFragment?.currentUrl())
+            ?: return
+        val matchedItemId = matchedItem.id.hashCode()
+        val navigationChanged = currentNavigationItemId != matchedItemId
+        if (navigationChanged) {
+            currentNavigationItemId = matchedItemId
+            binding.bottomNavigation.selectedItemId = matchedItemId
+            TemplateNavigationStateIconHelper.applyToBottomBar(
+                context = requireContext(),
+                projectId = projectId,
+                bottomNavigation = binding.bottomNavigation,
+                items = items,
+                selectedItemId = currentNavigationItemId
+            )
+        }
+        if (updateTitleFallback && navigationChanged && matchedItem.title.isNotBlank()) {
+            requireActivity().title = matchedItem.title
+        }
+        syncNavigationContext(items)
+    }
+
+    private fun syncNavigationContext(items: List<NavigationItem>) {
+        val resolvedItem = items.firstOrNull { it.id.hashCode() == currentNavigationItemId }
+            ?: TemplateNavigationResolver.resolveItemForUrl(items, webFragment?.currentUrl())
+            ?: items.firstOrNull()
+        currentNavigationItemId = resolvedItem?.id?.hashCode()
+        webFragment?.setNavigationItems(items, resolvedItem?.id)
     }
 
     private fun shouldResetHistoryOnNavigation(): Boolean {

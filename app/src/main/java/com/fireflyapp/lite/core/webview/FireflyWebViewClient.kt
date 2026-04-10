@@ -4,12 +4,16 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.http.SslError
 import android.net.Uri
+import android.os.Build
+import android.util.Log
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.annotation.RequiresApi
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.core.rule.PageRuleResolver
 import com.fireflyapp.lite.core.rule.ResolvedPageState
@@ -27,7 +31,9 @@ class FireflyWebViewClient(
     private val onPageStarted: ((String) -> Unit)? = null,
     private val onResolvedPageStateChanged: ((ResolvedPageState) -> Unit)? = null,
     private val onPageCommitVisible: ((WebView, String) -> Unit)? = null,
-    private val onPageFinished: ((WebView, String) -> Unit)? = null
+    private val onPageFinished: ((WebView, String) -> Unit)? = null,
+    private val onInternalNavigationRequest: ((WebView, WebResourceRequest) -> Boolean)? = null,
+    private val onRenderProcessGone: ((WebView, RenderProcessGoneDetail) -> Boolean)? = null
 ) : WebViewClient() {
     private var mainFrameError: PageLoadErrorState? = null
     private val resolvedPageInjectionApplier = ResolvedPageInjectionApplier()
@@ -52,12 +58,16 @@ class FireflyWebViewClient(
 
         val targetUrl = targetUri.toString()
         val state = pageRuleResolver.resolve(targetUrl)
+        Log.d(TAG, "shouldOverrideUrlLoading url=$targetUrl openExternal=${state.openExternal} view=${describeView(view)}")
         if (state.openExternal) {
             return handleExternalUri(targetUri)
         }
 
         return when {
-            UrlMatcher.isHostAllowed(targetUri, appConfig.security.allowedHosts) -> false
+            UrlMatcher.isHostAllowed(targetUri, appConfig.security.allowedHosts) -> {
+                val currentView = view ?: return false
+                onInternalNavigationRequest?.invoke(currentView, request) == true
+            }
             appConfig.security.allowExternalHosts -> handleExternalUri(targetUri)
             else -> true
         }
@@ -68,6 +78,7 @@ class FireflyWebViewClient(
         mainFrameError = null
         onPageLoadingChanged?.invoke(true)
         url?.let {
+            Log.d(TAG, "onPageStarted url=$it view=${describeView(view)}")
             onPageStarted?.invoke(it)
             val state = pageRuleResolver.resolve(it)
             pageCallback?.onPageStateResolved(state)
@@ -79,6 +90,7 @@ class FireflyWebViewClient(
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
         val currentUrl = url ?: return
+        Log.d(TAG, "onPageFinished url=$currentUrl view=${describeView(view)}")
         val state = pageRuleResolver.resolve(currentUrl)
         pageCallback?.onPageStateResolved(state)
         onResolvedPageStateChanged?.invoke(state)
@@ -96,6 +108,7 @@ class FireflyWebViewClient(
         super.onPageCommitVisible(view, url)
         val currentView = view ?: return
         val currentUrl = url ?: return
+        Log.d(TAG, "onPageCommitVisible url=$currentUrl view=${describeView(currentView)}")
         onPageCommitVisible?.invoke(currentView, currentUrl)
     }
 
@@ -107,6 +120,10 @@ class FireflyWebViewClient(
         super.onReceivedError(view, request, error)
         if (request?.isForMainFrame == true) {
             mainFrameError = mapResourceError(error?.errorCode)
+            Log.e(
+                TAG,
+                "onReceivedError url=${request.url} code=${error?.errorCode} description=${error?.description} mapped=$mainFrameError view=${describeView(view)}"
+            )
             onPageLoadingChanged?.invoke(false)
             onPageLoadError(mainFrameError ?: PageLoadErrorState.Generic)
         }
@@ -120,6 +137,10 @@ class FireflyWebViewClient(
         super.onReceivedHttpError(view, request, errorResponse)
         if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 0) >= 400) {
             mainFrameError = mapHttpError(errorResponse?.statusCode ?: 0)
+            Log.e(
+                TAG,
+                "onReceivedHttpError url=${request.url} status=${errorResponse?.statusCode} reason=${errorResponse?.reasonPhrase} mapped=$mainFrameError view=${describeView(view)}"
+            )
             onPageLoadingChanged?.invoke(false)
             onPageLoadError(mainFrameError ?: PageLoadErrorState.Generic)
         }
@@ -134,10 +155,23 @@ class FireflyWebViewClient(
             handler?.proceed()
             return
         }
+        Log.e(
+            TAG,
+            "onReceivedSslError url=${error?.url} primary=${error?.primaryError} view=${describeView(view)}"
+        )
         handler?.cancel()
         mainFrameError = PageLoadErrorState.Certificate
         onPageLoadingChanged?.invoke(false)
         onPageLoadError(PageLoadErrorState.Certificate)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+        Log.e(
+            TAG,
+            "onRenderProcessGone url=${view.url} didCrash=${detail.didCrash()} priorityAtExit=${detail.rendererPriorityAtExit()} view=${describeView(view)}"
+        )
+        return onRenderProcessGone?.invoke(view, detail) == true
     }
 
     private fun handleExternalUri(uri: Uri): Boolean {
@@ -152,9 +186,18 @@ class FireflyWebViewClient(
     }
 
     private companion object {
+        const val TAG = "FireflyWebViewClient"
         val internalSchemes = setOf("http", "https")
         val externalSchemes = setOf("tel", "mailto", "intent")
         val blockedSchemes = setOf("about", "blob", "data", "file", "javascript")
+    }
+
+    private fun describeView(view: WebView?): String {
+        return if (view == null) {
+            "null"
+        } else {
+            "${view.javaClass.simpleName}@${Integer.toHexString(System.identityHashCode(view))}"
+        }
     }
 
     sealed class PageLoadErrorState(val titleRes: Int, val messageRes: Int) {

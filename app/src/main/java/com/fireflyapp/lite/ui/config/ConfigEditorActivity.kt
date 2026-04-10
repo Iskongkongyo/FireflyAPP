@@ -9,6 +9,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -42,6 +43,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
@@ -86,8 +89,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -124,6 +129,7 @@ import com.fireflyapp.lite.ui.template.TemplateIconCatalog
 import com.fireflyapp.lite.ui.template.TemplateNavigationChromeStyle
 import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -293,12 +299,16 @@ class ConfigEditorActivity : ComponentActivity() {
                     onTopBarRefreshScriptChanged = viewModel::updateTopBarRefreshScript,
                     onTopBarFollowPageTitleChanged = viewModel::updateTopBarFollowPageTitle,
                     onTopBarTitleCenteredChanged = viewModel::updateTopBarTitleCentered,
+                    onTopBarHeightChanged = viewModel::updateTopBarHeightText,
+                    onTopBarIconSizeChanged = viewModel::updateTopBarIconSizeText,
                     onTopBarCornerRadiusChanged = viewModel::updateTopBarCornerRadiusText,
                     onTopBarShadowChanged = viewModel::updateTopBarShadowText,
                     onTopBarBackIconChanged = viewModel::updateTopBarBackIcon,
                     onTopBarHomeIconChanged = viewModel::updateTopBarHomeIcon,
                     onTopBarRefreshIconChanged = viewModel::updateTopBarRefreshIcon,
                     onBottomBarShowTextLabelsChanged = viewModel::updateBottomBarShowTextLabels,
+                    onBottomBarHeightChanged = viewModel::updateBottomBarHeightText,
+                    onBottomBarIconSizeChanged = viewModel::updateBottomBarIconSizeText,
                     onBottomBarCornerRadiusChanged = viewModel::updateBottomBarCornerRadiusText,
                     onBottomBarShadowChanged = viewModel::updateBottomBarShadowText,
                     onBottomBarBadgeColorChanged = viewModel::updateBottomBarBadgeColor,
@@ -332,6 +342,8 @@ class ConfigEditorActivity : ComponentActivity() {
                     onDrawerMenuIconChanged = viewModel::updateDrawerMenuIcon,
                     onDefaultNavigationItemIdChanged = viewModel::updateDefaultNavigationItemId,
                     onEnableSwipeNavigationChanged = viewModel::updateEnableSwipeNavigation,
+                    onPreserveNavigationPageStackChanged = viewModel::updatePreserveNavigationPageStack,
+                    onNavigationPreloadCountChanged = viewModel::updateNavigationPreloadCountText,
                     onNavigationBackBehaviorChanged = viewModel::updateNavigationBackBehavior,
                     onTopBarThemeColorChanged = viewModel::updateTopBarThemeColor,
                     onBottomBarThemeColorChanged = viewModel::updateBottomBarThemeColor,
@@ -496,6 +508,7 @@ class ConfigEditorActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ConfigEditorScreen(
     state: ConfigEditorUiState,
@@ -523,12 +536,16 @@ private fun ConfigEditorScreen(
     onTopBarRefreshScriptChanged: (String) -> Unit,
     onTopBarFollowPageTitleChanged: (Boolean) -> Unit,
     onTopBarTitleCenteredChanged: (Boolean) -> Unit,
+    onTopBarHeightChanged: (String) -> Unit,
+    onTopBarIconSizeChanged: (String) -> Unit,
     onTopBarCornerRadiusChanged: (String) -> Unit,
     onTopBarShadowChanged: (String) -> Unit,
     onTopBarBackIconChanged: (String) -> Unit,
     onTopBarHomeIconChanged: (String) -> Unit,
     onTopBarRefreshIconChanged: (String) -> Unit,
     onBottomBarShowTextLabelsChanged: (Boolean) -> Unit,
+    onBottomBarHeightChanged: (String) -> Unit,
+    onBottomBarIconSizeChanged: (String) -> Unit,
     onBottomBarCornerRadiusChanged: (String) -> Unit,
     onBottomBarShadowChanged: (String) -> Unit,
     onBottomBarBadgeColorChanged: (String) -> Unit,
@@ -558,6 +575,8 @@ private fun ConfigEditorScreen(
     onDrawerMenuIconChanged: (String) -> Unit,
     onDefaultNavigationItemIdChanged: (String) -> Unit,
     onEnableSwipeNavigationChanged: (Boolean) -> Unit,
+    onPreserveNavigationPageStackChanged: (Boolean) -> Unit,
+    onNavigationPreloadCountChanged: (String) -> Unit,
     onNavigationBackBehaviorChanged: (String) -> Unit,
     onTopBarThemeColorChanged: (String) -> Unit,
     onBottomBarThemeColorChanged: (String) -> Unit,
@@ -628,6 +647,34 @@ private fun ConfigEditorScreen(
     onPageEventActionScriptChanged: (Int, Int, String) -> Unit,
     onRawJsonChanged: (String) -> Unit
 ) {
+    val editorTabs = remember { EditorTab.values().toList() }
+    val pagerState = rememberPagerState(
+        initialPage = state.selectedTab.ordinal,
+        pageCount = { editorTabs.size }
+    )
+    val latestSelectedTab by rememberUpdatedState(state.selectedTab)
+    val latestOnSelectTab by rememberUpdatedState(onSelectTab)
+
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.isScrollInProgress to pagerState.currentPage }
+            .collect { (isScrollInProgress, page) ->
+                if (isScrollInProgress) {
+                    return@collect
+                }
+                val targetTab = editorTabs.getOrNull(page) ?: return@collect
+                if (targetTab != latestSelectedTab) {
+                    latestOnSelectTab(targetTab)
+                }
+            }
+    }
+
+    LaunchedEffect(state.selectedTab) {
+        val targetPage = state.selectedTab.ordinal
+        if (pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -677,36 +724,13 @@ private fun ConfigEditorScreen(
             edgePadding = 8.dp,
             containerColor = MaterialTheme.colorScheme.surface
         ) {
-            Tab(
-                selected = state.selectedTab == EditorTab.BASIC,
-                onClick = { onSelectTab(EditorTab.BASIC) },
-                text = { Text(stringResource(R.string.config_editor_tab_basic)) }
-            )
-            Tab(
-                selected = state.selectedTab == EditorTab.RULES,
-                onClick = { onSelectTab(EditorTab.RULES) },
-                text = { Text(stringResource(R.string.config_editor_tab_rules)) }
-            )
-            Tab(
-                selected = state.selectedTab == EditorTab.EVENTS,
-                onClick = { onSelectTab(EditorTab.EVENTS) },
-                text = { Text(stringResource(R.string.config_editor_tab_events)) }
-            )
-            Tab(
-                selected = state.selectedTab == EditorTab.BRANDING,
-                onClick = { onSelectTab(EditorTab.BRANDING) },
-                text = { Text(stringResource(R.string.config_editor_tab_branding)) }
-            )
-            Tab(
-                selected = state.selectedTab == EditorTab.BUILD,
-                onClick = { onSelectTab(EditorTab.BUILD) },
-                text = { Text(stringResource(R.string.config_editor_tab_build)) }
-            )
-            Tab(
-                selected = state.selectedTab == EditorTab.JSON,
-                onClick = { onSelectTab(EditorTab.JSON) },
-                text = { Text(stringResource(R.string.config_tab_json)) }
-            )
+            editorTabs.forEach { tab ->
+                Tab(
+                    selected = state.selectedTab == tab,
+                    onClick = { onSelectTab(tab) },
+                    text = { Text(stringResource(editorTabTitleRes(tab))) }
+                )
+            }
         }
 
         if (state.isLoading) {
@@ -716,156 +740,181 @@ private fun ConfigEditorScreen(
             return
         }
 
-        when (state.selectedTab) {
-            EditorTab.BASIC -> ConfigFormContent(
-                state = state.formState,
-                projectId = state.projectId,
-                onAppNameChanged = onAppNameChanged,
-                onDefaultUrlChanged = onDefaultUrlChanged,
-                onTemplateSelected = onTemplateSelected,
-                onUserAgentChanged = onUserAgentChanged,
-                onBackActionSelected = onBackActionSelected,
-                onNightModeChanged = onNightModeChanged,
-                onLoadingOverlayChanged = onLoadingOverlayChanged,
-                onShowPageProgressBarChanged = onShowPageProgressBarChanged,
-                onErrorViewChanged = onErrorViewChanged,
-                onImmersiveStatusBarChanged = onImmersiveStatusBarChanged,
-                onTopBarShowBackButtonChanged = onTopBarShowBackButtonChanged,
-                onTopBarShowHomeButtonChanged = onTopBarShowHomeButtonChanged,
-                onTopBarShowRefreshButtonChanged = onTopBarShowRefreshButtonChanged,
-                onTopBarHomeBehaviorChanged = onTopBarHomeBehaviorChanged,
-                onTopBarHomeScriptChanged = onTopBarHomeScriptChanged,
-                onTopBarRefreshBehaviorChanged = onTopBarRefreshBehaviorChanged,
-                onTopBarRefreshScriptChanged = onTopBarRefreshScriptChanged,
-                onTopBarFollowPageTitleChanged = onTopBarFollowPageTitleChanged,
-                onTopBarTitleCenteredChanged = onTopBarTitleCenteredChanged,
-                onTopBarCornerRadiusChanged = onTopBarCornerRadiusChanged,
-                onTopBarShadowChanged = onTopBarShadowChanged,
-                onTopBarBackIconChanged = onTopBarBackIconChanged,
-                onTopBarHomeIconChanged = onTopBarHomeIconChanged,
-                onTopBarRefreshIconChanged = onTopBarRefreshIconChanged,
-                onBottomBarShowTextLabelsChanged = onBottomBarShowTextLabelsChanged,
-                onBottomBarCornerRadiusChanged = onBottomBarCornerRadiusChanged,
-                onBottomBarShadowChanged = onBottomBarShadowChanged,
-                onBottomBarBadgeColorChanged = onBottomBarBadgeColorChanged,
-                onBottomBarBadgeTextColorChanged = onBottomBarBadgeTextColorChanged,
-                onBottomBarBadgeGravityChanged = onBottomBarBadgeGravityChanged,
-                onBottomBarBadgeMaxCharacterCountChanged = onBottomBarBadgeMaxCharacterCountChanged,
-                onBottomBarBadgeHorizontalOffsetChanged = onBottomBarBadgeHorizontalOffsetChanged,
-                onBottomBarBadgeVerticalOffsetChanged = onBottomBarBadgeVerticalOffsetChanged,
-                onBottomBarSelectedColorChanged = onBottomBarSelectedColorChanged,
-                onDrawerHeaderTitleChanged = onDrawerHeaderTitleChanged,
-                onDrawerHeaderSubtitleChanged = onDrawerHeaderSubtitleChanged,
-                onDrawerWidthChanged = onDrawerWidthChanged,
-                onDrawerCornerRadiusChanged = onDrawerCornerRadiusChanged,
-                onDrawerHeaderBackgroundColorChanged = onDrawerHeaderBackgroundColorChanged,
-                onDrawerWallpaperEnabledChanged = onDrawerWallpaperEnabledChanged,
-                onImportDrawerWallpaper = onImportDrawerWallpaper,
-                onClearDrawerWallpaper = onClearDrawerWallpaper,
-                onDrawerWallpaperHeightChanged = onDrawerWallpaperHeightChanged,
-                onDrawerAvatarEnabledChanged = onDrawerAvatarEnabledChanged,
-                onImportDrawerAvatar = onImportDrawerAvatar,
-                onClearDrawerAvatar = onClearDrawerAvatar,
-                onDrawerHeaderImageUrlChanged = onDrawerHeaderImageUrlChanged,
-                onDrawerHeaderImageHeightChanged = onDrawerHeaderImageHeightChanged,
-                onDrawerHeaderImageScaleModeChanged = onDrawerHeaderImageScaleModeChanged,
-                onDrawerHeaderImageOverlayPresetChanged = onDrawerHeaderImageOverlayPresetChanged,
-                onDrawerHeaderImageOverlayColorChanged = onDrawerHeaderImageOverlayColorChanged,
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) { page ->
+            when (editorTabs[page]) {
+                EditorTab.BASIC -> ConfigFormContent(
+                    state = state.formState,
+                    projectId = state.projectId,
+                    onAppNameChanged = onAppNameChanged,
+                    onDefaultUrlChanged = onDefaultUrlChanged,
+                    onTemplateSelected = onTemplateSelected,
+                    onUserAgentChanged = onUserAgentChanged,
+                    onBackActionSelected = onBackActionSelected,
+                    onNightModeChanged = onNightModeChanged,
+                    onLoadingOverlayChanged = onLoadingOverlayChanged,
+                    onShowPageProgressBarChanged = onShowPageProgressBarChanged,
+                    onErrorViewChanged = onErrorViewChanged,
+                    onImmersiveStatusBarChanged = onImmersiveStatusBarChanged,
+                    onTopBarShowBackButtonChanged = onTopBarShowBackButtonChanged,
+                    onTopBarShowHomeButtonChanged = onTopBarShowHomeButtonChanged,
+                    onTopBarShowRefreshButtonChanged = onTopBarShowRefreshButtonChanged,
+                    onTopBarHomeBehaviorChanged = onTopBarHomeBehaviorChanged,
+                    onTopBarHomeScriptChanged = onTopBarHomeScriptChanged,
+                    onTopBarRefreshBehaviorChanged = onTopBarRefreshBehaviorChanged,
+                    onTopBarRefreshScriptChanged = onTopBarRefreshScriptChanged,
+                    onTopBarFollowPageTitleChanged = onTopBarFollowPageTitleChanged,
+                    onTopBarTitleCenteredChanged = onTopBarTitleCenteredChanged,
+                    onTopBarHeightChanged = onTopBarHeightChanged,
+                    onTopBarIconSizeChanged = onTopBarIconSizeChanged,
+                    onTopBarCornerRadiusChanged = onTopBarCornerRadiusChanged,
+                    onTopBarShadowChanged = onTopBarShadowChanged,
+                    onTopBarBackIconChanged = onTopBarBackIconChanged,
+                    onTopBarHomeIconChanged = onTopBarHomeIconChanged,
+                    onTopBarRefreshIconChanged = onTopBarRefreshIconChanged,
+                    onBottomBarShowTextLabelsChanged = onBottomBarShowTextLabelsChanged,
+                    onBottomBarHeightChanged = onBottomBarHeightChanged,
+                    onBottomBarIconSizeChanged = onBottomBarIconSizeChanged,
+                    onBottomBarCornerRadiusChanged = onBottomBarCornerRadiusChanged,
+                    onBottomBarShadowChanged = onBottomBarShadowChanged,
+                    onBottomBarBadgeColorChanged = onBottomBarBadgeColorChanged,
+                    onBottomBarBadgeTextColorChanged = onBottomBarBadgeTextColorChanged,
+                    onBottomBarBadgeGravityChanged = onBottomBarBadgeGravityChanged,
+                    onBottomBarBadgeMaxCharacterCountChanged = onBottomBarBadgeMaxCharacterCountChanged,
+                    onBottomBarBadgeHorizontalOffsetChanged = onBottomBarBadgeHorizontalOffsetChanged,
+                    onBottomBarBadgeVerticalOffsetChanged = onBottomBarBadgeVerticalOffsetChanged,
+                    onBottomBarSelectedColorChanged = onBottomBarSelectedColorChanged,
+                    onDrawerHeaderTitleChanged = onDrawerHeaderTitleChanged,
+                    onDrawerHeaderSubtitleChanged = onDrawerHeaderSubtitleChanged,
+                    onDrawerWidthChanged = onDrawerWidthChanged,
+                    onDrawerCornerRadiusChanged = onDrawerCornerRadiusChanged,
+                    onDrawerHeaderBackgroundColorChanged = onDrawerHeaderBackgroundColorChanged,
+                    onDrawerWallpaperEnabledChanged = onDrawerWallpaperEnabledChanged,
+                    onImportDrawerWallpaper = onImportDrawerWallpaper,
+                    onClearDrawerWallpaper = onClearDrawerWallpaper,
+                    onDrawerWallpaperHeightChanged = onDrawerWallpaperHeightChanged,
+                    onDrawerAvatarEnabledChanged = onDrawerAvatarEnabledChanged,
+                    onImportDrawerAvatar = onImportDrawerAvatar,
+                    onClearDrawerAvatar = onClearDrawerAvatar,
+                    onDrawerHeaderImageUrlChanged = onDrawerHeaderImageUrlChanged,
+                    onDrawerHeaderImageHeightChanged = onDrawerHeaderImageHeightChanged,
+                    onDrawerHeaderImageScaleModeChanged = onDrawerHeaderImageScaleModeChanged,
+                    onDrawerHeaderImageOverlayPresetChanged = onDrawerHeaderImageOverlayPresetChanged,
+                    onDrawerHeaderImageOverlayColorChanged = onDrawerHeaderImageOverlayColorChanged,
                 onDrawerMenuIconChanged = onDrawerMenuIconChanged,
                 onDefaultNavigationItemIdChanged = onDefaultNavigationItemIdChanged,
                 onEnableSwipeNavigationChanged = onEnableSwipeNavigationChanged,
+                onPreserveNavigationPageStackChanged = onPreserveNavigationPageStackChanged,
+                onNavigationPreloadCountChanged = onNavigationPreloadCountChanged,
                 onNavigationBackBehaviorChanged = onNavigationBackBehaviorChanged,
                 onTopBarThemeColorChanged = onTopBarThemeColorChanged,
                 onBottomBarThemeColorChanged = onBottomBarThemeColorChanged,
-                onAllowExternalHostsChanged = onAllowExternalHostsChanged,
-                onOpenOtherAppsModeChanged = onOpenOtherAppsModeChanged,
-                onSslErrorHandlingChanged = onSslErrorHandlingChanged,
-                onAllowedHostsChanged = onAllowedHostsChanged,
-                onGlobalJsChanged = onGlobalJsChanged,
-                onGlobalCssChanged = onGlobalCssChanged,
-                onAddNavigationItem = onAddNavigationItem,
-                onRemoveNavigationItem = onRemoveNavigationItem,
-                onNavigationIdChanged = onNavigationIdChanged,
-                onNavigationTitleChanged = onNavigationTitleChanged,
-                onNavigationUrlChanged = onNavigationUrlChanged,
-                onNavigationIconChanged = onNavigationIconChanged,
-                onNavigationSelectedIconChanged = onNavigationSelectedIconChanged,
-                onNavigationBadgeCountChanged = onNavigationBadgeCountChanged,
-                onNavigationShowUnreadDotChanged = onNavigationShowUnreadDotChanged,
-                onImportCustomIconRequested = onImportCustomIconRequested,
-                onApplyIconValue = onApplyIconValue
-            )
+                    onAllowExternalHostsChanged = onAllowExternalHostsChanged,
+                    onOpenOtherAppsModeChanged = onOpenOtherAppsModeChanged,
+                    onSslErrorHandlingChanged = onSslErrorHandlingChanged,
+                    onAllowedHostsChanged = onAllowedHostsChanged,
+                    onGlobalJsChanged = onGlobalJsChanged,
+                    onGlobalCssChanged = onGlobalCssChanged,
+                    onAddNavigationItem = onAddNavigationItem,
+                    onRemoveNavigationItem = onRemoveNavigationItem,
+                    onNavigationIdChanged = onNavigationIdChanged,
+                    onNavigationTitleChanged = onNavigationTitleChanged,
+                    onNavigationUrlChanged = onNavigationUrlChanged,
+                    onNavigationIconChanged = onNavigationIconChanged,
+                    onNavigationSelectedIconChanged = onNavigationSelectedIconChanged,
+                    onNavigationBadgeCountChanged = onNavigationBadgeCountChanged,
+                    onNavigationShowUnreadDotChanged = onNavigationShowUnreadDotChanged,
+                    onImportCustomIconRequested = onImportCustomIconRequested,
+                    onApplyIconValue = onApplyIconValue
+                )
 
-            EditorTab.RULES -> PageRulesContent(
-                pageRules = state.formState.pageRules,
-                onAddPageRule = onAddPageRule,
-                onRemovePageRule = onRemovePageRule,
-                onUrlEqualsChanged = onPageRuleUrlEqualsChanged,
-                onUrlStartsWithChanged = onPageRuleUrlStartsWithChanged,
-                onUrlContainsChanged = onPageRuleUrlContainsChanged,
-                onTitleChanged = onPageRuleTitleChanged,
-                onLoadingTextChanged = onPageRuleLoadingTextChanged,
-                onErrorTitleChanged = onPageRuleErrorTitleChanged,
-                onErrorMessageChanged = onPageRuleErrorMessageChanged,
-                onRetryActionChanged = onPageRuleRetryActionChanged,
-                onRetryUrlChanged = onPageRuleRetryUrlChanged,
-                onInjectJsChanged = onPageRuleInjectJsChanged,
-                onInjectCssChanged = onPageRuleInjectCssChanged,
-                onShowTopBarChanged = onPageRuleShowTopBarChanged,
-                onShowBottomBarChanged = onPageRuleShowBottomBarChanged,
-                onShowDownloadOverlayChanged = onPageRuleShowDownloadOverlayChanged,
-                onSuppressFocusHighlightChanged = onPageRuleSuppressFocusHighlightChanged,
-                onOpenExternalChanged = onPageRuleOpenExternalChanged
-            )
+                EditorTab.RULES -> PageRulesContent(
+                    pageRules = state.formState.pageRules,
+                    onAddPageRule = onAddPageRule,
+                    onRemovePageRule = onRemovePageRule,
+                    onUrlEqualsChanged = onPageRuleUrlEqualsChanged,
+                    onUrlStartsWithChanged = onPageRuleUrlStartsWithChanged,
+                    onUrlContainsChanged = onPageRuleUrlContainsChanged,
+                    onTitleChanged = onPageRuleTitleChanged,
+                    onLoadingTextChanged = onPageRuleLoadingTextChanged,
+                    onErrorTitleChanged = onPageRuleErrorTitleChanged,
+                    onErrorMessageChanged = onPageRuleErrorMessageChanged,
+                    onRetryActionChanged = onPageRuleRetryActionChanged,
+                    onRetryUrlChanged = onPageRuleRetryUrlChanged,
+                    onInjectJsChanged = onPageRuleInjectJsChanged,
+                    onInjectCssChanged = onPageRuleInjectCssChanged,
+                    onShowTopBarChanged = onPageRuleShowTopBarChanged,
+                    onShowBottomBarChanged = onPageRuleShowBottomBarChanged,
+                    onShowDownloadOverlayChanged = onPageRuleShowDownloadOverlayChanged,
+                    onSuppressFocusHighlightChanged = onPageRuleSuppressFocusHighlightChanged,
+                    onOpenExternalChanged = onPageRuleOpenExternalChanged
+                )
 
-            EditorTab.EVENTS -> PageEventsContent(
-                pageEvents = state.formState.pageEvents,
-                onAddPageEvent = onAddPageEvent,
-                onRemovePageEvent = onRemovePageEvent,
-                onPageEventIdChanged = onPageEventIdChanged,
-                onPageEventEnabledChanged = onPageEventEnabledChanged,
-                onPageEventTriggerChanged = onPageEventTriggerChanged,
-                onPageEventUrlEqualsChanged = onPageEventUrlEqualsChanged,
-                onPageEventUrlStartsWithChanged = onPageEventUrlStartsWithChanged,
-                onPageEventUrlContainsChanged = onPageEventUrlContainsChanged,
-                onAddPageEventAction = onAddPageEventAction,
-                onRemovePageEventAction = onRemovePageEventAction,
-                onPageEventActionTypeChanged = onPageEventActionTypeChanged,
-                onPageEventActionValueChanged = onPageEventActionValueChanged,
-                onPageEventActionUrlChanged = onPageEventActionUrlChanged,
-                onPageEventActionScriptChanged = onPageEventActionScriptChanged
-            )
+                EditorTab.EVENTS -> PageEventsContent(
+                    pageEvents = state.formState.pageEvents,
+                    onAddPageEvent = onAddPageEvent,
+                    onRemovePageEvent = onRemovePageEvent,
+                    onPageEventIdChanged = onPageEventIdChanged,
+                    onPageEventEnabledChanged = onPageEventEnabledChanged,
+                    onPageEventTriggerChanged = onPageEventTriggerChanged,
+                    onPageEventUrlEqualsChanged = onPageEventUrlEqualsChanged,
+                    onPageEventUrlStartsWithChanged = onPageEventUrlStartsWithChanged,
+                    onPageEventUrlContainsChanged = onPageEventUrlContainsChanged,
+                    onAddPageEventAction = onAddPageEventAction,
+                    onRemovePageEventAction = onRemovePageEventAction,
+                    onPageEventActionTypeChanged = onPageEventActionTypeChanged,
+                    onPageEventActionValueChanged = onPageEventActionValueChanged,
+                    onPageEventActionUrlChanged = onPageEventActionUrlChanged,
+                    onPageEventActionScriptChanged = onPageEventActionScriptChanged
+                )
 
-            EditorTab.BRANDING -> BrandingContent(
-                state = state.formState,
-                onImportIcon = onImportIcon,
-                onClearIcon = onClearIcon,
-                onImportSplash = onImportSplash,
-                onClearSplash = onClearSplash,
-                onSplashSkipEnabledChanged = onSplashSkipEnabledChanged,
-                onSplashSkipSecondsChanged = onSplashSkipSecondsChanged,
-                projectId = state.projectId
-            )
+                EditorTab.BRANDING -> BrandingContent(
+                    state = state.formState,
+                    onImportIcon = onImportIcon,
+                    onClearIcon = onClearIcon,
+                    onImportSplash = onImportSplash,
+                    onClearSplash = onClearSplash,
+                    onSplashSkipEnabledChanged = onSplashSkipEnabledChanged,
+                    onSplashSkipSecondsChanged = onSplashSkipSecondsChanged,
+                    projectId = state.projectId
+                )
 
-            EditorTab.BUILD -> BuildConfigContent(
-                state = state.formState,
-                onApplicationLabelChanged = onApplicationLabelChanged,
-                onVersionNameChanged = onVersionNameChanged,
-                onVersionCodeChanged = onVersionCodeChanged,
-                onPackageNameChanged = onPackageNameChanged,
-                onOutputApkNameTemplateChanged = onOutputApkNameTemplateChanged,
-                onSigningStorePasswordChanged = onSigningStorePasswordChanged,
-                onSigningKeyAliasChanged = onSigningKeyAliasChanged,
-                onSigningKeyPasswordChanged = onSigningKeyPasswordChanged,
-                onImportKeystore = onImportKeystore,
-                onClearKeystore = onClearKeystore
-            )
+                EditorTab.BUILD -> BuildConfigContent(
+                    state = state.formState,
+                    onApplicationLabelChanged = onApplicationLabelChanged,
+                    onVersionNameChanged = onVersionNameChanged,
+                    onVersionCodeChanged = onVersionCodeChanged,
+                    onPackageNameChanged = onPackageNameChanged,
+                    onOutputApkNameTemplateChanged = onOutputApkNameTemplateChanged,
+                    onSigningStorePasswordChanged = onSigningStorePasswordChanged,
+                    onSigningKeyAliasChanged = onSigningKeyAliasChanged,
+                    onSigningKeyPasswordChanged = onSigningKeyPasswordChanged,
+                    onImportKeystore = onImportKeystore,
+                    onClearKeystore = onClearKeystore
+                )
 
-            EditorTab.JSON -> ConfigJsonContent(
-                rawJson = state.rawJson,
-                onRawJsonChanged = onRawJsonChanged
-            )
+                EditorTab.JSON -> ConfigJsonContent(
+                    rawJson = state.rawJson,
+                    onRawJsonChanged = onRawJsonChanged
+                )
+            }
         }
+    }
+}
+
+@StringRes
+private fun editorTabTitleRes(tab: EditorTab): Int {
+    return when (tab) {
+        EditorTab.BASIC -> R.string.config_editor_tab_basic
+        EditorTab.RULES -> R.string.config_editor_tab_rules
+        EditorTab.EVENTS -> R.string.config_editor_tab_events
+        EditorTab.BRANDING -> R.string.config_editor_tab_branding
+        EditorTab.BUILD -> R.string.config_editor_tab_build
+        EditorTab.JSON -> R.string.config_tab_json
     }
 }
 
@@ -1065,12 +1114,16 @@ private fun ConfigFormContent(
     onTopBarRefreshScriptChanged: (String) -> Unit,
     onTopBarFollowPageTitleChanged: (Boolean) -> Unit,
     onTopBarTitleCenteredChanged: (Boolean) -> Unit,
+    onTopBarHeightChanged: (String) -> Unit,
+    onTopBarIconSizeChanged: (String) -> Unit,
     onTopBarCornerRadiusChanged: (String) -> Unit,
     onTopBarShadowChanged: (String) -> Unit,
     onTopBarBackIconChanged: (String) -> Unit,
     onTopBarHomeIconChanged: (String) -> Unit,
     onTopBarRefreshIconChanged: (String) -> Unit,
     onBottomBarShowTextLabelsChanged: (Boolean) -> Unit,
+    onBottomBarHeightChanged: (String) -> Unit,
+    onBottomBarIconSizeChanged: (String) -> Unit,
     onBottomBarCornerRadiusChanged: (String) -> Unit,
     onBottomBarShadowChanged: (String) -> Unit,
     onBottomBarBadgeColorChanged: (String) -> Unit,
@@ -1100,6 +1153,8 @@ private fun ConfigFormContent(
     onDrawerMenuIconChanged: (String) -> Unit,
     onDefaultNavigationItemIdChanged: (String) -> Unit,
     onEnableSwipeNavigationChanged: (Boolean) -> Unit,
+    onPreserveNavigationPageStackChanged: (Boolean) -> Unit,
+    onNavigationPreloadCountChanged: (String) -> Unit,
     onNavigationBackBehaviorChanged: (String) -> Unit,
     onTopBarThemeColorChanged: (String) -> Unit,
     onBottomBarThemeColorChanged: (String) -> Unit,
@@ -1189,11 +1244,6 @@ private fun ConfigFormContent(
             val context = LocalContext.current
             val canAddNavigationItem = state.navigationItems.size < MAX_EDIT_NAVIGATION_ITEMS
             if (selectedTemplateSpec.supportsNavigationItems) {
-                Text(
-                    text = stringResource(R.string.config_editor_common_icon_names),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
                 if (state.navigationItems.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(12.dp))
                     FlowRow(
@@ -1295,12 +1345,60 @@ private fun ConfigFormContent(
                     onCheckedChange = onEnableSwipeNavigationChanged
                 )
                 Spacer(modifier = Modifier.height(12.dp))
+                ToggleRow(
+                    label = stringResource(R.string.config_editor_preserve_navigation_page_stack),
+                    checked = state.preserveNavigationPageStack,
+                    onCheckedChange = onPreserveNavigationPageStackChanged
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.config_editor_preserve_navigation_page_stack_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                val maxNavigationPreloadCount = minOf(
+                    4,
+                    (state.navigationItems.size - 1).coerceAtLeast(0)
+                )
+                if (maxNavigationPreloadCount > 0) {
+                    LabeledDropdownField(
+                        label = stringResource(R.string.config_editor_navigation_preload_count),
+                        value = state.navigationPreloadCountText,
+                        options = (0..maxNavigationPreloadCount).map(Int::toString),
+                        optionLabel = { it },
+                        onValueChange = onNavigationPreloadCountChanged
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.config_editor_navigation_preload_desc,
+                            maxNavigationPreloadCount
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.config_editor_navigation_preload_single_item_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                val navigationPreloadEnabled = state.navigationPreloadCountText != "0"
+                val navigationBackBehaviorOptions = if (state.preserveNavigationPageStack || navigationPreloadEnabled) {
+                    listOf("reset_on_navigation")
+                } else {
+                    listOf("web_history", "reset_on_navigation")
+                }
                 LabeledDropdownField(
                     label = stringResource(R.string.config_editor_navigation_back_behavior),
                     value = state.navigationBackBehavior,
-                    options = listOf("web_history", "reset_on_navigation"),
+                    options = navigationBackBehaviorOptions,
                     optionLabel = { formatNavigationBackBehaviorLabel(context, it) },
-                    onValueChange = onNavigationBackBehaviorChanged
+                    onValueChange = onNavigationBackBehaviorChanged,
+                    enabled = !state.preserveNavigationPageStack && !navigationPreloadEnabled
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -1308,6 +1406,21 @@ private fun ConfigFormContent(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (state.preserveNavigationPageStack) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.config_editor_navigation_back_behavior_preserve_stack_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else if (navigationPreloadEnabled) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.config_editor_navigation_preload_conflict_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             } else {
                 Text(
                     text = stringResource(
@@ -1351,6 +1464,8 @@ private fun ConfigFormContent(
                     onTopBarRefreshScriptChanged = onTopBarRefreshScriptChanged,
                     onTopBarFollowPageTitleChanged = onTopBarFollowPageTitleChanged,
                     onTopBarTitleCenteredChanged = onTopBarTitleCenteredChanged,
+                    onTopBarHeightChanged = onTopBarHeightChanged,
+                    onTopBarIconSizeChanged = onTopBarIconSizeChanged,
                     onTopBarCornerRadiusChanged = onTopBarCornerRadiusChanged,
                     onTopBarShadowChanged = onTopBarShadowChanged,
                     onTopBarBackIconChanged = onTopBarBackIconChanged,
@@ -1399,6 +1514,8 @@ private fun ConfigFormContent(
                     navigationChromeStyle = selectedTemplateSpec.navigationChromeStyle
                         ?: TemplateNavigationChromeStyle.BOTTOM_BAR,
                     onBottomBarShowTextLabelsChanged = onBottomBarShowTextLabelsChanged,
+                    onBottomBarHeightChanged = onBottomBarHeightChanged,
+                    onBottomBarIconSizeChanged = onBottomBarIconSizeChanged,
                     onBottomBarCornerRadiusChanged = onBottomBarCornerRadiusChanged,
                     onBottomBarShadowChanged = onBottomBarShadowChanged,
                     onBottomBarBadgeColorChanged = onBottomBarBadgeColorChanged,
@@ -1592,6 +1709,8 @@ private fun TopBarShellSection(
     onTopBarRefreshScriptChanged: (String) -> Unit,
     onTopBarFollowPageTitleChanged: (Boolean) -> Unit,
     onTopBarTitleCenteredChanged: (Boolean) -> Unit,
+    onTopBarHeightChanged: (String) -> Unit,
+    onTopBarIconSizeChanged: (String) -> Unit,
     onTopBarCornerRadiusChanged: (String) -> Unit,
     onTopBarShadowChanged: (String) -> Unit,
     onTopBarBackIconChanged: (String) -> Unit,
@@ -1670,6 +1789,20 @@ private fun TopBarShellSection(
         }
         Spacer(modifier = Modifier.height(12.dp))
         LabeledTextField(
+            label = stringResource(R.string.config_editor_top_bar_height),
+            value = state.topBarHeightText,
+            onValueChange = onTopBarHeightChanged,
+            keyboardType = KeyboardType.Number
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        LabeledTextField(
+            label = stringResource(R.string.config_editor_top_bar_icon_size),
+            value = state.topBarIconSizeText,
+            onValueChange = onTopBarIconSizeChanged,
+            keyboardType = KeyboardType.Number
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        LabeledTextField(
             label = stringResource(R.string.config_editor_top_bar_corner_radius),
             value = state.topBarCornerRadiusText,
             onValueChange = onTopBarCornerRadiusChanged,
@@ -1720,18 +1853,6 @@ private fun TopBarShellSection(
             label = stringResource(R.string.config_editor_top_bar_theme_color),
             value = state.topBarThemeColor,
             onValueChange = onTopBarThemeColorChanged
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.config_editor_optional_hex_example_teal),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.config_editor_action_icon_names),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -1872,6 +1993,8 @@ private fun BottomBarShellSection(
     state: ConfigEditorFormState,
     navigationChromeStyle: TemplateNavigationChromeStyle,
     onBottomBarShowTextLabelsChanged: (Boolean) -> Unit,
+    onBottomBarHeightChanged: (String) -> Unit,
+    onBottomBarIconSizeChanged: (String) -> Unit,
     onBottomBarCornerRadiusChanged: (String) -> Unit,
     onBottomBarShadowChanged: (String) -> Unit,
     onBottomBarBadgeColorChanged: (String) -> Unit,
@@ -1895,6 +2018,20 @@ private fun BottomBarShellSection(
                 label = stringResource(R.string.config_editor_bottom_bar_show_text_labels),
                 checked = state.bottomBarShowTextLabels,
                 onCheckedChange = onBottomBarShowTextLabelsChanged
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            LabeledTextField(
+                label = stringResource(R.string.config_editor_bottom_bar_height),
+                value = state.bottomBarHeightText,
+                onValueChange = onBottomBarHeightChanged,
+                keyboardType = KeyboardType.Number
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            LabeledTextField(
+                label = stringResource(R.string.config_editor_bottom_bar_icon_size),
+                value = state.bottomBarIconSizeText,
+                onValueChange = onBottomBarIconSizeChanged,
+                keyboardType = KeyboardType.Number
             )
             Spacer(modifier = Modifier.height(12.dp))
         }
@@ -2916,6 +3053,8 @@ private fun MiniTopBarPreview(
             showHome = state.topBarShowHomeButton,
             showRefresh = state.topBarShowRefreshButton,
             centered = state.topBarTitleCentered,
+            heightDp = resolvePreviewTopBarHeightDp(state.topBarHeightText),
+            iconSizeDp = resolvePreviewTopBarIconSizeDp(state.topBarIconSizeText),
             background = topBarColor,
             backIconName = state.topBarBackIcon,
             homeIconName = state.topBarHomeIcon,
@@ -2949,6 +3088,8 @@ private fun MiniBottomBarPreview(
             projectId = projectId,
             background = bottomBarColor,
             selectedColor = bottomBarSelectedColor,
+            heightDp = resolvePreviewBottomBarHeightDp(state.bottomBarHeightText),
+            iconSizeDp = resolvePreviewBottomBarIconSizeDp(state.bottomBarIconSizeText),
             items = navigationItems,
             selectedNavigationId = selectedNavigationId,
             showLabels = state.bottomBarShowTextLabels
@@ -2978,6 +3119,8 @@ private fun MiniTopBarBottomTabsPreview(
             showHome = state.topBarShowHomeButton,
             showRefresh = state.topBarShowRefreshButton,
             centered = state.topBarTitleCentered,
+            heightDp = resolvePreviewTopBarHeightDp(state.topBarHeightText),
+            iconSizeDp = resolvePreviewTopBarIconSizeDp(state.topBarIconSizeText),
             background = topBarColor,
             backIconName = state.topBarBackIcon,
             homeIconName = state.topBarHomeIcon,
@@ -2992,6 +3135,8 @@ private fun MiniTopBarBottomTabsPreview(
             projectId = projectId,
             background = bottomBarColor,
             selectedColor = bottomBarSelectedColor,
+            heightDp = resolvePreviewBottomBarHeightDp(state.bottomBarHeightText),
+            iconSizeDp = resolvePreviewBottomBarIconSizeDp(state.bottomBarIconSizeText),
             items = navigationItems,
             selectedNavigationId = selectedNavigationId,
             showLabels = state.bottomBarShowTextLabels
@@ -3021,6 +3166,8 @@ private fun MiniTopTabsPreview(
             showHome = state.topBarShowHomeButton,
             showRefresh = state.topBarShowRefreshButton,
             centered = state.topBarTitleCentered,
+            heightDp = resolvePreviewTopBarHeightDp(state.topBarHeightText),
+            iconSizeDp = resolvePreviewTopBarIconSizeDp(state.topBarIconSizeText),
             background = topBarColor,
             backIconName = state.topBarBackIcon,
             homeIconName = state.topBarHomeIcon,
@@ -3142,6 +3289,8 @@ private fun MiniSideDrawerPreview(
             showHome = state.topBarShowHomeButton,
             showRefresh = state.topBarShowRefreshButton,
             centered = state.topBarTitleCentered,
+            heightDp = resolvePreviewTopBarHeightDp(state.topBarHeightText),
+            iconSizeDp = resolvePreviewTopBarIconSizeDp(state.topBarIconSizeText),
             background = topBarColor,
             leadingIconName = state.drawerMenuIcon,
             homeIconName = state.topBarHomeIcon,
@@ -3260,6 +3409,8 @@ private fun MiniTopBar(
     showHome: Boolean,
     showRefresh: Boolean,
     centered: Boolean,
+    heightDp: Int,
+    iconSizeDp: Int,
     background: Color,
     leadingIconName: String? = null,
     backIconName: String = "back",
@@ -3267,6 +3418,7 @@ private fun MiniTopBar(
     refreshIconName: String = "refresh"
 ) {
     val foreground = contentColorFor(background)
+    val actionSlotSizeDp = (iconSizeDp + 6).coerceAtLeast(18)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -3275,15 +3427,28 @@ private fun MiniTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .height(heightDp.dp)
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (leadingIconName != null) {
-                MiniActionGlyph(projectId = projectId, iconName = leadingIconName, tint = foreground, fallbackIconId = "menu")
+                MiniActionGlyph(
+                    projectId = projectId,
+                    iconName = leadingIconName,
+                    tint = foreground,
+                    fallbackIconId = "menu",
+                    iconSizeDp = iconSizeDp
+                )
             } else if (showBack) {
-                MiniActionGlyph(projectId = projectId, iconName = backIconName, tint = foreground, fallbackIconId = "back")
+                MiniActionGlyph(
+                    projectId = projectId,
+                    iconName = backIconName,
+                    tint = foreground,
+                    fallbackIconId = "back",
+                    iconSizeDp = iconSizeDp
+                )
             } else {
-                Spacer(modifier = Modifier.width(18.dp))
+                Spacer(modifier = Modifier.width(actionSlotSizeDp.dp))
             }
             if (centered) {
                 Spacer(modifier = Modifier.weight(1f))
@@ -3299,13 +3464,25 @@ private fun MiniTopBar(
             )
             Spacer(modifier = Modifier.width(10.dp))
             if (showHome) {
-                MiniActionGlyph(projectId = projectId, iconName = homeIconName, tint = foreground, fallbackIconId = "home")
+                MiniActionGlyph(
+                    projectId = projectId,
+                    iconName = homeIconName,
+                    tint = foreground,
+                    fallbackIconId = "home",
+                    iconSizeDp = iconSizeDp
+                )
                 Spacer(modifier = Modifier.width(6.dp))
             }
             if (showRefresh) {
-                MiniActionGlyph(projectId = projectId, iconName = refreshIconName, tint = foreground, fallbackIconId = "refresh")
+                MiniActionGlyph(
+                    projectId = projectId,
+                    iconName = refreshIconName,
+                    tint = foreground,
+                    fallbackIconId = "refresh",
+                    iconSizeDp = iconSizeDp
+                )
             } else {
-                Spacer(modifier = Modifier.width(18.dp))
+                Spacer(modifier = Modifier.width(actionSlotSizeDp.dp))
             }
         }
     }
@@ -3316,6 +3493,8 @@ private fun MiniBottomBar(
     projectId: String?,
     background: Color,
     selectedColor: Color,
+    heightDp: Int,
+    iconSizeDp: Int,
     items: List<NavigationItemForm>,
     selectedNavigationId: String,
     showLabels: Boolean
@@ -3326,7 +3505,8 @@ private fun MiniBottomBar(
         modifier = Modifier
             .fillMaxWidth()
             .background(background)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .height(heightDp.dp)
+            .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -3344,7 +3524,8 @@ private fun MiniBottomBar(
                         selected = selected,
                         activeColor = foreground,
                         inactiveColor = inactive,
-                        fallbackIconId = navigationPreviewFallbackIconId(item, index, selected)
+                        fallbackIconId = navigationPreviewFallbackIconId(item, index, selected),
+                        iconSizeDp = iconSizeDp
                     )
                     when {
                         item.badgeCount.isNotBlank() -> {
@@ -3458,11 +3639,12 @@ private fun MiniActionGlyph(
     projectId: String?,
     iconName: String,
     tint: Color,
-    fallbackIconId: String
+    fallbackIconId: String,
+    iconSizeDp: Int
 ) {
     Box(
         modifier = Modifier
-            .size(18.dp)
+            .size((iconSizeDp + 6).coerceAtLeast(18).dp)
             .background(tint.copy(alpha = 0.18f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
@@ -3471,7 +3653,7 @@ private fun MiniActionGlyph(
             iconValue = iconName,
             fallbackIconId = fallbackIconId,
             tint = tint,
-            size = 12.dp
+            size = iconSizeDp.dp
         )
     }
 }
@@ -3483,11 +3665,13 @@ private fun MiniNavigationGlyph(
     selected: Boolean,
     activeColor: Color,
     inactiveColor: Color,
-    fallbackIconId: String
+    fallbackIconId: String,
+    iconSizeDp: Int = 14
 ) {
     val tint = if (selected) activeColor else inactiveColor
+    val slotSizeDp = (iconSizeDp + 8).coerceAtLeast(22)
     Box(
-        modifier = Modifier.size(22.dp),
+        modifier = Modifier.size(slotSizeDp.dp),
         contentAlignment = Alignment.Center
     ) {
         EditorIconGlyph(
@@ -3495,7 +3679,7 @@ private fun MiniNavigationGlyph(
             iconValue = iconName,
             fallbackIconId = fallbackIconId,
             tint = tint,
-            size = 14.dp
+            size = iconSizeDp.dp
         )
     }
 }
@@ -3526,6 +3710,22 @@ private fun parsePreviewColor(value: String, fallback: Color): Color {
     }
     return runCatching { Color(android.graphics.Color.parseColor(candidate)) }
         .getOrDefault(fallback)
+}
+
+private fun resolvePreviewTopBarHeightDp(value: String): Int {
+    return value.trim().toIntOrNull()?.coerceIn(48, 88) ?: 60
+}
+
+private fun resolvePreviewTopBarIconSizeDp(value: String): Int {
+    return value.trim().toIntOrNull()?.coerceIn(18, 32) ?: 24
+}
+
+private fun resolvePreviewBottomBarHeightDp(value: String): Int {
+    return value.trim().toIntOrNull()?.coerceIn(56, 96) ?: 68
+}
+
+private fun resolvePreviewBottomBarIconSizeDp(value: String): Int {
+    return value.trim().toIntOrNull()?.coerceIn(18, 32) ?: 22
 }
 
 private fun inferUserAgentPreset(userAgent: String): String {
@@ -4089,7 +4289,8 @@ private fun LabeledDropdownField(
     value: String,
     options: List<String>,
     optionLabel: (String) -> String = { it },
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    enabled: Boolean = true
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier = Modifier.fillMaxWidth()) {
@@ -4097,6 +4298,7 @@ private fun LabeledDropdownField(
             value = optionLabel(value),
             onValueChange = {},
             readOnly = true,
+            enabled = enabled,
             label = { Text(label) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
@@ -4104,10 +4306,10 @@ private fun LabeledDropdownField(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clickable { expanded = true }
+                .clickable(enabled = enabled) { expanded = true }
         )
         DropdownMenu(
-            expanded = expanded,
+            expanded = expanded && enabled,
             onDismissRequest = { expanded = false }
         ) {
             options.forEach { option ->

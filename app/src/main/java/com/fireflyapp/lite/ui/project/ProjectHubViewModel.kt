@@ -56,7 +56,7 @@ class ProjectHubViewModel(application: Application) : AndroidViewModel(applicati
                 .onFailure { throwable ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        userMessage = throwable.message ?: getApplication<Application>().getString(com.fireflyapp.lite.R.string.project_hub_load_failed)
+                        userMessage = throwable.message ?: appString(com.fireflyapp.lite.R.string.project_hub_load_failed)
                     )
                 }
         }
@@ -69,7 +69,7 @@ class ProjectHubViewModel(application: Application) : AndroidViewModel(applicati
                 .onSuccess { project ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        userMessage = getApplication<Application>().getString(com.fireflyapp.lite.R.string.project_hub_created),
+                        userMessage = appString(com.fireflyapp.lite.R.string.project_hub_created),
                         pendingOpenProjectId = project.id
                     )
                     refresh()
@@ -77,7 +77,7 @@ class ProjectHubViewModel(application: Application) : AndroidViewModel(applicati
                 .onFailure { throwable ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        userMessage = throwable.message ?: getApplication<Application>().getString(com.fireflyapp.lite.R.string.project_hub_create_failed)
+                        userMessage = throwable.message ?: appString(com.fireflyapp.lite.R.string.project_hub_create_failed)
                     )
                 }
         }
@@ -90,7 +90,7 @@ class ProjectHubViewModel(application: Application) : AndroidViewModel(applicati
                 .onSuccess { project ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        userMessage = getApplication<Application>().getString(com.fireflyapp.lite.R.string.project_hub_imported),
+                        userMessage = appString(com.fireflyapp.lite.R.string.project_hub_imported),
                         pendingOpenProjectId = project.id
                     )
                     refresh()
@@ -98,7 +98,7 @@ class ProjectHubViewModel(application: Application) : AndroidViewModel(applicati
                 .onFailure { throwable ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        userMessage = throwable.message ?: getApplication<Application>().getString(com.fireflyapp.lite.R.string.project_hub_import_failed)
+                        userMessage = throwable.message ?: appString(com.fireflyapp.lite.R.string.project_hub_import_failed)
                     )
                 }
         }
@@ -111,17 +111,24 @@ class ProjectHubViewModel(application: Application) : AndroidViewModel(applicati
                 .onSuccess {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        userMessage = getApplication<Application>().getString(com.fireflyapp.lite.R.string.project_hub_deleted)
+                        userMessage = appString(com.fireflyapp.lite.R.string.project_hub_deleted)
                     )
                     refresh()
                 }
                 .onFailure { throwable ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        userMessage = throwable.message ?: getApplication<Application>().getString(com.fireflyapp.lite.R.string.project_hub_delete_failed)
+                        userMessage = throwable.message ?: appString(com.fireflyapp.lite.R.string.project_hub_delete_failed)
                     )
                 }
         }
+    }
+
+    private fun appString(@androidx.annotation.StringRes resId: Int, vararg args: Any): String {
+        val localizedContext = AppLanguageManager.wrapContext(
+            getApplication<Application>().applicationContext
+        )
+        return localizedContext.getString(resId, *args)
     }
 
     fun consumeMessage() {

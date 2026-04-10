@@ -9,6 +9,7 @@ import com.fireflyapp.lite.data.model.PageEventAction
 import com.fireflyapp.lite.data.model.PageEventRule
 import com.fireflyapp.lite.data.model.SecurityConfig
 import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_STRICT
+import com.fireflyapp.lite.data.model.TemplateType
 import com.fireflyapp.lite.data.model.supportedSslErrorHandlingModes
 import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
 import com.fireflyapp.lite.ui.template.TemplateIconCatalog
@@ -92,6 +93,22 @@ class ConfigValidator {
             }
         }
 
+        val sanitizedNavigationBackBehavior = config.shell.navigationBackBehavior
+            .trim()
+            .lowercase()
+            .takeIf { it in supportedNavigationBackBehaviors }
+            ?: DEFAULT_NAVIGATION_BACK_BEHAVIOR
+        val sanitizedPreserveNavigationPageStack = config.shell.preserveNavigationPageStack &&
+            sanitizedNavigationBackBehavior == "reset_on_navigation"
+        val supportsNavigationPreload = navigationItems.size > 1 &&
+            config.app.template in navigationPreloadSupportedTemplates &&
+            !sanitizedPreserveNavigationPageStack &&
+            sanitizedNavigationBackBehavior == "reset_on_navigation"
+        val sanitizedNavigationPreloadCount = config.shell.navigationPreloadCount
+            .takeIf { supportsNavigationPreload && it > 0 }
+            ?.coerceIn(0, minOf(MAX_NAVIGATION_PRELOAD_COUNT, navigationItems.size - 1))
+            ?: 0
+
         return config.copy(
             app = config.app.copy(defaultUrl = defaultUrl),
             navigation = NavigationConfig(items = navigationItems),
@@ -143,12 +160,28 @@ class ConfigValidator {
                 topBarRefreshScript = config.shell.topBarRefreshScript.trim(),
                 topBarFollowPageTitle = config.shell.topBarFollowPageTitle,
                 topBarTitleCentered = config.shell.topBarTitleCentered,
+                topBarHeightDp = config.shell.topBarHeightDp
+                    .takeIf { it > 0 }
+                    ?.coerceIn(MIN_TOP_BAR_HEIGHT_DP, MAX_TOP_BAR_HEIGHT_DP)
+                    ?: DEFAULT_TOP_BAR_HEIGHT_DP,
+                topBarIconSizeDp = config.shell.topBarIconSizeDp
+                    .takeIf { it > 0 }
+                    ?.coerceIn(MIN_BAR_ICON_SIZE_DP, MAX_BAR_ICON_SIZE_DP)
+                    ?: DEFAULT_TOP_BAR_ICON_SIZE_DP,
                 topBarCornerRadiusDp = config.shell.topBarCornerRadiusDp.coerceIn(0, 40),
                 topBarShadowDp = config.shell.topBarShadowDp.coerceIn(0, 24),
                 topBarBackIcon = sanitizeIconReference(config.shell.topBarBackIcon, "back"),
                 topBarHomeIcon = sanitizeIconReference(config.shell.topBarHomeIcon, "home"),
                 topBarRefreshIcon = sanitizeIconReference(config.shell.topBarRefreshIcon, "refresh"),
                 bottomBarShowTextLabels = config.shell.bottomBarShowTextLabels,
+                bottomBarHeightDp = config.shell.bottomBarHeightDp
+                    .takeIf { it > 0 }
+                    ?.coerceIn(MIN_BOTTOM_BAR_HEIGHT_DP, MAX_BOTTOM_BAR_HEIGHT_DP)
+                    ?: DEFAULT_BOTTOM_BAR_HEIGHT_DP,
+                bottomBarIconSizeDp = config.shell.bottomBarIconSizeDp
+                    .takeIf { it > 0 }
+                    ?.coerceIn(MIN_BAR_ICON_SIZE_DP, MAX_BAR_ICON_SIZE_DP)
+                    ?: DEFAULT_BOTTOM_BAR_ICON_SIZE_DP,
                 bottomBarCornerRadiusDp = config.shell.bottomBarCornerRadiusDp.coerceIn(0, 40),
                 bottomBarShadowDp = config.shell.bottomBarShadowDp.coerceIn(0, 24),
                 bottomBarBadgeColor = config.shell.bottomBarBadgeColor.trim(),
@@ -178,11 +211,9 @@ class ConfigValidator {
                 drawerHeaderImageOverlayColor = config.shell.drawerHeaderImageOverlayColor.trim(),
                 drawerMenuIcon = sanitizeIconReference(config.shell.drawerMenuIcon, "menu"),
                 defaultNavigationItemId = config.shell.defaultNavigationItemId.trim(),
-                navigationBackBehavior = config.shell.navigationBackBehavior
-                    .trim()
-                    .lowercase()
-                    .takeIf { it in supportedNavigationBackBehaviors }
-                    ?: DEFAULT_NAVIGATION_BACK_BEHAVIOR,
+                preserveNavigationPageStack = sanitizedPreserveNavigationPageStack,
+                navigationPreloadCount = sanitizedNavigationPreloadCount,
+                navigationBackBehavior = sanitizedNavigationBackBehavior,
                 topBarThemeColor = config.shell.topBarThemeColor.trim(),
                 bottomBarThemeColor = config.shell.bottomBarThemeColor.trim()
             ),
@@ -213,6 +244,17 @@ class ConfigValidator {
         const val DEFAULT_NIGHT_MODE = "off"
         const val DEFAULT_OPEN_OTHER_APPS_MODE = "ask"
         const val DEFAULT_NAVIGATION_BACK_BEHAVIOR = "web_history"
+        const val DEFAULT_TOP_BAR_HEIGHT_DP = 60
+        const val DEFAULT_TOP_BAR_ICON_SIZE_DP = 24
+        const val DEFAULT_BOTTOM_BAR_HEIGHT_DP = 68
+        const val DEFAULT_BOTTOM_BAR_ICON_SIZE_DP = 22
+        const val MIN_TOP_BAR_HEIGHT_DP = 48
+        const val MAX_TOP_BAR_HEIGHT_DP = 88
+        const val MIN_BOTTOM_BAR_HEIGHT_DP = 56
+        const val MAX_BOTTOM_BAR_HEIGHT_DP = 96
+        const val MIN_BAR_ICON_SIZE_DP = 18
+        const val MAX_BAR_ICON_SIZE_DP = 32
+        const val MAX_NAVIGATION_PRELOAD_COUNT = 4
         const val DEFAULT_PAGE_EVENT_TRIGGER = "page_finished"
         const val DEFAULT_PAGE_EVENT_ACTION = "toast"
         fun defaultNavigationFallbackId(index: Int): String = if (index % 2 == 0) "home" else "docs"
@@ -234,6 +276,12 @@ class ConfigValidator {
         val supportedNavigationBackBehaviors = setOf(
             "web_history",
             "reset_on_navigation"
+        )
+        val navigationPreloadSupportedTemplates = setOf(
+            TemplateType.BOTTOM_BAR,
+            TemplateType.TOP_BAR_TABS,
+            TemplateType.TOP_BAR_BOTTOM_TABS,
+            TemplateType.SIDE_DRAWER
         )
         val supportedTopBarHomeBehaviors = setOf(
             "default_home",

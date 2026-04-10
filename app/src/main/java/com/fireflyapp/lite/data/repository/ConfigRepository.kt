@@ -5,8 +5,10 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.Signature
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.os.Build
 import android.webkit.MimeTypeMap
+import com.fireflyapp.lite.R
 import com.fireflyapp.lite.core.config.AppConfigManager
 import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
 import com.fireflyapp.lite.core.pack.AndroidBuildProjectManager
@@ -35,6 +37,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import java.io.BufferedInputStream
 import java.io.File
+import java.security.KeyStore
 import java.security.MessageDigest
 import java.util.Locale
 
@@ -439,17 +442,17 @@ class ConfigRepository(
                 ensureProjectWorkspace()
                 val config = configManager.parseAndSanitize(loadProjectRawConfigInternal(projectId))
                 val currentManifest = readProjectManifest(projectId, config)
+                val keystoreBytes = openInputStreamForUri(uri)?.use { it.readBytes() }
+                    ?: error("Unable to read keystore file")
+                val detectedFormat = validateKeystoreContent(keystoreBytes)
+                val extension = resolveKeystoreExtension(uri, detectedFormat)
                 deleteProjectSigningArtifact(projectId, currentManifest)
-
-                val extension = resolveKeystoreExtension(uri)
                 val relativePath = "$PROJECT_SIGNING_DIR/${PROJECT_KEYSTORE_FILE_PREFIX}.$extension"
                 val targetFile = projectDir(projectId).resolve(relativePath)
                 targetFile.parentFile?.mkdirs()
-                context.contentResolver.openInputStream(uri)?.use { input ->
-                    targetFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                } ?: error("Unable to read keystore file")
+                targetFile.outputStream().use { output ->
+                    output.write(keystoreBytes)
+                }
 
                 writeProjectManifest(
                     projectId,
@@ -1406,12 +1409,192 @@ class ConfigRepository(
         return fallback.takeIf { it in SUPPORTED_IMAGE_EXTENSIONS } ?: DEFAULT_IMAGE_EXTENSION
     }
 
-    private fun resolveKeystoreExtension(uri: Uri): String {
-        val fallback = uri.lastPathSegment
-            ?.substringAfterLast('.', "")
+    private fun resolveKeystoreExtension(
+        uri: Uri,
+        detectedFormat: DetectedKeystoreFormat
+    ): String {
+        val displayName = resolveDisplayName(uri)
+        val extensionFromName = normalizeKeystoreExtension(displayName?.substringAfterLast('.', ""))
+        if (extensionFromName in SUPPORTED_KEYSTORE_EXTENSIONS) {
+            return extensionFromName
+        }
+        val extensionFromPath = normalizeKeystoreExtension(uri.lastPathSegment?.substringAfterLast('.', ""))
+        if (extensionFromPath in SUPPORTED_KEYSTORE_EXTENSIONS) {
+            return extensionFromPath
+        }
+        val extensionFromMime = resolveKeystoreExtensionFromMimeType(context.contentResolver.getType(uri))
+        if (extensionFromMime in SUPPORTED_KEYSTORE_EXTENSIONS) {
+            return if (isKeystoreExtensionCompatibleWithFormat(extensionFromMime, detectedFormat)) {
+                extensionFromMime
+            } else {
+                detectedFormat.defaultExtension
+            }
+        }
+        return detectedFormat.defaultExtension
+    }
+
+    private fun resolveDisplayName(uri: Uri): String? {
+        return context.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null
+        )?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (nameIndex < 0 || !cursor.moveToFirst()) {
+                null
+            } else {
+                cursor.getString(nameIndex)
+            }
+        }
+    }
+
+    private fun resolveKeystoreExtensionFromMimeType(mimeType: String?): String {
+        val normalizedMimeType = mimeType
+            ?.substringBefore(';')
+            ?.trim()
             ?.lowercase()
             .orEmpty()
-        return fallback.takeIf { it in SUPPORTED_KEYSTORE_EXTENSIONS } ?: DEFAULT_KEYSTORE_EXTENSION
+        val explicitExtension = when {
+            normalizedMimeType in setOf(
+                "application/x-java-keystore",
+                "application/java-keystore",
+                "application/x-keystore"
+            ) -> "jks"
+            "pkcs12" in normalizedMimeType ||
+                "pkcs-12" in normalizedMimeType ||
+                "pkcs#12" in normalizedMimeType -> "p12"
+            else -> MimeTypeMap.getSingleton()
+                .getExtensionFromMimeType(normalizedMimeType)
+                ?.lowercase()
+                .orEmpty()
+        }
+        return normalizeKeystoreExtension(explicitExtension)
+    }
+
+    private fun normalizeKeystoreExtension(extension: String?): String {
+        val normalized = extension
+            ?.trim()
+            ?.removePrefix(".")
+            ?.lowercase()
+            .orEmpty()
+        return when (normalized) {
+            "pkcs12" -> "p12"
+            else -> normalized
+        }
+    }
+
+    private fun validateKeystoreContent(bytes: ByteArray): DetectedKeystoreFormat {
+        return detectKeystoreFormat(bytes)
+            ?: error(context.getString(R.string.config_editor_error_invalid_keystore_content))
+    }
+
+    private fun detectKeystoreFormat(bytes: ByteArray): DetectedKeystoreFormat? {
+        return when {
+            isLikelyJksKeystore(bytes) -> DetectedKeystoreFormat.JKS
+            isLikelyPkcs12Keystore(bytes) -> DetectedKeystoreFormat.PKCS12
+            canLoadKeystoreWithoutPassword(bytes, "PKCS12") -> DetectedKeystoreFormat.PKCS12
+            canLoadKeystoreWithoutPassword(bytes, "JKS") -> DetectedKeystoreFormat.JKS
+            else -> null
+        }
+    }
+
+    private fun isKeystoreExtensionCompatibleWithFormat(
+        extension: String,
+        format: DetectedKeystoreFormat
+    ): Boolean {
+        return when (format) {
+            DetectedKeystoreFormat.JKS -> extension in setOf("jks", "keystore")
+            DetectedKeystoreFormat.PKCS12 -> extension in setOf("p12", "pfx")
+        }
+    }
+
+    private fun canLoadKeystoreWithoutPassword(bytes: ByteArray, keyStoreType: String): Boolean {
+        return canLoadKeystore(bytes, keyStoreType, null) ||
+            canLoadKeystore(bytes, keyStoreType, charArrayOf())
+    }
+
+    private fun canLoadKeystore(
+        bytes: ByteArray,
+        keyStoreType: String,
+        password: CharArray?
+    ): Boolean {
+        return runCatching {
+            val keyStore = KeyStore.getInstance(keyStoreType)
+            bytes.inputStream().use { input ->
+                keyStore.load(input, password)
+            }
+        }.isSuccess
+    }
+
+    private fun isLikelyJksKeystore(bytes: ByteArray): Boolean {
+        if (bytes.size < 12) {
+            return false
+        }
+        return bytes[0] == 0xFE.toByte() &&
+            bytes[1] == 0xED.toByte() &&
+            bytes[2] == 0xFE.toByte() &&
+            bytes[3] == 0xED.toByte()
+    }
+
+    private fun isLikelyPkcs12Keystore(bytes: ByteArray): Boolean {
+        if (bytes.size < 8 || bytes[0].toInt() != 0x30) {
+            return false
+        }
+        val afterSequenceLength = derValueStartIndex(bytes, 1) ?: return false
+        if (afterSequenceLength >= bytes.size || bytes[afterSequenceLength].toInt() != 0x02) {
+            return false
+        }
+        val versionValueIndex = derValueStartIndex(bytes, afterSequenceLength + 1) ?: return false
+        val versionLength = derValueLength(bytes, afterSequenceLength + 1) ?: return false
+        if (versionLength <= 0 || versionValueIndex + versionLength > bytes.size) {
+            return false
+        }
+        val version = bytes.copyOfRange(versionValueIndex, versionValueIndex + versionLength)
+            .fold(0) { acc, byte -> (acc shl 8) or (byte.toInt() and 0xFF) }
+        if (version != 3) {
+            return false
+        }
+        val nextTagIndex = versionValueIndex + versionLength
+        return nextTagIndex < bytes.size && bytes[nextTagIndex].toInt() == 0x30
+    }
+
+    private fun derValueStartIndex(bytes: ByteArray, lengthIndex: Int): Int? {
+        val length = derLengthBytes(bytes, lengthIndex) ?: return null
+        return lengthIndex + length
+    }
+
+    private fun derValueLength(bytes: ByteArray, lengthIndex: Int): Int? {
+        val first = bytes.getOrNull(lengthIndex)?.toInt()?.and(0xFF) ?: return null
+        return when {
+            first and 0x80 == 0 -> first
+            else -> {
+                val lengthByteCount = first and 0x7F
+                if (lengthByteCount <= 0 || lengthByteCount > 4 || lengthIndex + lengthByteCount >= bytes.size) {
+                    return null
+                }
+                var value = 0
+                repeat(lengthByteCount) { offset ->
+                    value = (value shl 8) or (bytes[lengthIndex + 1 + offset].toInt() and 0xFF)
+                }
+                value
+            }
+        }
+    }
+
+    private fun derLengthBytes(bytes: ByteArray, lengthIndex: Int): Int? {
+        val first = bytes.getOrNull(lengthIndex)?.toInt()?.and(0xFF) ?: return null
+        return if (first and 0x80 == 0) {
+            1
+        } else {
+            val lengthByteCount = first and 0x7F
+            if (lengthByteCount <= 0 || lengthByteCount > 4 || lengthIndex + lengthByteCount >= bytes.size) {
+                null
+            } else {
+                1 + lengthByteCount
+            }
+        }
     }
 
     private fun openInputStreamForUri(uri: Uri) = when (uri.scheme?.lowercase()) {
@@ -1576,6 +1759,11 @@ class ConfigRepository(
         val versionCode: Long,
         val signerFingerprints: List<String>
     )
+
+    private enum class DetectedKeystoreFormat(val defaultExtension: String) {
+        JKS("jks"),
+        PKCS12("p12")
+    }
 
     private companion object {
         const val PROJECTS_DIR_NAME = "projects"

@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fireflyapp.lite.R
+import com.fireflyapp.lite.app.AppLanguageManager
 import com.fireflyapp.lite.data.model.ProjectManifest
 import com.fireflyapp.lite.data.model.ProjectSummary
 import com.fireflyapp.lite.data.model.TemplatePackHistoryEntry
@@ -235,7 +236,10 @@ class PackagerViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun appString(@StringRes resId: Int, vararg args: Any): String {
-        return getApplication<Application>().getString(resId, *args)
+        val localizedContext = AppLanguageManager.wrapContext(
+            getApplication<Application>().applicationContext
+        )
+        return localizedContext.getString(resId, *args)
     }
 
     private fun TemplatePackExecutionResult.localizeMessage(): TemplatePackExecutionResult {

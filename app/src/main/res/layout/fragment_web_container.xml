@@ -4,10 +4,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <com.fireflyapp.lite.core.webview.FireflyWebView
-        android:id="@+id/webView"
+    <FrameLayout
+        android:id="@+id/webViewContainer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
+
+        <com.fireflyapp.lite.core.webview.FireflyWebView
+            android:id="@+id/webView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
 
     <FrameLayout
         android:id="@+id/loadingContainer"

@@ -20,6 +20,14 @@
     <string name="web_error_certificate_message">The site certificate could not be verified. Check the network or certificate settings.</string>
     <string name="web_error_generic_title">Page unavailable</string>
     <string name="web_error_generic_message">The page could not be opened. Try again later.</string>
+    <string name="web_external_app_blocked">Opening other apps is blocked.</string>
+    <string name="web_external_target_fallback">another app</string>
+    <string name="web_external_target_browser_like">browser or supported app</string>
+    <string name="web_external_dialog_title">Open %1$s?</string>
+    <string name="web_external_dialog_message">This page wants to open %1$s.\n%2$s</string>
+    <string name="web_external_dialog_open">Open</string>
+    <string name="web_external_no_handler">No app can handle this link.</string>
+    <string name="web_renderer_recovered">Page renderer crashed. Preview recovered.</string>
 
     <string name="download_started">Download started.</string>
     <string name="download_failed">Failed to start download.</string>
@@ -89,14 +97,20 @@
     <string name="config_editor_import_splash">Import splash</string>
     <string name="config_editor_project_name">Project name</string>
     <string name="config_editor_template">Template</string>
-    <string name="config_editor_common_icon_names">Common icon names: home, docs, profile, menu, location, camera, upload, download, settings, info, search, favorite, news, chat.</string>
     <string name="config_editor_item_fallback">Item%1$d</string>
     <string name="config_editor_no_navigation_items">No navigation items yet.</string>
     <string name="config_editor_navigation_limit_reached">Up to %1$d navigation items are supported. Remove one before adding another.</string>
     <string name="config_editor_default_navigation_item_id">Default navigation item ID</string>
     <string name="config_editor_enable_swipe_navigation">Enable swipe navigation</string>
     <string name="config_editor_navigation_back_behavior">Navigation back behavior</string>
+    <string name="config_editor_preserve_navigation_page_stack">Preserve current navigation page stack</string>
+    <string name="config_editor_preserve_navigation_page_stack_desc">Keep up to 5 recent pages inside the current navigation item in memory. Older pages stay as URL-only entries, so back can still reopen them with a reload. Switching to another navigation item clears the saved stack immediately.</string>
+    <string name="config_editor_navigation_preload_count">Navigation preload count</string>
+    <string name="config_editor_navigation_preload_desc">Preload up to %1$d nearby navigation root pages in the background. Preloaded pages are reused when first opened, do not enter web history before they are visited, and hidden-page side effects stay blocked.</string>
+    <string name="config_editor_navigation_preload_single_item_hint">Navigation preload is available only when there are at least 2 navigation items.</string>
+    <string name="config_editor_navigation_preload_conflict_hint">When navigation preload is enabled, navigation back behavior is fixed to Reset on navigation, and current-navigation page stack preservation stays off.</string>
     <string name="config_editor_navigation_behavior_desc">Leave blank to open the first navigation item. When set, matching shells will open the item with this ID first. Enable swipe navigation lets left and right flings switch between adjacent navigation items. Reset on navigation clears the current page history when switching navigation items, and back will return to the home item first.</string>
+    <string name="config_editor_navigation_back_behavior_preserve_stack_hint">When preserving the current navigation page stack is enabled, navigation back behavior is fixed to Reset on navigation. Turn off page stack preservation to use Web history again.</string>
     <string name="config_editor_shell_no_navigation_items">The %1$s shell does not render native navigation items.</string>
     <string name="config_editor_section_shell">Shell</string>
     <string name="config_editor_shell_no_bar_controls">The %1$s shell does not expose top-bar or bottom-bar parameters in this version.</string>
@@ -127,6 +141,8 @@
     <string name="config_editor_top_bar_show_refresh_button">Show refresh button</string>
     <string name="config_editor_top_bar_show_back_button">Show back button</string>
     <string name="config_editor_top_bar_show_home_button">Show home button</string>
+    <string name="config_editor_top_bar_height">Top bar height (dp)</string>
+    <string name="config_editor_top_bar_icon_size">Top bar icon size (dp)</string>
     <string name="config_editor_home_button_behavior">Home button behavior</string>
     <string name="config_editor_refresh_button_behavior">Refresh button behavior</string>
     <string name="config_editor_home_button_javascript">Home button JavaScript</string>
@@ -137,8 +153,6 @@
     <string name="config_editor_top_bar_home_icon">Home icon</string>
     <string name="config_editor_top_bar_refresh_icon">Refresh icon</string>
     <string name="config_editor_top_bar_theme_color">Top bar theme color</string>
-    <string name="config_editor_optional_hex_example_teal">Optional hex color, for example #14B8A6.</string>
-    <string name="config_editor_action_icon_names">Action icon names: back, close, home, search, refresh, settings, menu.</string>
     <string name="config_editor_drawer_header_title">Drawer header title</string>
     <string name="config_editor_drawer_header_subtitle">Drawer header subtitle</string>
     <string name="config_editor_drawer_width">Drawer width (dp)</string>
@@ -155,6 +169,8 @@
     <string name="config_editor_wallpaper_avatar_desc">Wallpaper and avatar are stored in the project and reused by preview, runtime shell, export, and pack.</string>
     <string name="config_editor_drawer_menu_icon">Drawer menu icon</string>
     <string name="config_editor_bottom_bar_show_text_labels">Show text labels</string>
+    <string name="config_editor_bottom_bar_height">Bottom bar height (dp)</string>
+    <string name="config_editor_bottom_bar_icon_size">Bottom bar icon size (dp)</string>
     <string name="config_editor_bottom_bar_corner_radius">Bottom bar corner radius (dp)</string>
     <string name="config_editor_bottom_bar_shadow">Bottom bar shadow (dp)</string>
     <string name="config_editor_section_tabs">Tabs</string>
@@ -186,7 +202,7 @@
     <string name="config_editor_apk_file_name_template">APK file name template</string>
     <string name="config_editor_apk_template_blank_desc">Supports placeholders: {projectName}, {appName}, {versionName}, {versionCode}, {packageName}. Leave blank to use the default naming rule.</string>
     <string name="config_editor_preview">Preview</string>
-    <string name="config_editor_signing_desc">Pack can use the default AndroidKeyStore signer, or a custom keystore that you import for this project.</string>
+    <string name="config_editor_signing_desc">Pack can use the default AndroidKeyStore signer, or a custom keystore that you import for this project. Supported formats: .jks, .keystore, .p12, .pfx.</string>
     <string name="config_editor_current_keystore">Current keystore: %1$s</string>
     <string name="config_editor_current_signer_default">Current signer: default AndroidKeyStore</string>
     <string name="config_editor_import_keystore">Import keystore</string>
@@ -425,7 +441,7 @@
     <string name="project_hub_language_english">English</string>
     <string name="project_hub_language_hint">If the system language is not supported, the app falls back to English.</string>
     <string name="project_hub_user_agreement_title">User Agreement</string>
-    <string name="project_hub_user_agreement_intro">Before using Firefly, please read and accept the following terms:</string>
+    <string name="project_hub_user_agreement_intro">Before using FireflyAPP, please read and accept the following terms:</string>
     <string name="project_hub_user_agreement_item_1">1. This app is a local web-to-app packaging tool. You must ensure you are authorized to use any website content, brand assets, accounts, and data involved in your projects.</string>
     <string name="project_hub_user_agreement_item_2">2. You are solely responsible for project configuration, packaged outputs, distribution behavior, and compliance with applicable laws, platform policies, and third-party terms.</string>
     <string name="project_hub_user_agreement_item_3">3. Update checks and notice requests will only run after you agree to this dialog.</string>
@@ -589,6 +605,8 @@
     <string name="config_editor_error_import_drawer_avatar">Failed to import drawer avatar</string>
     <string name="config_editor_error_clear_drawer_avatar">Failed to clear drawer avatar</string>
     <string name="config_editor_error_import_keystore">Failed to import keystore</string>
+    <string name="config_editor_error_unsupported_keystore_format">Unsupported keystore format. Use .jks, .keystore, .p12, or .pfx.</string>
+    <string name="config_editor_error_invalid_keystore_content">The selected file is not a valid keystore.</string>
     <string name="config_editor_error_clear_keystore">Failed to clear custom keystore</string>
     <string name="config_editor_error_reset_branding">Failed to reset branding</string>
     <string name="config_editor_error_export_configuration">Failed to export configuration</string>

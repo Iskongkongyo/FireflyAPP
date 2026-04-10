@@ -6,6 +6,7 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fireflyapp.lite.R
+import com.fireflyapp.lite.app.AppLanguageManager
 import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
 import com.fireflyapp.lite.data.model.AppConfig
 import com.fireflyapp.lite.data.model.AppInfo
@@ -31,6 +32,10 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 private const val MAX_NAVIGATION_ITEMS = 5
+private const val DEFAULT_EDITOR_TOP_BAR_HEIGHT_DP = 60
+private const val DEFAULT_EDITOR_TOP_BAR_ICON_SIZE_DP = 24
+private const val DEFAULT_EDITOR_BOTTOM_BAR_HEIGHT_DP = 68
+private const val DEFAULT_EDITOR_BOTTOM_BAR_ICON_SIZE_DP = 22
 
 class ConfigEditorViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ConfigRepository(application.applicationContext)
@@ -71,6 +76,8 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updateTopBarRefreshScript(value: String) = updateForm { copy(topBarRefreshScriptText = value) }
     fun updateTopBarFollowPageTitle(value: Boolean) = updateForm { copy(topBarFollowPageTitle = value) }
     fun updateTopBarTitleCentered(value: Boolean) = updateForm { copy(topBarTitleCentered = value) }
+    fun updateTopBarHeightText(value: String) = updateForm { copy(topBarHeightText = value) }
+    fun updateTopBarIconSizeText(value: String) = updateForm { copy(topBarIconSizeText = value) }
     fun updateTopBarCornerRadiusText(value: String) = updateForm { copy(topBarCornerRadiusText = value) }
     fun updateTopBarShadowText(value: String) = updateForm { copy(topBarShadowText = value) }
     fun updateTopBarBackIcon(value: String) = updateIconField(
@@ -94,6 +101,8 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
         updateForm { copy(topBarRefreshIcon = value) }
     }
     fun updateBottomBarShowTextLabels(value: Boolean) = updateForm { copy(bottomBarShowTextLabels = value) }
+    fun updateBottomBarHeightText(value: String) = updateForm { copy(bottomBarHeightText = value) }
+    fun updateBottomBarIconSizeText(value: String) = updateForm { copy(bottomBarIconSizeText = value) }
     fun updateBottomBarCornerRadiusText(value: String) = updateForm { copy(bottomBarCornerRadiusText = value) }
     fun updateBottomBarShadowText(value: String) = updateForm { copy(bottomBarShadowText = value) }
     fun updateBottomBarBadgeColor(value: String) = updateForm { copy(bottomBarBadgeColor = value) }
@@ -124,7 +133,54 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     }
     fun updateDefaultNavigationItemId(value: String) = updateForm { copy(defaultNavigationItemId = value) }
     fun updateEnableSwipeNavigation(value: Boolean) = updateForm { copy(enableSwipeNavigation = value) }
-    fun updateNavigationBackBehavior(value: String) = updateForm { copy(navigationBackBehavior = value) }
+    fun updatePreserveNavigationPageStack(value: Boolean) = updateForm {
+        copy(
+            preserveNavigationPageStack = value,
+            navigationPreloadCountText = if (value) {
+                "0"
+            } else {
+                navigationPreloadCountText
+            },
+            navigationBackBehavior = if (value) {
+                "reset_on_navigation"
+            } else {
+                navigationBackBehavior
+            }
+        )
+    }
+
+    fun updateNavigationPreloadCountText(value: String) = updateForm {
+        val preloadCount = value.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0
+        copy(
+            navigationPreloadCountText = preloadCount.toString(),
+            preserveNavigationPageStack = if (preloadCount > 0) {
+                false
+            } else {
+                preserveNavigationPageStack
+            },
+            navigationBackBehavior = if (preloadCount > 0) {
+                "reset_on_navigation"
+            } else {
+                navigationBackBehavior
+            }
+        )
+    }
+
+    fun updateNavigationBackBehavior(value: String) = updateForm {
+        copy(
+            navigationBackBehavior = value,
+            preserveNavigationPageStack = if (value == "web_history") {
+                false
+            } else {
+                preserveNavigationPageStack
+            },
+            navigationPreloadCountText = if (value == "web_history") {
+                "0"
+            } else {
+                navigationPreloadCountText
+            }
+        )
+    }
     fun updateTopBarThemeColor(value: String) = updateForm { copy(topBarThemeColor = value) }
     fun updateBottomBarThemeColor(value: String) = updateForm { copy(bottomBarThemeColor = value) }
     fun updateAllowExternalHosts(value: Boolean) = updateForm { copy(allowExternalHosts = value) }
@@ -886,7 +942,10 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun appString(@StringRes resId: Int, vararg args: Any): String {
-        return getApplication<Application>().getString(resId, *args)
+        val localizedContext = AppLanguageManager.wrapContext(
+            getApplication<Application>().applicationContext
+        )
+        return localizedContext.getString(resId, *args)
     }
 
     private fun errorMessage(@StringRes prefixResId: Int, throwable: Throwable): String {
@@ -1176,12 +1235,16 @@ data class ConfigEditorFormState(
     val topBarRefreshScriptText: String = "",
     val topBarFollowPageTitle: Boolean = true,
     val topBarTitleCentered: Boolean = true,
+    val topBarHeightText: String = DEFAULT_EDITOR_TOP_BAR_HEIGHT_DP.toString(),
+    val topBarIconSizeText: String = DEFAULT_EDITOR_TOP_BAR_ICON_SIZE_DP.toString(),
     val topBarCornerRadiusText: String = "0",
     val topBarShadowText: String = "0",
     val topBarBackIcon: String = "back",
     val topBarHomeIcon: String = "home",
     val topBarRefreshIcon: String = "refresh",
     val bottomBarShowTextLabels: Boolean = true,
+    val bottomBarHeightText: String = DEFAULT_EDITOR_BOTTOM_BAR_HEIGHT_DP.toString(),
+    val bottomBarIconSizeText: String = DEFAULT_EDITOR_BOTTOM_BAR_ICON_SIZE_DP.toString(),
     val bottomBarCornerRadiusText: String = "0",
     val bottomBarShadowText: String = "0",
     val bottomBarBadgeColor: String = "",
@@ -1209,6 +1272,8 @@ data class ConfigEditorFormState(
     val drawerMenuIcon: String = "menu",
     val defaultNavigationItemId: String = "",
     val enableSwipeNavigation: Boolean = false,
+    val preserveNavigationPageStack: Boolean = false,
+    val navigationPreloadCountText: String = "0",
     val navigationBackBehavior: String = "web_history",
     val topBarThemeColor: String = "",
     val bottomBarThemeColor: String = "",
@@ -1266,12 +1331,20 @@ data class ConfigEditorFormState(
                 topBarRefreshScript = topBarRefreshScriptText,
                 topBarFollowPageTitle = topBarFollowPageTitle,
                 topBarTitleCentered = topBarTitleCentered,
+                topBarHeightDp = topBarHeightText.trim().toIntOrNull()?.coerceAtLeast(0)
+                    ?: DEFAULT_EDITOR_TOP_BAR_HEIGHT_DP,
+                topBarIconSizeDp = topBarIconSizeText.trim().toIntOrNull()?.coerceAtLeast(0)
+                    ?: DEFAULT_EDITOR_TOP_BAR_ICON_SIZE_DP,
                 topBarCornerRadiusDp = topBarCornerRadiusText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0,
                 topBarShadowDp = topBarShadowText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0,
                 topBarBackIcon = topBarBackIcon,
                 topBarHomeIcon = topBarHomeIcon,
                 topBarRefreshIcon = topBarRefreshIcon,
                 bottomBarShowTextLabels = bottomBarShowTextLabels,
+                bottomBarHeightDp = bottomBarHeightText.trim().toIntOrNull()?.coerceAtLeast(0)
+                    ?: DEFAULT_EDITOR_BOTTOM_BAR_HEIGHT_DP,
+                bottomBarIconSizeDp = bottomBarIconSizeText.trim().toIntOrNull()?.coerceAtLeast(0)
+                    ?: DEFAULT_EDITOR_BOTTOM_BAR_ICON_SIZE_DP,
                 bottomBarCornerRadiusDp = bottomBarCornerRadiusText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0,
                 bottomBarShadowDp = bottomBarShadowText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0,
                 bottomBarBadgeColor = bottomBarBadgeColor,
@@ -1299,6 +1372,8 @@ data class ConfigEditorFormState(
                 drawerMenuIcon = drawerMenuIcon,
                 defaultNavigationItemId = defaultNavigationItemId,
                 enableSwipeNavigation = enableSwipeNavigation,
+                preserveNavigationPageStack = preserveNavigationPageStack,
+                navigationPreloadCount = navigationPreloadCountText.trim().toIntOrNull()?.coerceAtLeast(0) ?: 0,
                 navigationBackBehavior = navigationBackBehavior,
                 topBarThemeColor = topBarThemeColor,
                 bottomBarThemeColor = bottomBarThemeColor
@@ -1383,12 +1458,16 @@ data class ConfigEditorFormState(
                 topBarRefreshScriptText = config.shell.topBarRefreshScript,
                 topBarFollowPageTitle = config.shell.topBarFollowPageTitle,
                 topBarTitleCentered = config.shell.topBarTitleCentered,
+                topBarHeightText = config.shell.topBarHeightDp.toString(),
+                topBarIconSizeText = config.shell.topBarIconSizeDp.toString(),
                 topBarCornerRadiusText = config.shell.topBarCornerRadiusDp.toString(),
                 topBarShadowText = config.shell.topBarShadowDp.toString(),
                 topBarBackIcon = config.shell.topBarBackIcon,
                 topBarHomeIcon = config.shell.topBarHomeIcon,
                 topBarRefreshIcon = config.shell.topBarRefreshIcon,
                 bottomBarShowTextLabels = config.shell.bottomBarShowTextLabels,
+                bottomBarHeightText = config.shell.bottomBarHeightDp.toString(),
+                bottomBarIconSizeText = config.shell.bottomBarIconSizeDp.toString(),
                 bottomBarCornerRadiusText = config.shell.bottomBarCornerRadiusDp.toString(),
                 bottomBarShadowText = config.shell.bottomBarShadowDp.toString(),
                 bottomBarBadgeColor = config.shell.bottomBarBadgeColor,
@@ -1416,6 +1495,8 @@ data class ConfigEditorFormState(
                 drawerMenuIcon = config.shell.drawerMenuIcon,
                 defaultNavigationItemId = config.shell.defaultNavigationItemId,
                 enableSwipeNavigation = config.shell.enableSwipeNavigation,
+                preserveNavigationPageStack = config.shell.preserveNavigationPageStack,
+                navigationPreloadCountText = config.shell.navigationPreloadCount.toString(),
                 navigationBackBehavior = config.shell.navigationBackBehavior,
                 topBarThemeColor = config.shell.topBarThemeColor,
                 bottomBarThemeColor = config.shell.bottomBarThemeColor,
@@ -1666,12 +1747,16 @@ private fun AppConfig.merge(sections: ConfigSections): AppConfig {
             topBarRefreshScript = sections.shell.topBarRefreshScript,
             topBarFollowPageTitle = sections.shell.topBarFollowPageTitle,
             topBarTitleCentered = sections.shell.topBarTitleCentered,
+            topBarHeightDp = sections.shell.topBarHeightDp,
+            topBarIconSizeDp = sections.shell.topBarIconSizeDp,
             topBarCornerRadiusDp = sections.shell.topBarCornerRadiusDp,
             topBarShadowDp = sections.shell.topBarShadowDp,
             topBarBackIcon = sections.shell.topBarBackIcon,
             topBarHomeIcon = sections.shell.topBarHomeIcon,
             topBarRefreshIcon = sections.shell.topBarRefreshIcon,
             bottomBarShowTextLabels = sections.shell.bottomBarShowTextLabels,
+            bottomBarHeightDp = sections.shell.bottomBarHeightDp,
+            bottomBarIconSizeDp = sections.shell.bottomBarIconSizeDp,
             bottomBarCornerRadiusDp = sections.shell.bottomBarCornerRadiusDp,
             bottomBarShadowDp = sections.shell.bottomBarShadowDp,
             bottomBarBadgeColor = sections.shell.bottomBarBadgeColor,
@@ -1699,6 +1784,8 @@ private fun AppConfig.merge(sections: ConfigSections): AppConfig {
             drawerMenuIcon = sections.shell.drawerMenuIcon,
             defaultNavigationItemId = sections.shell.defaultNavigationItemId,
             enableSwipeNavigation = sections.shell.enableSwipeNavigation,
+            preserveNavigationPageStack = sections.shell.preserveNavigationPageStack,
+            navigationPreloadCount = sections.shell.navigationPreloadCount,
             navigationBackBehavior = sections.shell.navigationBackBehavior,
             topBarThemeColor = sections.shell.topBarThemeColor,
             bottomBarThemeColor = sections.shell.bottomBarThemeColor
