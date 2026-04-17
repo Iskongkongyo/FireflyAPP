@@ -16,6 +16,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.Message
 import android.os.SystemClock
 import android.util.Log
 import android.view.LayoutInflater
@@ -51,6 +52,7 @@ import com.fireflyapp.lite.core.download.DownloadMetadataBridge
 import com.fireflyapp.lite.core.event.PageEventBridge
 import com.fireflyapp.lite.core.event.PageEventContext
 import com.fireflyapp.lite.core.event.PageEventDispatcher
+import com.fireflyapp.lite.core.nativebridge.NativeKvBridge
 import com.fireflyapp.lite.core.notification.NotificationBridge
 import com.fireflyapp.lite.core.permission.WebGeolocationHandler
 import com.fireflyapp.lite.core.permission.WebPermissionHandler
@@ -111,6 +113,7 @@ class WebContainerFragment : Fragment() {
     private var chromeClient: FireflyWebChromeClient? = null
     private var pageEventDispatcher: PageEventDispatcher? = null
     private var externalAppDialog: AlertDialog? = null
+    private var longPressDialog: AlertDialog? = null
     private val uiHandler = Handler(Looper.getMainLooper())
     @Volatile
     private var currentPageUrl: String? = null
@@ -167,6 +170,14 @@ class WebContainerFragment : Fragment() {
         currentPageUrlProvider = { currentPageUrl },
         dispatchPermissionResult = ::dispatchNotificationPermissionResult
     )
+    private val nativeKvBridge by lazy {
+        NativeKvBridge(
+            contextProvider = { context },
+            trustedHostsProvider = { mainViewModel.requireConfig().security.kvTrustedHosts },
+            currentPageUrlProvider = { currentPageUrl },
+            storageScopeProvider = { mainViewModel.uiState.value.projectId ?: "standalone" }
+        )
+    }
     private val blobDownloadBridge by lazy {
         BlobDownloadBridge(
             downloadHandler = downloadHandler,
@@ -241,6 +252,24 @@ class WebContainerFragment : Fragment() {
         val title: String = ""
     )
 
+    private data class LongPressTarget(
+        val hitType: Int,
+        val linkUrl: String = "",
+        val imageUrl: String = "",
+        val title: String = ""
+    ) {
+        val hasLink: Boolean
+            get() = linkUrl.isNotBlank()
+
+        val hasImage: Boolean
+            get() = imageUrl.isNotBlank()
+    }
+
+    private data class LongPressMenuAction(
+        val labelRes: Int,
+        val onSelected: () -> Unit
+    )
+
     private enum class ManagedWebViewMode {
         INTERACTIVE,
         PRELOADED
@@ -295,6 +324,46 @@ class WebContainerFragment : Fragment() {
                 notificationBridge.showNotification(title, body, tag)
             } else {
                 false
+            }
+        }
+    }
+
+    private inner class GuardedNativeKvBridge(
+        private val isEnabled: () -> Boolean
+    ) {
+        @android.webkit.JavascriptInterface
+        fun get(namespace: String?, key: String?): String? {
+            return if (isEnabled()) {
+                nativeKvBridge.get(namespace, key)
+            } else {
+                null
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun set(namespace: String?, key: String?, value: String?): Boolean {
+            return if (isEnabled()) {
+                nativeKvBridge.set(namespace, key, value)
+            } else {
+                false
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun remove(namespace: String?, key: String?): Boolean {
+            return if (isEnabled()) {
+                nativeKvBridge.remove(namespace, key)
+            } else {
+                false
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun clearNamespace(namespace: String?): Int {
+            return if (isEnabled()) {
+                nativeKvBridge.clearNamespace(namespace)
+            } else {
+                0
             }
         }
     }
@@ -490,6 +559,9 @@ class WebContainerFragment : Fragment() {
         val guardedNotificationBridge = GuardedNotificationBridge {
             isInteractiveManagedWebView(managedWebView)
         }
+        val guardedNativeKvBridge = GuardedNativeKvBridge {
+            isInteractiveManagedWebView(managedWebView)
+        }
         val guardedBlobDownloadBridge = GuardedBlobDownloadBridge {
             isInteractiveManagedWebView(managedWebView)
         }
@@ -559,8 +631,14 @@ class WebContainerFragment : Fragment() {
         webView.setOnTouchListener { _, event ->
             handleNavigationSwipeTouch(managedWebView, event)
         }
+        webView.setOnLongClickListener {
+            handleWebViewLongPress(managedWebView)
+        }
         webView.addJavascriptInterface(guardedClipboardBridge, CLIPBOARD_BRIDGE_NAME)
         webView.addJavascriptInterface(guardedNotificationBridge, NOTIFICATION_BRIDGE_NAME)
+        if (config.security.enableNativeKvBridge) {
+            webView.addJavascriptInterface(guardedNativeKvBridge, NATIVE_KV_BRIDGE_NAME)
+        }
         webView.addJavascriptInterface(guardedBlobDownloadBridge, BLOB_BRIDGE_NAME)
         webView.addJavascriptInterface(guardedDownloadMetadataBridge, DOWNLOAD_METADATA_BRIDGE_NAME)
         webView.addJavascriptInterface(guardedPageEventBridge, PAGE_EVENT_BRIDGE_NAME)
@@ -802,6 +880,250 @@ class WebContainerFragment : Fragment() {
         Toast.makeText(requireContext(), messageRes, Toast.LENGTH_SHORT).show()
     }
 
+    private fun handleWebViewLongPress(managedWebView: ManagedWebView): Boolean {
+        if (!isInteractiveManagedWebView(managedWebView)) {
+            return false
+        }
+        val webView = managedWebView.webView
+        val hitTestResult = webView.hitTestResult ?: return false
+        if (!shouldHandleLongPressHitType(hitTestResult.type)) {
+            return false
+        }
+        resolveLongPressTarget(webView, hitTestResult) { target ->
+            if (!isAdded || _binding == null) {
+                return@resolveLongPressTarget
+            }
+            if (target == null || (!target.hasLink && !target.hasImage)) {
+                return@resolveLongPressTarget
+            }
+            showLongPressMenu(target)
+        }
+        return true
+    }
+
+    private fun shouldHandleLongPressHitType(hitType: Int): Boolean {
+        return hitType == android.webkit.WebView.HitTestResult.ANCHOR_TYPE ||
+            hitType == android.webkit.WebView.HitTestResult.PHONE_TYPE ||
+            hitType == android.webkit.WebView.HitTestResult.GEO_TYPE ||
+            hitType == android.webkit.WebView.HitTestResult.EMAIL_TYPE ||
+            hitType == android.webkit.WebView.HitTestResult.IMAGE_TYPE ||
+            hitType == android.webkit.WebView.HitTestResult.IMAGE_ANCHOR_TYPE ||
+            hitType == android.webkit.WebView.HitTestResult.SRC_ANCHOR_TYPE ||
+            hitType == android.webkit.WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE
+    }
+
+    private fun resolveLongPressTarget(
+        webView: FireflyWebView,
+        hitTestResult: android.webkit.WebView.HitTestResult,
+        onResolved: (LongPressTarget?) -> Unit
+    ) {
+        val fallbackExtra = hitTestResult.extra.orEmpty()
+        when (hitTestResult.type) {
+            android.webkit.WebView.HitTestResult.IMAGE_TYPE -> {
+                requestImageRef(webView) { imageUrl ->
+                    onResolved(
+                        LongPressTarget(
+                            hitType = hitTestResult.type,
+                            imageUrl = imageUrl.ifBlank { fallbackExtra }
+                        )
+                    )
+                }
+            }
+
+            android.webkit.WebView.HitTestResult.IMAGE_ANCHOR_TYPE,
+            android.webkit.WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE -> {
+                requestFocusNodeHref(webView) { linkUrl, title, sourceUrl ->
+                    val resolvedLink = normalizeLongPressUrl(
+                        hitType = hitTestResult.type,
+                        rawValue = linkUrl.ifBlank { fallbackExtra }
+                    )
+                    if (sourceUrl.isNotBlank()) {
+                        onResolved(
+                            LongPressTarget(
+                                hitType = hitTestResult.type,
+                                linkUrl = resolvedLink,
+                                imageUrl = sourceUrl,
+                                title = title
+                            )
+                        )
+                    } else {
+                        requestImageRef(webView) { imageUrl ->
+                            onResolved(
+                                LongPressTarget(
+                                    hitType = hitTestResult.type,
+                                    linkUrl = resolvedLink,
+                                    imageUrl = imageUrl,
+                                    title = title
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            else -> {
+                requestFocusNodeHref(webView) { linkUrl, title, sourceUrl ->
+                    onResolved(
+                        LongPressTarget(
+                            hitType = hitTestResult.type,
+                            linkUrl = normalizeLongPressUrl(
+                                hitType = hitTestResult.type,
+                                rawValue = linkUrl.ifBlank { fallbackExtra }
+                            ),
+                            imageUrl = sourceUrl,
+                            title = title
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    private fun requestFocusNodeHref(
+        webView: FireflyWebView,
+        onResolved: (url: String, title: String, sourceUrl: String) -> Unit
+    ) {
+        val message = Message.obtain(
+            Handler(Looper.getMainLooper()) { result ->
+                val data = result.data
+                onResolved(
+                    data?.getString("url").orEmpty(),
+                    data?.getString("title").orEmpty(),
+                    data?.getString("src").orEmpty()
+                )
+                true
+            }
+        )
+        webView.requestFocusNodeHref(message)
+    }
+
+    private fun requestImageRef(
+        webView: FireflyWebView,
+        onResolved: (imageUrl: String) -> Unit
+    ) {
+        val message = Message.obtain(
+            Handler(Looper.getMainLooper()) { result ->
+                onResolved(result.data?.getString("url").orEmpty())
+                true
+            }
+        )
+        webView.requestImageRef(message)
+    }
+
+    private fun normalizeLongPressUrl(hitType: Int, rawValue: String): String {
+        val trimmed = rawValue.trim()
+        if (trimmed.isBlank()) {
+            return ""
+        }
+        return when (hitType) {
+            android.webkit.WebView.HitTestResult.PHONE_TYPE -> {
+                if (trimmed.startsWith("tel:", ignoreCase = true)) trimmed else "tel:$trimmed"
+            }
+
+            android.webkit.WebView.HitTestResult.EMAIL_TYPE -> {
+                if (trimmed.startsWith("mailto:", ignoreCase = true)) trimmed else "mailto:$trimmed"
+            }
+
+            android.webkit.WebView.HitTestResult.GEO_TYPE -> {
+                if (trimmed.startsWith("geo:", ignoreCase = true)) trimmed else "geo:0,0?q=${Uri.encode(trimmed)}"
+            }
+
+            else -> trimmed
+        }
+    }
+
+    private fun showLongPressMenu(target: LongPressTarget) {
+        val context = context ?: return
+        val actions = buildLongPressMenuActions(target)
+        if (actions.isEmpty()) {
+            return
+        }
+        longPressDialog?.dismiss()
+        longPressDialog = AlertDialog.Builder(context)
+            .setTitle(R.string.web_long_press_options)
+            .setItems(actions.map { getString(it.labelRes) }.toTypedArray()) { _, which ->
+                actions.getOrNull(which)?.onSelected?.invoke()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .create()
+        longPressDialog?.show()
+    }
+
+    private fun buildLongPressMenuActions(target: LongPressTarget): List<LongPressMenuAction> {
+        val actions = mutableListOf<LongPressMenuAction>()
+        if (target.hasLink) {
+            actions += LongPressMenuAction(R.string.web_long_press_open_link) {
+                openLongPressTarget(target.linkUrl)
+            }
+            actions += LongPressMenuAction(R.string.web_long_press_copy_link) {
+                copyLongPressText(label = "link", text = target.linkUrl)
+            }
+            actions += LongPressMenuAction(R.string.web_long_press_share_link) {
+                shareLongPressText(subject = target.title, text = target.linkUrl)
+            }
+        }
+        if (target.hasImage) {
+            actions += LongPressMenuAction(R.string.web_long_press_open_image) {
+                openLongPressTarget(target.imageUrl)
+            }
+            actions += LongPressMenuAction(R.string.web_long_press_copy_image_address) {
+                copyLongPressText(label = "image", text = target.imageUrl)
+            }
+            actions += LongPressMenuAction(R.string.web_long_press_share_image_address) {
+                shareLongPressText(subject = target.title, text = target.imageUrl)
+            }
+            actions += LongPressMenuAction(R.string.web_long_press_download_image) {
+                downloadLongPressImage(target.imageUrl)
+            }
+        }
+        return actions
+    }
+
+    private fun openLongPressTarget(targetUrl: String) {
+        if (targetUrl.isBlank()) {
+            return
+        }
+        openExternalIntent(Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)))
+    }
+
+    private fun copyLongPressText(label: String, text: String) {
+        if (text.isBlank()) {
+            return
+        }
+        val clipboardManager = context?.getSystemService(ClipboardManager::class.java) ?: return
+        clipboardManager.setPrimaryClip(ClipData.newPlainText(label, text))
+        Toast.makeText(requireContext(), R.string.web_long_press_copied, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareLongPressText(subject: String, text: String) {
+        if (text.isBlank()) {
+            return
+        }
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+            if (subject.isNotBlank()) {
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+            }
+        }
+        try {
+            startActivity(Intent.createChooser(shareIntent, getString(R.string.web_long_press_share_chooser)))
+        } catch (_: ActivityNotFoundException) {
+            if (isAdded) {
+                Toast.makeText(requireContext(), R.string.web_external_no_handler, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun downloadLongPressImage(imageUrl: String) {
+        handleDownloadRequest(
+            url = imageUrl,
+            userAgent = activeWebView()?.settings?.userAgentString,
+            contentDisposition = null,
+            mimeType = null
+        )
+    }
+
     private fun handleInternalNavigationRequest(
         webView: android.webkit.WebView,
         request: WebResourceRequest
@@ -1020,11 +1342,13 @@ class WebContainerFragment : Fragment() {
                 runCatching { stopLoading() }
             }
             runCatching { setOnTouchListener(null) }
+            runCatching { setOnLongClickListener(null) }
             runCatching { webChromeClient = WebChromeClient() }
             runCatching { webViewClient = WebViewClient() }
             runCatching { setDownloadListener(null) }
             runCatching { removeJavascriptInterface(CLIPBOARD_BRIDGE_NAME) }
             runCatching { removeJavascriptInterface(NOTIFICATION_BRIDGE_NAME) }
+            runCatching { removeJavascriptInterface(NATIVE_KV_BRIDGE_NAME) }
             runCatching { removeJavascriptInterface(BLOB_BRIDGE_NAME) }
             runCatching { removeJavascriptInterface(DOWNLOAD_METADATA_BRIDGE_NAME) }
             runCatching { removeJavascriptInterface(PAGE_EVENT_BRIDGE_NAME) }
@@ -1950,6 +2274,9 @@ class WebContainerFragment : Fragment() {
 
     fun reload() {
         if (errorStateLocked) {
+            if (reloadCurrentPageFromFreshWebView()) {
+                return
+            }
             beginRecoveryLoad()
         } else {
             clearErrorState()
@@ -1960,6 +2287,9 @@ class WebContainerFragment : Fragment() {
 
     fun reloadIgnoringCache() {
         if (errorStateLocked) {
+            if (reloadCurrentPageFromFreshWebView(clearCache = true)) {
+                return
+            }
             beginRecoveryLoad()
         } else {
             clearErrorState()
@@ -2878,6 +3208,9 @@ class WebContainerFragment : Fragment() {
     }
 
     private fun retryCurrentPage() {
+        if (reloadCurrentPageFromFreshWebView()) {
+            return
+        }
         beginRecoveryLoad()
         showLoading(true)
         val currentWebView = activeWebView()
@@ -2887,6 +3220,54 @@ class WebContainerFragment : Fragment() {
             return
         }
         currentWebView?.reload()
+    }
+
+    private fun reloadCurrentPageFromFreshWebView(clearCache: Boolean = false): Boolean {
+        val currentManagedWebView = activeManagedWebView() ?: return false
+        val resolver = pageRuleResolver ?: return false
+        val retryUrl = resolveManagedWebViewUrl(currentManagedWebView)
+            .ifBlank { currentPageUrl.orEmpty() }
+        if (retryUrl.isBlank()) {
+            return false
+        }
+        val config = mainViewModel.requireConfig()
+        val navigationItemId = currentManagedWebView.navigationItemId ?: currentNavigationItemId
+        val navigationRootUrl = currentManagedWebView.navigationRootUrl
+        val previousTitle = resolveManagedWebViewTitle(currentManagedWebView)
+        Log.d(
+            TAG,
+            "reloadCurrentPageFromFreshWebView url=$retryUrl clearCache=$clearCache navigationItem=$navigationItemId navigationRoot=$navigationRootUrl"
+        )
+        beginRecoveryLoad()
+        managedWebViews.remove(currentManagedWebView)
+        destroyManagedWebView(currentManagedWebView)
+
+        val replacementManagedWebView = createManagedWebView(
+            config = config,
+            resolver = resolver,
+            mode = ManagedWebViewMode.INTERACTIVE,
+            navigationItemId = navigationItemId,
+            navigationRootUrl = navigationRootUrl
+        )
+        if (clearCache) {
+            replacementManagedWebView.webView.clearCache(true)
+        }
+        managedWebViews += replacementManagedWebView
+        chromeClient = replacementManagedWebView.chromeClient
+        interactiveNavigationLoading = true
+        currentPageUrl = retryUrl
+        if (previousTitle.isNotBlank()) {
+            currentPageTitle = previousTitle
+        }
+        currentPageState = resolver.resolve(retryUrl)
+        currentPageState?.let { state ->
+            pageCallback?.onPageStateResolved(state)
+            applyPageUiStyle(state)
+        }
+        syncWebViewVisibility()
+        updateManagedWebViewLifecycle()
+        loadUrlInternal(replacementManagedWebView.webView, retryUrl, resetHistory = false)
+        return true
     }
 
     @RequiresApi(android.os.Build.VERSION_CODES.O)
@@ -3124,6 +3505,8 @@ class WebContainerFragment : Fragment() {
         }
         if (shouldShow) {
             currentBinding.loadingContainer.visibility = View.GONE
+            currentBinding.loadingContainer.setBackgroundColor(Color.TRANSPARENT)
+            updateLoadingSpinnerAnimation(false)
             resetNavigationSwipeTransition()
         }
         syncWebViewVisibility()
@@ -3140,6 +3523,13 @@ class WebContainerFragment : Fragment() {
             !suppressForInteractiveSwipe
         currentBinding.loadingText.text = currentPageState?.loadingText?.takeIf { it.isNotBlank() }
             ?: getString(R.string.web_loading_message)
+        val shouldMaskHiddenWebView = shouldShow &&
+            keepWebViewHiddenUntilLoaded &&
+            pendingNavigationSwipeDirection == null &&
+            !navigationSwipeInteractiveActive
+        currentBinding.loadingContainer.setBackgroundColor(
+            if (shouldMaskHiddenWebView) resolveNavigationSwipeBlankColor() else Color.TRANSPARENT
+        )
         currentBinding.loadingContainer.visibility = if (shouldShow) View.VISIBLE else View.GONE
         updateLoadingSpinnerAnimation(shouldShow)
         if (!shouldShow &&
@@ -3415,15 +3805,21 @@ class WebContainerFragment : Fragment() {
         val currentBinding = _binding ?: return
         val currentActiveWebView = activeWebView()
         val currentPreviewManagedWebView = navigationSwipePreviewManagedWebView
+        var hasVisibleManagedWebView = false
         allManagedWebViews().forEach { managedWebView ->
-            managedWebView.webView.visibility = when {
+            val visibility = when {
                 currentBinding.errorView.visibility == View.VISIBLE -> View.INVISIBLE
                 managedWebView === currentPreviewManagedWebView -> View.VISIBLE
                 managedWebView.webView !== currentActiveWebView -> View.INVISIBLE
                 keepWebViewHiddenUntilLoaded -> View.INVISIBLE
                 else -> View.VISIBLE
             }
+            managedWebView.webView.visibility = visibility
+            if (visibility == View.VISIBLE) {
+                hasVisibleManagedWebView = true
+            }
         }
+        currentBinding.webViewContainer.visibility = if (hasVisibleManagedWebView) View.VISIBLE else View.INVISIBLE
     }
 
     private fun updateLoadingSpinnerAnimation(shouldSpin: Boolean) {
@@ -3466,6 +3862,8 @@ class WebContainerFragment : Fragment() {
         resetNavigationSwipeTransition()
         externalAppDialog?.dismiss()
         externalAppDialog = null
+        longPressDialog?.dismiss()
+        longPressDialog = null
         fileChooserHandler.cancelPending()
         webPermissionHandler.cancelPending()
         webGeolocationHandler.cancelPending()
@@ -3506,6 +3904,7 @@ class WebContainerFragment : Fragment() {
         private const val ARG_INITIAL_URL = "initial_url"
         private const val CLIPBOARD_BRIDGE_NAME = "FireflyClipboardBridge"
         private const val NOTIFICATION_BRIDGE_NAME = "FireflyNotificationBridge"
+        private const val NATIVE_KV_BRIDGE_NAME = "NativeBridge"
         private const val BLOB_BRIDGE_NAME = "FireflyBlobDownloadBridge"
         private const val DOWNLOAD_METADATA_BRIDGE_NAME = "FireflyDownloadMetadataBridge"
         private const val PAGE_EVENT_BRIDGE_NAME = "FireflyPageEventBridge"

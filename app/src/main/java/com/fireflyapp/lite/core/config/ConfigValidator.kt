@@ -3,6 +3,7 @@ package com.fireflyapp.lite.core.config
 import android.net.Uri
 import com.fireflyapp.lite.data.model.AppConfig
 import com.fireflyapp.lite.data.model.AppInfo
+import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_UNSPECIFIED
 import com.fireflyapp.lite.data.model.NavigationConfig
 import com.fireflyapp.lite.data.model.NavigationItem
 import com.fireflyapp.lite.data.model.PageEventAction
@@ -10,6 +11,7 @@ import com.fireflyapp.lite.data.model.PageEventRule
 import com.fireflyapp.lite.data.model.SecurityConfig
 import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_STRICT
 import com.fireflyapp.lite.data.model.TemplateType
+import com.fireflyapp.lite.data.model.supportedBrowserScreenOrientations
 import com.fireflyapp.lite.data.model.supportedSslErrorHandlingModes
 import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
 import com.fireflyapp.lite.ui.template.TemplateIconCatalog
@@ -118,6 +120,11 @@ class ConfigValidator {
                     .filter { it.isNotEmpty() }
                     .distinct(),
                 allowExternalHosts = config.security.allowExternalHosts,
+                enableNativeKvBridge = config.security.enableNativeKvBridge,
+                kvTrustedHosts = config.security.kvTrustedHosts
+                    .map { it.trim() }
+                    .filter { it.isNotEmpty() }
+                    .distinct(),
                 openOtherAppsMode = config.security.openOtherAppsMode
                     .trim()
                     .lowercase()
@@ -140,12 +147,22 @@ class ConfigValidator {
                     .trim()
                     .lowercase()
                     .takeIf { it in supportedNightModes }
-                    ?: DEFAULT_NIGHT_MODE
+                    ?: DEFAULT_NIGHT_MODE,
+                screenOrientation = config.browser.screenOrientation
+                    .trim()
+                    .lowercase()
+                    .takeIf { it in supportedBrowserScreenOrientations }
+                    ?: DEFAULT_SCREEN_ORIENTATION
             ),
             shell = config.shell.copy(
                 topBarShowBackButton = config.shell.topBarShowBackButton,
                 topBarShowHomeButton = config.shell.topBarShowHomeButton,
                 topBarShowRefreshButton = config.shell.topBarShowRefreshButton,
+                topBarBackBehavior = config.shell.topBarBackBehavior
+                    .trim()
+                    .lowercase()
+                    .takeIf { it in supportedTopBarBackBehaviors }
+                    ?: "default_back",
                 topBarHomeBehavior = config.shell.topBarHomeBehavior
                     .trim()
                     .lowercase()
@@ -156,6 +173,7 @@ class ConfigValidator {
                     .lowercase()
                     .takeIf { it in supportedTopBarRefreshBehaviors }
                     ?: "reload",
+                topBarBackScript = config.shell.topBarBackScript.trim(),
                 topBarHomeScript = config.shell.topBarHomeScript.trim(),
                 topBarRefreshScript = config.shell.topBarRefreshScript.trim(),
                 topBarFollowPageTitle = config.shell.topBarFollowPageTitle,
@@ -242,6 +260,7 @@ class ConfigValidator {
         const val MAX_PAGE_EVENTS = 20
         const val DEFAULT_BACK_ACTION = "go_back_or_exit"
         const val DEFAULT_NIGHT_MODE = "off"
+        const val DEFAULT_SCREEN_ORIENTATION = BROWSER_SCREEN_ORIENTATION_UNSPECIFIED
         const val DEFAULT_OPEN_OTHER_APPS_MODE = "ask"
         const val DEFAULT_NAVIGATION_BACK_BEHAVIOR = "web_history"
         const val DEFAULT_TOP_BAR_HEIGHT_DP = 60
@@ -284,6 +303,12 @@ class ConfigValidator {
             TemplateType.SIDE_DRAWER
         )
         val supportedTopBarHomeBehaviors = setOf(
+            "default_home",
+            "default_navigation_item",
+            "run_js"
+        )
+        val supportedTopBarBackBehaviors = setOf(
+            "default_back",
             "default_home",
             "default_navigation_item",
             "run_js"

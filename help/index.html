@@ -564,8 +564,8 @@
                   <span class="en">Import an existing project package</span>
                 </td>
                 <td>
-                  <span class="zh">适合迁移到新设备，或拿到别人发来的项目文件</span>
-                  <span class="en">Use when moving to a new device or opening someone else’s project package</span>
+                  <span class="zh">适合迁移到新设备，或拿到别人发来的项目文件；导入完成后会直接进入编辑页</span>
+                  <span class="en">Use when moving to a new device or opening someone else’s project package; after import, the editor opens directly</span>
                 </td>
               </tr>
               <tr>
@@ -642,6 +642,21 @@
             </div>
             <p class="muted zh" style="margin-top:10px">保存会把当前可视化状态写回项目配置；重置会恢复到默认示例；导入导出适合做版本备份；Preview 适合做行为验证。</p>
             <p class="muted en" style="margin-top:10px">Save writes current visual state back to project config. Reset restores bundled defaults. Import/export are useful for backups. Preview validates real behavior.</p>
+          </div>
+
+          <div class="card">
+            <h3 class="mini-title zh">代码编辑器增强</h3>
+            <h3 class="mini-title en">Code editor enhancements</h3>
+            <ul class="list zh block">
+              <li>全局 JS / CSS、规则 JS / CSS、按钮 <code>run_js</code>、事件 <code>run_js</code> 都支持进入全屏代码编辑器</li>
+              <li>全局 JS / CSS 与规则 JS / CSS 已支持多代码块编辑，可新增、复制、排序、删除</li>
+              <li>JS 编辑器右上角 <code>+</code> 可插入常用片段，如 <code>fetch</code>、等待元素出现、事件变量模板等</li>
+            </ul>
+            <ul class="list en block">
+              <li>Global JS/CSS, rule JS/CSS, button <code>run_js</code>, and event <code>run_js</code> can all open in a fullscreen code editor</li>
+              <li>Global and rule JS/CSS now support true multi-block editing with add, duplicate, reorder, and delete</li>
+              <li>The JS editor has a <code>+</code> menu for common snippets such as <code>fetch</code>, wait-for-element helpers, and event-variable templates</li>
+            </ul>
           </div>
         </div>
 
@@ -735,6 +750,7 @@
               <li><code>showPageProgressBar</code>：显示顶部加载进度条</li>
               <li><code>showErrorView</code>：加载失败时显示宿主错误页</li>
               <li><code>nightMode</code>：<code>off / on / follow_theme</code></li>
+              <li><code>screenOrientation</code>：<code>unspecified / portrait / landscape</code>，可控制不限制、强制竖屏或强制横屏</li>
               <li><code>immersiveStatusBar</code>：是否让内容更贴近状态栏</li>
               <li><code>userAgent</code>：只在确实需要伪装设备类型时再改</li>
             </ul>
@@ -743,6 +759,7 @@
               <li><code>showPageProgressBar</code>: shows the top loading progress bar</li>
               <li><code>showErrorView</code>: displays the host error page when loads fail</li>
               <li><code>nightMode</code>: <code>off / on / follow_theme</code></li>
+              <li><code>screenOrientation</code>: <code>unspecified / portrait / landscape</code> to keep rotation free, force portrait, or force landscape</li>
               <li><code>immersiveStatusBar</code>: controls whether content reaches into the status bar area</li>
               <li><code>userAgent</code>: only change this when you truly need to emulate another device/browser profile</li>
             </ul>
@@ -754,14 +771,35 @@
             <ul class="list zh block">
               <li><code>allowedHosts</code> 是第一道限制，决定哪些域名允许在壳内加载</li>
               <li><code>allowExternalHosts</code> 为关时，白名单外 URL 会被严格处理</li>
+              <li><code>Enable Native KV bridge</code> 用来控制是否向页面暴露 <code>NativeBridge</code></li>
+              <li><code>kvTrustedHosts</code> 是独立于 <code>allowedHosts</code> 的第二道限制，只决定哪些 host 能访问原生 KV</li>
               <li><code>openOtherAppsMode</code> 支持 <code>ask / allow / block</code></li>
               <li><code>sslErrorHandling</code> 支持 <code>strict / ignore</code>，默认建议严格校验</li>
             </ul>
             <ul class="list en block">
               <li><code>allowedHosts</code> is the first barrier that decides which domains may load inside the shell</li>
               <li>When <code>allowExternalHosts</code> is off, URLs outside the whitelist are handled strictly</li>
+              <li><code>Enable Native KV bridge</code> controls whether the page receives the <code>NativeBridge</code> interface</li>
+              <li><code>kvTrustedHosts</code> is a second, separate gate from <code>allowedHosts</code>, and only decides which hosts may access native KV</li>
               <li><code>openOtherAppsMode</code> supports <code>ask / allow / block</code></li>
               <li><code>sslErrorHandling</code> supports <code>strict / ignore</code>, and strict is recommended</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h3 class="mini-title zh">7. 顶栏按钮行为</h3>
+            <h3 class="mini-title en">7. Top-bar button behaviors</h3>
+            <ul class="list zh block">
+              <li>带顶栏模板支持控制返回、首页、刷新按钮是否显示</li>
+              <li>返回按钮支持 <code>default_back</code>、<code>default_home</code>、<code>default_navigation_item</code>、<code>run_js</code></li>
+              <li>首页和刷新按钮也支持原生行为与 <code>run_js</code> 结合</li>
+              <li>当按钮行为设为 <code>run_js</code> 时，会打开全屏代码编辑器，适合写较长脚本</li>
+            </ul>
+            <ul class="list en block">
+              <li>Templates with a top bar can control whether back, home, and refresh buttons are shown</li>
+              <li>The back button supports <code>default_back</code>, <code>default_home</code>, <code>default_navigation_item</code>, and <code>run_js</code></li>
+              <li>Home and refresh buttons also support both native behaviors and <code>run_js</code></li>
+              <li>When a button is set to <code>run_js</code>, it opens in the fullscreen code editor for longer scripts</li>
             </ul>
           </div>
         </div>
@@ -868,12 +906,12 @@
             <tr>
               <td><code>inject</code></td>
               <td>
-                <span class="zh">JSON 页为主</span>
-                <span class="en">Mainly the JSON tab</span>
+                <span class="zh">Basic 页 + JSON 页</span>
+                <span class="en">Basic tab + JSON tab</span>
               </td>
               <td>
-                <span class="zh">定义全局注入的 JS / CSS，会作用于所有页面</span>
-                <span class="en">Defines global JS / CSS injection that applies to all pages</span>
+                <span class="zh">定义全局注入的 JS / CSS，会作用于所有页面；可视化编辑器按单段内容编辑，JSON 仍然保留数组结构</span>
+                <span class="en">Defines global JS / CSS injection for all pages; the visual editor treats it as one full body, while JSON still keeps an array structure</span>
               </td>
             </tr>
             <tr>
@@ -928,6 +966,7 @@
               <li><code>browser.showLoadingOverlay</code>：是否显示加载浮层</li>
               <li><code>browser.showErrorView</code>：是否显示错误页</li>
               <li><code>browser.nightMode</code>：<code>off / on / follow_theme</code></li>
+              <li><code>browser.screenOrientation</code>：<code>unspecified / portrait / landscape</code></li>
               <li><code>browser.immersiveStatusBar</code>：是否启用沉浸式状态栏</li>
             </ul>
             <ul class="list en block">
@@ -937,6 +976,7 @@
               <li><code>browser.showLoadingOverlay</code>: whether to show the loading overlay</li>
               <li><code>browser.showErrorView</code>: whether to show the host error page</li>
               <li><code>browser.nightMode</code>: <code>off / on / follow_theme</code></li>
+              <li><code>browser.screenOrientation</code>: <code>unspecified / portrait / landscape</code></li>
               <li><code>browser.immersiveStatusBar</code>: whether to use immersive status bar layout</li>
             </ul>
           </div>
@@ -951,7 +991,7 @@
               <li><code>shell.enableSwipeNavigation</code>：启用导航滑动切换</li>
               <li><code>shell.navigationPreloadCount</code>：后台预加载相邻导航页</li>
               <li><code>shell.topBarThemeColor</code> / <code>bottomBarThemeColor</code>：栏位主题色</li>
-              <li><code>shell.topBarHomeBehavior</code> / <code>topBarRefreshBehavior</code>：按钮行为</li>
+              <li><code>shell.topBarBackBehavior</code> / <code>topBarHomeBehavior</code> / <code>topBarRefreshBehavior</code>：顶栏按钮行为</li>
             </ul>
             <ul class="list en block">
               <li><code>navigation.items</code>: array of navigation items</li>
@@ -960,7 +1000,7 @@
               <li><code>shell.enableSwipeNavigation</code>: enables swipe navigation switching</li>
               <li><code>shell.navigationPreloadCount</code>: preloads nearby navigation pages in the background</li>
               <li><code>shell.topBarThemeColor</code> / <code>bottomBarThemeColor</code>: bar theme colors</li>
-              <li><code>shell.topBarHomeBehavior</code> / <code>topBarRefreshBehavior</code>: toolbar button behaviors</li>
+              <li><code>shell.topBarBackBehavior</code> / <code>topBarHomeBehavior</code> / <code>topBarRefreshBehavior</code>: top-bar button behaviors</li>
             </ul>
           </div>
 
@@ -970,18 +1010,24 @@
             <ul class="list zh block">
               <li><code>security.allowedHosts</code>：允许在壳内加载的域名白名单</li>
               <li><code>security.allowExternalHosts</code>：是否放行白名单外 URL</li>
+              <li><code>security.enableNativeKvBridge</code>：是否启用 <code>NativeBridge</code> 原生 KV</li>
+              <li><code>security.kvTrustedHosts</code>：允许访问原生 KV 的 host 列表</li>
               <li><code>security.openOtherAppsMode</code>：<code>ask / allow / block</code></li>
               <li><code>security.sslErrorHandling</code>：<code>strict / ignore</code></li>
               <li><code>inject.globalJs</code>：所有页面共享的 JS 注入</li>
               <li><code>inject.globalCss</code>：所有页面共享的 CSS 注入</li>
+              <li>可视化编辑器已支持多代码块编辑和全屏代码编辑；JSON 页仍然是最适合做最终核对和批量修改的地方</li>
             </ul>
             <ul class="list en block">
               <li><code>security.allowedHosts</code>: host whitelist allowed inside the shell</li>
               <li><code>security.allowExternalHosts</code>: whether non-whitelisted URLs may proceed</li>
+              <li><code>security.enableNativeKvBridge</code>: whether the <code>NativeBridge</code> native KV bridge is enabled</li>
+              <li><code>security.kvTrustedHosts</code>: list of hosts allowed to access native KV</li>
               <li><code>security.openOtherAppsMode</code>: <code>ask / allow / block</code></li>
               <li><code>security.sslErrorHandling</code>: <code>strict / ignore</code></li>
               <li><code>inject.globalJs</code>: JS injected into all pages</li>
               <li><code>inject.globalCss</code>: CSS injected into all pages</li>
+              <li>The visual editor now supports multi-block and fullscreen code editing; the JSON tab is still the best place for final verification and bulk edits</li>
             </ul>
           </div>
 
@@ -1026,12 +1072,16 @@
             <h3 class="mini-title en">Rules tab</h3>
             <p class="muted zh">按 URL 条件匹配页面，并覆盖标题、顶栏/底栏显示、错误页文案、注入脚本和样式等。</p>
             <p class="muted en">Matches pages by URL conditions and overrides title, chrome visibility, error-page text, injected scripts, and styles.</p>
+            <p class="muted zh">规则里的 JS / CSS 现在也支持多代码块管理和全屏代码编辑；如果你要做大批量修改或精确核对数组顺序，仍然可以在 JSON 页直接维护。</p>
+            <p class="muted en">Rule-level JS/CSS now support multi-block management and fullscreen editing too. For bulk changes or precise array-order checks, you can still maintain them directly in the JSON tab.</p>
           </div>
           <div class="card">
             <h3 class="mini-title zh">Events 页</h3>
             <h3 class="mini-title en">Events tab</h3>
             <p class="muted zh">监听页面开始加载、完成、标题变化、离开页面、SPA 路由变化，然后执行一个或多个动作。</p>
             <p class="muted en">Listens for page start, finish, title changes, page leave, and SPA route changes, then runs one or more actions.</p>
+            <p class="muted zh">事件里的 <code>run_js</code> 也会走全屏代码编辑器，更适合编写较长逻辑，并可配合事件模板变量调试。</p>
+            <p class="muted en">Event <code>run_js</code> actions also use the fullscreen code editor, which is better for longer scripts and easier event-variable debugging.</p>
           </div>
           <div class="card">
             <h3 class="mini-title zh">JSON 页</h3>
@@ -1094,6 +1144,10 @@
             <span class="zh">事件支持模板变量：<code>{url}</code>、<code>{title}</code>、<code>{trigger}</code>、<code>{previousUrl}</code>、<code>{nextUrl}</code>。调试复杂事件时，最先试的通常是一条 <code>toast</code>。</span>
             <span class="en">Events support template variables such as <code>{url}</code>, <code>{title}</code>, <code>{trigger}</code>, <code>{previousUrl}</code>, and <code>{nextUrl}</code>. For debugging, start with a simple <code>toast</code>.</span>
           </div>
+        </div>
+        <div class="callout" style="margin-top:12px">
+          <span class="zh">如果你启用了 <code>NativeBridge</code>，那么全局 JS、规则 JS、按钮 <code>run_js</code> 和事件 <code>run_js</code> 都可以直接调用它；前提是当前页面 host 命中 <code>kvTrustedHosts</code>。</span>
+          <span class="en">If <code>NativeBridge</code> is enabled, global JS, rule JS, button <code>run_js</code>, and event <code>run_js</code> can all call it directly, as long as the current page host matches <code>kvTrustedHosts</code>.</span>
         </div>
       </section>
       <section class="section" id="sec-branding">
@@ -1320,6 +1374,8 @@
               <li>慢页面是否正确显示加载浮层</li>
               <li>错误页、夜间模式、顶栏/状态栏颜色是否统一</li>
               <li>外链、下载、文件上传是否按预期工作</li>
+              <li>链接、图片、图片链接的长按菜单是否符合你的使用预期</li>
+              <li>如果项目用了 <code>NativeBridge</code>，要顺手确认可信域名和非可信域名下的行为是否符合预期</li>
             </ul>
             <ul class="list en block">
               <li>Whether navigation switching feels smooth and avoids old-page flashes or white seams</li>
@@ -1327,6 +1383,8 @@
               <li>Whether slow pages show the loading overlay correctly</li>
               <li>Whether error pages, dark mode, and top/status bar colors stay consistent</li>
               <li>Whether external links, downloads, and uploads behave as expected</li>
+              <li>Whether long-press behavior for links, images, and image-links matches what you expect</li>
+              <li>If the project uses <code>NativeBridge</code>, verify trusted and untrusted hosts both behave correctly in Preview</li>
             </ul>
           </div>
 
@@ -1468,8 +1526,8 @@
           <div class="card">
             <h3 class="mini-title zh">Import / Export</h3>
             <h3 class="mini-title en">Import / Export</h3>
-            <p class="muted zh">支持导入 <code>.fireflyproj.zip</code> 项目包或单独的 <code>app-config.json</code>，也支持导出整个项目。</p>
-            <p class="muted en">Supports importing a full <code>.fireflyproj.zip</code> package or a standalone <code>app-config.json</code>, and exporting the whole project.</p>
+            <p class="muted zh">支持导入 <code>.fireflyproj.zip</code> 项目包或单独的 <code>app-config.json</code>，也支持导出整个项目。导出项目包时，默认文件名会优先使用项目名称。</p>
+            <p class="muted en">Supports importing a full <code>.fireflyproj.zip</code> package or a standalone <code>app-config.json</code>, and exporting the whole project. Exported package names now prefer the project name by default.</p>
           </div>
         </div>
 
@@ -1572,6 +1630,18 @@
               <span class="en block">This means the new APK is signed with a different certificate than the installed version. The usual fixes are: rebuild with the same keystore as the old version, or uninstall the old app before installing the new one.</span>
             </div>
           </div>
+
+          <div class="faq-item">
+            <div class="faq-q" onclick="toggleFaq(this)">
+              <span class="zh">8. 为什么页面里拿不到 NativeBridge，或者调用总是失败？</span>
+              <span class="en">8. Why is NativeBridge missing or always failing in the page?</span>
+              <span class="arrow">▶</span>
+            </div>
+            <div class="faq-a">
+              <span class="zh block">先检查 <code>Enable Native KV bridge</code> 是否开启；再确认当前页面是不是 <code>http/https</code>，且 host 命中了 <code>kvTrustedHosts</code>。如果 trusted hosts 留空，或者页面只是本地页 / 非可信域名页，<code>NativeBridge</code> 就不会按你预期工作。</span>
+              <span class="en block">First check whether <code>Enable Native KV bridge</code> is turned on. Then verify the current page is <code>http/https</code> and its host matches <code>kvTrustedHosts</code>. If the trusted-host list is empty, or the page is local / untrusted, <code>NativeBridge</code> will not behave as expected.</span>
+            </div>
+          </div>
         </div>
 
         <div class="callout ok" style="margin-top:12px">
@@ -1582,8 +1652,8 @@
     </main>
 
     <footer class="footer">
-      <div class="zh block">FireflyApp Wiki · 本页为离线帮助文档，适合在宿主 App 内边看边操作。</div>
-      <div class="en block">FireflyApp Wiki · This page is an offline manual designed for in-app reading while you work.</div>
+      <div class="zh block">FireflyApp Wiki</div>
+      <div class="en block">FireflyApp Wiki</div>
     </footer>
   </div>
 

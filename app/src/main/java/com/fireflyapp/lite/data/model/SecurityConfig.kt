@@ -6,6 +6,8 @@ import kotlinx.serialization.Serializable
 data class SecurityConfig(
     val allowedHosts: List<String> = emptyList(),
     val allowExternalHosts: Boolean = true,
+    val enableNativeKvBridge: Boolean = false,
+    val kvTrustedHosts: List<String> = emptyList(),
     val openOtherAppsMode: String = "ask",
     val sslErrorHandling: String = SSL_ERROR_HANDLING_STRICT
 )

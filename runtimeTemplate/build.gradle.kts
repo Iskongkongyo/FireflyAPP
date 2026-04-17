@@ -1,7 +1,19 @@
+import org.gradle.api.file.DuplicatesStrategy
+import org.gradle.api.tasks.Copy
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+val generatedRuntimeAssetsDir = layout.buildDirectory.dir("generated/assets/runtime-template")
+val copyRuntimeTemplateAssets by tasks.registering(Copy::class) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from("../app/src/main/assets") {
+        include("app-config.json")
+    }
+    into(generatedRuntimeAssetsDir)
 }
 
 android {
@@ -57,9 +69,13 @@ android {
             manifest.srcFile("src/main/AndroidManifest.xml")
             java.srcDir("../app/src/main/java")
             res.srcDir("../app/src/main/res")
-            assets.srcDir("../app/src/main/assets")
+            assets.srcDir(generatedRuntimeAssetsDir)
         }
     }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(copyRuntimeTemplateAssets)
 }
 
 dependencies {

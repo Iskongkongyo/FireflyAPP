@@ -2,6 +2,7 @@ package com.fireflyapp.lite.ui.main
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.View
 import androidx.activity.addCallback
@@ -15,6 +16,8 @@ import androidx.lifecycle.lifecycleScope
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.app.AppLanguageManager
 import com.fireflyapp.lite.core.config.AppConfigManager
+import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_LANDSCAPE
+import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_PORTRAIT
 import com.fireflyapp.lite.core.webview.FullscreenViewHost
 import com.fireflyapp.lite.databinding.ActivityMainBinding
 import com.fireflyapp.lite.ui.template.BackPressHandler
@@ -35,6 +38,7 @@ class MainActivity : AppCompatActivity(), FullscreenViewHost {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         resolveInitialNightMode()?.let { delegate.localNightMode = it }
+        resolveInitialRequestedOrientation()?.let { requestedOrientation = it }
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -62,6 +66,7 @@ class MainActivity : AppCompatActivity(), FullscreenViewHost {
             viewModel.uiState.collect { state ->
                 val config = state.config ?: return@collect
                 title = config.app.name
+                applyRequestedOrientation(config.browser.screenOrientation)
                 applySystemBarMode(TemplateSystemBarPolicy.resolve(config))
 
                 if (state.configVersion == renderedConfigVersion) {
@@ -84,6 +89,13 @@ class MainActivity : AppCompatActivity(), FullscreenViewHost {
             return intent.getIntExtra(EXTRA_LOCAL_NIGHT_MODE, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
         }
         return resolveProjectNightMode(
+            context = applicationContext,
+            projectId = intent.getStringExtra(EXTRA_PROJECT_ID).orEmpty()
+        )
+    }
+
+    private fun resolveInitialRequestedOrientation(): Int? {
+        return resolveProjectRequestedOrientation(
             context = applicationContext,
             projectId = intent.getStringExtra(EXTRA_PROJECT_ID).orEmpty()
         )
@@ -150,6 +162,13 @@ class MainActivity : AppCompatActivity(), FullscreenViewHost {
         }
     }
 
+    private fun applyRequestedOrientation(screenOrientation: String) {
+        val resolvedOrientation = resolveRequestedOrientationValue(screenOrientation)
+        if (requestedOrientation != resolvedOrientation) {
+            requestedOrientation = resolvedOrientation
+        }
+    }
+
     companion object {
         private const val EXTRA_PROJECT_ID = "project_id"
         private const val EXTRA_LOCAL_NIGHT_MODE = "local_night_mode"
@@ -188,6 +207,36 @@ class MainActivity : AppCompatActivity(), FullscreenViewHost {
                 "on" -> AppCompatDelegate.MODE_NIGHT_YES
                 "off" -> AppCompatDelegate.MODE_NIGHT_NO
                 else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            }
+        }
+
+        private fun resolveProjectRequestedOrientation(context: Context, projectId: String): Int? {
+            val configManager = AppConfigManager()
+            val rawOrientation = runCatching {
+                if (projectId.isBlank()) {
+                    configManager.load(context).browser.screenOrientation
+                } else {
+                    val configFile = context.filesDir
+                        .resolve(PROJECTS_DIR_NAME)
+                        .resolve(projectId)
+                        .resolve(PROJECT_CONFIG_FILE)
+                    if (!configFile.exists() || !configFile.isFile) {
+                        return@runCatching null
+                    }
+                    configManager.parseAndSanitize(
+                        configFile.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                    ).browser.screenOrientation
+                }
+            }.getOrNull() ?: return null
+
+            return resolveRequestedOrientationValue(rawOrientation)
+        }
+
+        private fun resolveRequestedOrientationValue(rawOrientation: String): Int {
+            return when (rawOrientation.trim().lowercase()) {
+                BROWSER_SCREEN_ORIENTATION_PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                BROWSER_SCREEN_ORIENTATION_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
         }
     }

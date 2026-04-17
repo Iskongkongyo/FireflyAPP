@@ -79,6 +79,7 @@ val generateRuntimeShellTemplate by tasks.registering(Zip::class) {
             "app/proguard-rules.pro",
             "app/src/main/**"
         )
+        exclude("app/src/main/assets/host-app/**")
     }
 }
 val copyLocalHelpDocs by tasks.registering(Copy::class) {
@@ -100,8 +101,8 @@ android {
         applicationId = "com.fireflyapp.lite"
         minSdk = 24
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.4.0"
+        versionCode = 6
+        versionName = "1.5.0"
         buildConfigField("boolean", "IS_WORKSPACE_HOST_APP", "true")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

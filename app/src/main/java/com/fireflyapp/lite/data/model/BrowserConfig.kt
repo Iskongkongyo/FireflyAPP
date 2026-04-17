@@ -12,5 +12,16 @@ data class BrowserConfig(
     val showErrorView: Boolean = true,
     val backAction: String = "go_back_or_exit",
     val immersiveStatusBar: Boolean = false,
-    val nightMode: String = "off"
+    val nightMode: String = "off",
+    val screenOrientation: String = BROWSER_SCREEN_ORIENTATION_UNSPECIFIED
+)
+
+const val BROWSER_SCREEN_ORIENTATION_UNSPECIFIED = "unspecified"
+const val BROWSER_SCREEN_ORIENTATION_PORTRAIT = "portrait"
+const val BROWSER_SCREEN_ORIENTATION_LANDSCAPE = "landscape"
+
+val supportedBrowserScreenOrientations = setOf(
+    BROWSER_SCREEN_ORIENTATION_UNSPECIFIED,
+    BROWSER_SCREEN_ORIENTATION_PORTRAIT,
+    BROWSER_SCREEN_ORIENTATION_LANDSCAPE
 )

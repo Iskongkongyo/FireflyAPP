@@ -21,6 +21,11 @@ enum class AppLanguageMode(
     }
 }
 
+enum class AppContentLanguage {
+    CHINESE,
+    ENGLISH
+}
+
 object AppLanguageManager {
     fun getSavedMode(context: Context): AppLanguageMode {
         return AppLanguageMode.fromPersistedValue(
@@ -46,6 +51,22 @@ object AppLanguageManager {
         configuration.setLocale(locale)
         configuration.setLayoutDirection(locale)
         return base.createConfigurationContext(configuration)
+    }
+
+    fun resolvePreferredLocale(context: Context): Locale {
+        return when (getSavedMode(context)) {
+            AppLanguageMode.CHINESE_SIMPLIFIED -> Locale.forLanguageTag(AppLanguageMode.CHINESE_SIMPLIFIED.languageTags!!)
+            AppLanguageMode.ENGLISH -> Locale.forLanguageTag(AppLanguageMode.ENGLISH.languageTags!!)
+            AppLanguageMode.FOLLOW_SYSTEM -> context.resources.configuration.locales[0] ?: Locale.getDefault()
+        }
+    }
+
+    fun resolveContentLanguage(context: Context): AppContentLanguage {
+        return if (resolvePreferredLocale(context).language.equals("zh", ignoreCase = true)) {
+            AppContentLanguage.CHINESE
+        } else {
+            AppContentLanguage.ENGLISH
+        }
     }
 
     private fun applyLanguageMode(mode: AppLanguageMode) {

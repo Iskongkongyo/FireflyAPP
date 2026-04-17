@@ -414,7 +414,9 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         }
         applyHeaderMediaStyle(
             headerBinding = headerBinding,
-            wallpaperHeightDp = wallpaperHeightDp
+            wallpaperEnabled = wallpaperEnabled,
+            wallpaperHeightDp = wallpaperHeightDp,
+            avatarEnabled = avatarEnabled
         )
         loadHeaderMedia(
             headerBinding = headerBinding,
@@ -439,13 +441,35 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
 
     private fun applyHeaderMediaStyle(
         headerBinding: ViewDrawerHeaderBinding,
-        wallpaperHeightDp: Int
+        wallpaperEnabled: Boolean,
+        wallpaperHeightDp: Int,
+        avatarEnabled: Boolean
     ) {
-        headerBinding.wallpaperContainer.layoutParams = headerBinding.wallpaperContainer.layoutParams.apply {
-            height = (wallpaperHeightDp.coerceAtLeast(96) * resources.displayMetrics.density).toInt()
+        val mediaHeightDp = resolveDrawerHeaderMediaHeightDp(
+            wallpaperEnabled = wallpaperEnabled,
+            wallpaperHeightDp = wallpaperHeightDp,
+            avatarEnabled = avatarEnabled
+        )
+        val layoutParams = headerBinding.wallpaperContainer.layoutParams as? ViewGroup.MarginLayoutParams
+        layoutParams?.let { params ->
+            params.height = dpToPx(mediaHeightDp)
+            params.bottomMargin = if (mediaHeightDp > 0) dpToPx(DRAWER_HEADER_MEDIA_BOTTOM_MARGIN_DP) else 0
+            headerBinding.wallpaperContainer.layoutParams = params
         }
         headerBinding.wallpaperView.scaleType = ImageView.ScaleType.CENTER_CROP
-        headerBinding.wallpaperContainer.isVisible = true
+        headerBinding.wallpaperContainer.isVisible = mediaHeightDp > 0
+    }
+
+    private fun resolveDrawerHeaderMediaHeightDp(
+        wallpaperEnabled: Boolean,
+        wallpaperHeightDp: Int,
+        avatarEnabled: Boolean
+    ): Int {
+        return when {
+            wallpaperEnabled -> wallpaperHeightDp.coerceAtLeast(MIN_DRAWER_WALLPAPER_HEIGHT_DP)
+            avatarEnabled -> DRAWER_HEADER_AVATAR_ONLY_HEIGHT_DP
+            else -> 0
+        }
     }
 
     private fun loadHeaderMedia(
@@ -492,6 +516,10 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
             return null
         }
         return runCatching { Color.parseColor(candidate) }.getOrNull()
+    }
+
+    private fun dpToPx(valueDp: Int): Int {
+        return (valueDp * resources.displayMetrics.density).toInt()
     }
 
     private fun navigateHome() {
@@ -551,14 +579,29 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
     private fun applyWindowInsets(immersiveStatusBar: Boolean) {
         val contentContainer = binding.contentContainer
         val topBarContainer = binding.topBarContainer
+        val drawerContainer = binding.drawerContainer
         val drawerNavigation = binding.drawerNavigation
         val initialContentTop = contentContainer.paddingTop
         val initialTopBarTop = topBarContainer.paddingTop
         val initialNavigationTop = drawerNavigation.paddingTop
         val initialNavigationBottom = drawerNavigation.paddingBottom
+
+        // DrawerLayout distributes window insets to its child views (including NavigationView).
+        // In landscape mode, when `navigationBars().left > 0`, NavigationView consumes this inset internally and applies left padding;
+        // this causes the drawer's content to shift to the right, exposing DrawerLayout's gray background on the left side.
+        // We intercept this behavior here to prevent the system from automatically injecting insets into `drawerContainer` or `drawerNavigation`,
+        // allowing us to manually and centrally manage all padding within DrawerLayout's listeners instead.
+        ViewCompat.setOnApplyWindowInsetsListener(drawerContainer) { _, _ ->
+            WindowInsetsCompat.CONSUMED
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(drawerNavigation) { _, _ ->
+            WindowInsetsCompat.CONSUMED
+        }
+
         ViewCompat.setOnApplyWindowInsetsListener(binding.drawerLayout) { _, insets ->
             currentStatusTopInset = if (immersiveStatusBar) 0 else insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            val navigationBottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            val navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            val navigationBottom = navBarInsets.bottom
             contentContainer.setTag(R.id.contentContainer, initialContentTop)
             topBarContainer.setTag(R.id.topBarContainer, initialTopBarTop)
             applyTopInset()
@@ -594,5 +637,8 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
 
     private companion object {
         const val WEB_FRAGMENT_TAG = "web_container"
+        const val MIN_DRAWER_WALLPAPER_HEIGHT_DP = 96
+        const val DRAWER_HEADER_AVATAR_ONLY_HEIGHT_DP = 86
+        const val DRAWER_HEADER_MEDIA_BOTTOM_MARGIN_DP = 18
     }
 }

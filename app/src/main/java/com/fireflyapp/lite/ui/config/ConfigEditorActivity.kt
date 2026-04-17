@@ -108,11 +108,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
@@ -120,6 +124,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.app.AppLanguageManager
 import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
+import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_LANDSCAPE
+import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_PORTRAIT
+import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_UNSPECIFIED
 import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_IGNORE
 import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_STRICT
 import com.fireflyapp.lite.data.model.TemplateType
@@ -155,6 +162,9 @@ class ConfigEditorActivity : ComponentActivity() {
         if (projectId.isBlank()) {
             finish()
             return
+        }
+        if (intent.getBooleanExtra(EXTRA_DISABLE_ENTER_ANIMATION, false)) {
+            overridePendingTransition(0, 0)
         }
 
         viewModel.loadProject(projectId)
@@ -279,13 +289,14 @@ class ConfigEditorActivity : ComponentActivity() {
                     onSelectTab = viewModel::selectTab,
                     onSave = viewModel::saveSelectedTab,
                     onReset = viewModel::resetSelectedTab,
-                    onExport = { exportLauncher.launch("${state.projectId ?: "project"}.fireflyproj.zip") },
+                    onExport = { exportLauncher.launch(buildProjectExportFileName(state)) },
                     onAppNameChanged = viewModel::updateAppName,
                     onDefaultUrlChanged = viewModel::updateDefaultUrl,
                     onTemplateSelected = viewModel::updateTemplate,
                     onUserAgentChanged = viewModel::updateUserAgent,
                     onBackActionSelected = viewModel::updateBackAction,
                     onNightModeChanged = viewModel::updateNightMode,
+                    onScreenOrientationChanged = viewModel::updateScreenOrientation,
                     onLoadingOverlayChanged = viewModel::updateShowLoadingOverlay,
                     onShowPageProgressBarChanged = viewModel::updateShowPageProgressBar,
                     onErrorViewChanged = viewModel::updateShowErrorView,
@@ -293,6 +304,8 @@ class ConfigEditorActivity : ComponentActivity() {
                     onTopBarShowBackButtonChanged = viewModel::updateTopBarShowBackButton,
                     onTopBarShowHomeButtonChanged = viewModel::updateTopBarShowHomeButton,
                     onTopBarShowRefreshButtonChanged = viewModel::updateTopBarShowRefreshButton,
+                    onTopBarBackBehaviorChanged = viewModel::updateTopBarBackBehavior,
+                    onTopBarBackScriptChanged = viewModel::updateTopBarBackScript,
                     onTopBarHomeBehaviorChanged = viewModel::updateTopBarHomeBehavior,
                     onTopBarHomeScriptChanged = viewModel::updateTopBarHomeScript,
                     onTopBarRefreshBehaviorChanged = viewModel::updateTopBarRefreshBehavior,
@@ -348,11 +361,13 @@ class ConfigEditorActivity : ComponentActivity() {
                     onTopBarThemeColorChanged = viewModel::updateTopBarThemeColor,
                     onBottomBarThemeColorChanged = viewModel::updateBottomBarThemeColor,
                     onAllowExternalHostsChanged = viewModel::updateAllowExternalHosts,
+                    onEnableNativeKvBridgeChanged = viewModel::updateEnableNativeKvBridge,
+                    onKvTrustedHostsChanged = viewModel::updateKvTrustedHostsText,
                     onOpenOtherAppsModeChanged = viewModel::updateOpenOtherAppsMode,
                     onSslErrorHandlingChanged = viewModel::updateSslErrorHandling,
                     onAllowedHostsChanged = viewModel::updateAllowedHostsText,
-                    onGlobalJsChanged = viewModel::updateGlobalJsText,
-                    onGlobalCssChanged = viewModel::updateGlobalCssText,
+                    onGlobalJsChanged = viewModel::updateGlobalJsBlocks,
+                    onGlobalCssChanged = viewModel::updateGlobalCssBlocks,
                     onApplicationLabelChanged = viewModel::updateApplicationLabel,
                     onVersionNameChanged = viewModel::updateVersionName,
                     onVersionCodeChanged = viewModel::updateVersionCodeText,
@@ -429,11 +444,20 @@ class ConfigEditorActivity : ComponentActivity() {
 
     companion object {
         private const val EXTRA_PROJECT_ID = "project_id"
+        private const val EXTRA_DISABLE_ENTER_ANIMATION = "disable_enter_animation"
         private const val DRAWER_HEADER_HORIZONTAL_PADDING_DP = 22
 
-        fun createIntent(context: Context, projectId: String): Intent {
+        fun createIntent(
+            context: Context,
+            projectId: String,
+            disableEnterAnimation: Boolean = false
+        ): Intent {
             return Intent(context, ConfigEditorActivity::class.java).apply {
                 putExtra(EXTRA_PROJECT_ID, projectId)
+                putExtra(EXTRA_DISABLE_ENTER_ANIMATION, disableEnterAnimation)
+                if (disableEnterAnimation) {
+                    addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                }
             }
         }
     }
@@ -448,7 +472,7 @@ class ConfigEditorActivity : ComponentActivity() {
     ): Intent {
         val safeDrawerWidth = resolveDrawerPreviewWidthDp(drawerWidthDp.toString())
         val safeHeight = resolveDrawerHeaderHeightDp(
-            wallpaperHeightDp = wallpaperHeightDp.coerceAtLeast(96),
+            mediaHeightDp = wallpaperHeightDp.coerceAtLeast(96),
             hasSubtitle = hasSubtitle,
             immersiveStatusBar = immersiveStatusBar
         )
@@ -523,6 +547,7 @@ private fun ConfigEditorScreen(
     onUserAgentChanged: (String) -> Unit,
     onBackActionSelected: (String) -> Unit,
     onNightModeChanged: (String) -> Unit,
+    onScreenOrientationChanged: (String) -> Unit,
     onLoadingOverlayChanged: (Boolean) -> Unit,
     onShowPageProgressBarChanged: (Boolean) -> Unit,
     onErrorViewChanged: (Boolean) -> Unit,
@@ -530,6 +555,8 @@ private fun ConfigEditorScreen(
     onTopBarShowBackButtonChanged: (Boolean) -> Unit,
     onTopBarShowHomeButtonChanged: (Boolean) -> Unit,
     onTopBarShowRefreshButtonChanged: (Boolean) -> Unit,
+    onTopBarBackBehaviorChanged: (String) -> Unit,
+    onTopBarBackScriptChanged: (String) -> Unit,
     onTopBarHomeBehaviorChanged: (String) -> Unit,
     onTopBarHomeScriptChanged: (String) -> Unit,
     onTopBarRefreshBehaviorChanged: (String) -> Unit,
@@ -581,11 +608,13 @@ private fun ConfigEditorScreen(
     onTopBarThemeColorChanged: (String) -> Unit,
     onBottomBarThemeColorChanged: (String) -> Unit,
     onAllowExternalHostsChanged: (Boolean) -> Unit,
+    onEnableNativeKvBridgeChanged: (Boolean) -> Unit,
+    onKvTrustedHostsChanged: (String) -> Unit,
     onOpenOtherAppsModeChanged: (String) -> Unit,
     onSslErrorHandlingChanged: (String) -> Unit,
     onAllowedHostsChanged: (String) -> Unit,
-    onGlobalJsChanged: (String) -> Unit,
-    onGlobalCssChanged: (String) -> Unit,
+    onGlobalJsChanged: (List<String>) -> Unit,
+    onGlobalCssChanged: (List<String>) -> Unit,
     onApplicationLabelChanged: (String) -> Unit,
     onVersionNameChanged: (String) -> Unit,
     onVersionCodeChanged: (String) -> Unit,
@@ -624,8 +653,8 @@ private fun ConfigEditorScreen(
     onPageRuleErrorMessageChanged: (Int, String) -> Unit,
     onPageRuleRetryActionChanged: (Int, String) -> Unit,
     onPageRuleRetryUrlChanged: (Int, String) -> Unit,
-    onPageRuleInjectJsChanged: (Int, String) -> Unit,
-    onPageRuleInjectCssChanged: (Int, String) -> Unit,
+    onPageRuleInjectJsChanged: (Int, List<String>) -> Unit,
+    onPageRuleInjectCssChanged: (Int, List<String>) -> Unit,
     onPageRuleShowTopBarChanged: (Int, RuleToggleState) -> Unit,
     onPageRuleShowBottomBarChanged: (Int, RuleToggleState) -> Unit,
     onPageRuleShowDownloadOverlayChanged: (Int, RuleToggleState) -> Unit,
@@ -756,6 +785,7 @@ private fun ConfigEditorScreen(
                     onUserAgentChanged = onUserAgentChanged,
                     onBackActionSelected = onBackActionSelected,
                     onNightModeChanged = onNightModeChanged,
+                    onScreenOrientationChanged = onScreenOrientationChanged,
                     onLoadingOverlayChanged = onLoadingOverlayChanged,
                     onShowPageProgressBarChanged = onShowPageProgressBarChanged,
                     onErrorViewChanged = onErrorViewChanged,
@@ -763,6 +793,8 @@ private fun ConfigEditorScreen(
                     onTopBarShowBackButtonChanged = onTopBarShowBackButtonChanged,
                     onTopBarShowHomeButtonChanged = onTopBarShowHomeButtonChanged,
                     onTopBarShowRefreshButtonChanged = onTopBarShowRefreshButtonChanged,
+                    onTopBarBackBehaviorChanged = onTopBarBackBehaviorChanged,
+                    onTopBarBackScriptChanged = onTopBarBackScriptChanged,
                     onTopBarHomeBehaviorChanged = onTopBarHomeBehaviorChanged,
                     onTopBarHomeScriptChanged = onTopBarHomeScriptChanged,
                     onTopBarRefreshBehaviorChanged = onTopBarRefreshBehaviorChanged,
@@ -811,9 +843,11 @@ private fun ConfigEditorScreen(
                 onPreserveNavigationPageStackChanged = onPreserveNavigationPageStackChanged,
                 onNavigationPreloadCountChanged = onNavigationPreloadCountChanged,
                 onNavigationBackBehaviorChanged = onNavigationBackBehaviorChanged,
-                onTopBarThemeColorChanged = onTopBarThemeColorChanged,
-                onBottomBarThemeColorChanged = onBottomBarThemeColorChanged,
+                    onTopBarThemeColorChanged = onTopBarThemeColorChanged,
+                    onBottomBarThemeColorChanged = onBottomBarThemeColorChanged,
                     onAllowExternalHostsChanged = onAllowExternalHostsChanged,
+                    onEnableNativeKvBridgeChanged = onEnableNativeKvBridgeChanged,
+                    onKvTrustedHostsChanged = onKvTrustedHostsChanged,
                     onOpenOtherAppsModeChanged = onOpenOtherAppsModeChanged,
                     onSslErrorHandlingChanged = onSslErrorHandlingChanged,
                     onAllowedHostsChanged = onAllowedHostsChanged,
@@ -1101,6 +1135,7 @@ private fun ConfigFormContent(
     onUserAgentChanged: (String) -> Unit,
     onBackActionSelected: (String) -> Unit,
     onNightModeChanged: (String) -> Unit,
+    onScreenOrientationChanged: (String) -> Unit,
     onLoadingOverlayChanged: (Boolean) -> Unit,
     onShowPageProgressBarChanged: (Boolean) -> Unit,
     onErrorViewChanged: (Boolean) -> Unit,
@@ -1108,6 +1143,8 @@ private fun ConfigFormContent(
     onTopBarShowBackButtonChanged: (Boolean) -> Unit,
     onTopBarShowHomeButtonChanged: (Boolean) -> Unit,
     onTopBarShowRefreshButtonChanged: (Boolean) -> Unit,
+    onTopBarBackBehaviorChanged: (String) -> Unit,
+    onTopBarBackScriptChanged: (String) -> Unit,
     onTopBarHomeBehaviorChanged: (String) -> Unit,
     onTopBarHomeScriptChanged: (String) -> Unit,
     onTopBarRefreshBehaviorChanged: (String) -> Unit,
@@ -1159,11 +1196,13 @@ private fun ConfigFormContent(
     onTopBarThemeColorChanged: (String) -> Unit,
     onBottomBarThemeColorChanged: (String) -> Unit,
     onAllowExternalHostsChanged: (Boolean) -> Unit,
+    onEnableNativeKvBridgeChanged: (Boolean) -> Unit,
+    onKvTrustedHostsChanged: (String) -> Unit,
     onOpenOtherAppsModeChanged: (String) -> Unit,
     onSslErrorHandlingChanged: (String) -> Unit,
     onAllowedHostsChanged: (String) -> Unit,
-    onGlobalJsChanged: (String) -> Unit,
-    onGlobalCssChanged: (String) -> Unit,
+    onGlobalJsChanged: (List<String>) -> Unit,
+    onGlobalCssChanged: (List<String>) -> Unit,
     onAddNavigationItem: () -> Unit,
     onRemoveNavigationItem: (Int) -> Unit,
     onNavigationIdChanged: (Int, String) -> Unit,
@@ -1458,6 +1497,8 @@ private fun ConfigFormContent(
                     onTopBarShowBackButtonChanged = onTopBarShowBackButtonChanged,
                     onTopBarShowHomeButtonChanged = onTopBarShowHomeButtonChanged,
                     onTopBarShowRefreshButtonChanged = onTopBarShowRefreshButtonChanged,
+                    onTopBarBackBehaviorChanged = onTopBarBackBehaviorChanged,
+                    onTopBarBackScriptChanged = onTopBarBackScriptChanged,
                     onTopBarHomeBehaviorChanged = onTopBarHomeBehaviorChanged,
                     onTopBarHomeScriptChanged = onTopBarHomeScriptChanged,
                     onTopBarRefreshBehaviorChanged = onTopBarRefreshBehaviorChanged,
@@ -1595,6 +1636,18 @@ private fun ConfigFormContent(
                 onValueChange = onNightModeChanged
             )
             Spacer(modifier = Modifier.height(12.dp))
+            LabeledDropdownField(
+                label = stringResource(R.string.config_editor_screen_orientation),
+                value = state.screenOrientation,
+                options = listOf(
+                    BROWSER_SCREEN_ORIENTATION_UNSPECIFIED,
+                    BROWSER_SCREEN_ORIENTATION_PORTRAIT,
+                    BROWSER_SCREEN_ORIENTATION_LANDSCAPE
+                ),
+                optionLabel = { formatScreenOrientationLabel(context, it) },
+                onValueChange = onScreenOrientationChanged
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             ToggleRow(
                 label = stringResource(R.string.config_toggle_loading_overlay),
                 checked = state.showLoadingOverlay,
@@ -1627,6 +1680,30 @@ private fun ConfigFormContent(
                 onCheckedChange = onAllowExternalHostsChanged
             )
             Spacer(modifier = Modifier.height(12.dp))
+            ToggleRow(
+                label = stringResource(R.string.config_editor_enable_native_kv_bridge),
+                checked = state.enableNativeKvBridge,
+                onCheckedChange = onEnableNativeKvBridgeChanged
+            )
+            if (state.enableNativeKvBridge) {
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = state.kvTrustedHostsText,
+                    onValueChange = onKvTrustedHostsChanged,
+                    label = { Text(stringResource(R.string.config_editor_kv_trusted_hosts)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.config_editor_kv_trusted_hosts_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            } else {
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             LabeledDropdownField(
                 label = stringResource(R.string.config_editor_open_other_apps),
                 value = state.openOtherAppsMode,
@@ -1671,22 +1748,19 @@ private fun ConfigFormContent(
 
         item {
         SectionCard(title = stringResource(R.string.config_section_inject)) {
-            OutlinedTextField(
-                value = state.globalJsText,
-                onValueChange = onGlobalJsChanged,
-                label = { Text(stringResource(R.string.config_field_global_js)) },
+            CodeBlockListEditorField(
+                label = stringResource(R.string.config_field_global_js_single),
+                blocks = state.globalJsBlocks,
+                onBlocksChanged = onGlobalJsChanged,
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 6,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                snippetTemplates = commonJsEditorSnippets
             )
             Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
-                value = state.globalCssText,
-                onValueChange = onGlobalCssChanged,
-                label = { Text(stringResource(R.string.config_field_global_css)) },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 6,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+            CodeBlockListEditorField(
+                label = stringResource(R.string.config_field_global_css_single),
+                blocks = state.globalCssBlocks,
+                onBlocksChanged = onGlobalCssChanged,
+                modifier = Modifier.fillMaxWidth()
             )
         }
         }
@@ -1703,6 +1777,8 @@ private fun TopBarShellSection(
     onTopBarShowBackButtonChanged: (Boolean) -> Unit,
     onTopBarShowHomeButtonChanged: (Boolean) -> Unit,
     onTopBarShowRefreshButtonChanged: (Boolean) -> Unit,
+    onTopBarBackBehaviorChanged: (String) -> Unit,
+    onTopBarBackScriptChanged: (String) -> Unit,
     onTopBarHomeBehaviorChanged: (String) -> Unit,
     onTopBarHomeScriptChanged: (String) -> Unit,
     onTopBarRefreshBehaviorChanged: (String) -> Unit,
@@ -1732,17 +1808,30 @@ private fun TopBarShellSection(
             checked = state.topBarTitleCentered,
             onCheckedChange = onTopBarTitleCenteredChanged
         )
-        ToggleRow(
-            label = stringResource(R.string.config_editor_top_bar_show_refresh_button),
-            checked = state.topBarShowRefreshButton,
-            onCheckedChange = onTopBarShowRefreshButtonChanged
-        )
         if (supportsTopBarBackButton) {
             ToggleRow(
                 label = stringResource(R.string.config_editor_top_bar_show_back_button),
                 checked = state.topBarShowBackButton,
                 onCheckedChange = onTopBarShowBackButtonChanged
             )
+            Spacer(modifier = Modifier.height(12.dp))
+            LabeledDropdownField(
+                label = stringResource(R.string.config_editor_back_button_behavior),
+                value = state.topBarBackBehavior,
+                options = listOf("default_back", "default_home", "default_navigation_item", "run_js"),
+                optionLabel = { formatTopBarBackBehaviorLabel(context, it) },
+                onValueChange = onTopBarBackBehaviorChanged
+            )
+            if (state.topBarBackBehavior == "run_js") {
+                Spacer(modifier = Modifier.height(12.dp))
+                CodeEditorField(
+                    label = stringResource(R.string.config_editor_back_button_javascript),
+                    value = state.topBarBackScriptText,
+                    onValueChange = onTopBarBackScriptChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    snippetTemplates = commonJsEditorSnippets
+                )
+            }
         }
         ToggleRow(
             label = stringResource(R.string.config_editor_top_bar_show_home_button),
@@ -1759,15 +1848,20 @@ private fun TopBarShellSection(
         )
         if (state.topBarHomeBehavior == "run_js") {
             Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
+            CodeEditorField(
+                label = stringResource(R.string.config_editor_home_button_javascript),
                 value = state.topBarHomeScriptText,
                 onValueChange = onTopBarHomeScriptChanged,
-                label = { Text(stringResource(R.string.config_editor_home_button_javascript)) },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 6,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                snippetTemplates = commonJsEditorSnippets
             )
         }
+        Spacer(modifier = Modifier.height(12.dp))
+        ToggleRow(
+            label = stringResource(R.string.config_editor_top_bar_show_refresh_button),
+            checked = state.topBarShowRefreshButton,
+            onCheckedChange = onTopBarShowRefreshButtonChanged
+        )
         Spacer(modifier = Modifier.height(12.dp))
         LabeledDropdownField(
             label = stringResource(R.string.config_editor_refresh_button_behavior),
@@ -1778,13 +1872,12 @@ private fun TopBarShellSection(
         )
         if (state.topBarRefreshBehavior == "run_js") {
             Spacer(modifier = Modifier.height(12.dp))
-            OutlinedTextField(
+            CodeEditorField(
+                label = stringResource(R.string.config_editor_refresh_button_javascript),
                 value = state.topBarRefreshScriptText,
                 onValueChange = onTopBarRefreshScriptChanged,
-                label = { Text(stringResource(R.string.config_editor_refresh_button_javascript)) },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 6,
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                snippetTemplates = commonJsEditorSnippets
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -2314,8 +2407,8 @@ private fun PageRulesContent(
     onErrorMessageChanged: (Int, String) -> Unit,
     onRetryActionChanged: (Int, String) -> Unit,
     onRetryUrlChanged: (Int, String) -> Unit,
-    onInjectJsChanged: (Int, String) -> Unit,
-    onInjectCssChanged: (Int, String) -> Unit,
+    onInjectJsChanged: (Int, List<String>) -> Unit,
+    onInjectCssChanged: (Int, List<String>) -> Unit,
     onShowTopBarChanged: (Int, RuleToggleState) -> Unit,
     onShowBottomBarChanged: (Int, RuleToggleState) -> Unit,
     onShowDownloadOverlayChanged: (Int, RuleToggleState) -> Unit,
@@ -2625,8 +2718,8 @@ private fun PageRuleEditor(
     onErrorMessageChanged: (String) -> Unit,
     onRetryActionChanged: (String) -> Unit,
     onRetryUrlChanged: (String) -> Unit,
-    onInjectJsChanged: (String) -> Unit,
-    onInjectCssChanged: (String) -> Unit,
+    onInjectJsChanged: (List<String>) -> Unit,
+    onInjectCssChanged: (List<String>) -> Unit,
     onShowTopBarChanged: (RuleToggleState) -> Unit,
     onShowBottomBarChanged: (RuleToggleState) -> Unit,
     onShowDownloadOverlayChanged: (RuleToggleState) -> Unit,
@@ -2744,21 +2837,19 @@ private fun PageRuleEditor(
 
         HorizontalDivider()
         Text(text = stringResource(R.string.config_editor_rule_inject), style = MaterialTheme.typography.titleMedium)
-        OutlinedTextField(
-            value = rule.injectJsText,
-            onValueChange = onInjectJsChanged,
-            label = { Text(stringResource(R.string.config_editor_rule_js_blocks)) },
+        CodeBlockListEditorField(
+            label = stringResource(R.string.config_editor_rule_js_injection),
+            blocks = rule.injectJsBlocks,
+            onBlocksChanged = onInjectJsChanged,
             modifier = Modifier.fillMaxWidth(),
-            minLines = 5,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+            snippetTemplates = commonJsEditorSnippets
         )
-        OutlinedTextField(
-            value = rule.injectCssText,
-            onValueChange = onInjectCssChanged,
-            label = { Text(stringResource(R.string.config_editor_rule_css_blocks)) },
-            modifier = Modifier.fillMaxWidth(),
-            minLines = 5,
-            textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+        Spacer(modifier = Modifier.height(12.dp))
+        CodeBlockListEditorField(
+            label = stringResource(R.string.config_editor_rule_css_injection),
+            blocks = rule.injectCssBlocks,
+            onBlocksChanged = onInjectCssChanged,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
@@ -2814,13 +2905,12 @@ private fun PageEventActionEditor(
             }
 
             "run_js" -> {
-                OutlinedTextField(
+                CodeEditorField(
+                    label = stringResource(R.string.config_editor_custom_javascript),
                     value = action.script.ifBlank { action.value },
                     onValueChange = onScriptChanged,
-                    label = { Text(stringResource(R.string.config_editor_custom_javascript)) },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 8,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                    snippetTemplates = commonJsEditorSnippets
                 )
             }
 
@@ -3771,11 +3861,18 @@ private fun DrawerHeaderPreview(
     val drawerWidth = resolveDrawerPreviewWidthDp(state.drawerWidthText)
     val drawerCornerRadius = resolveDrawerCornerRadiusDp(state.drawerCornerRadiusText)
     val statusBarInset = resolveDrawerPreviewStatusBarInsetDp(state.immersiveStatusBar)
+    val hasWallpaper = state.drawerWallpaperEnabled && state.drawerWallpaperPath.isNotBlank()
+    val hasAvatar = state.drawerAvatarEnabled && state.drawerAvatarPath.isNotBlank()
     val wallpaperHeight = state.drawerWallpaperHeightText.trim().toIntOrNull()
         ?.coerceIn(MIN_DRAWER_WALLPAPER_HEIGHT_DP, MAX_DRAWER_WALLPAPER_HEIGHT_DP)
         ?: DEFAULT_DRAWER_WALLPAPER_HEIGHT_DP
-    val previewHeight = resolveDrawerHeaderHeightDp(
+    val mediaHeight = resolveDrawerPreviewMediaHeightDp(
         wallpaperHeightDp = wallpaperHeight,
+        hasWallpaper = hasWallpaper,
+        hasAvatar = hasAvatar
+    )
+    val previewHeight = resolveDrawerHeaderHeightDp(
+        mediaHeightDp = mediaHeight,
         hasSubtitle = state.drawerHeaderSubtitle.isNotBlank(),
         immersiveStatusBar = state.immersiveStatusBar
     )
@@ -3800,7 +3897,7 @@ private fun DrawerHeaderPreview(
                     .clip(drawerShape)
                     .background(backgroundColor)
             ) {
-                if (state.drawerWallpaperEnabled && state.drawerWallpaperPath.isNotBlank()) {
+                if (hasWallpaper) {
                     ProjectAssetPreview(
                         projectId = projectId,
                         relativePath = state.drawerWallpaperPath,
@@ -3821,32 +3918,34 @@ private fun DrawerHeaderPreview(
                             bottom = DRAWER_PREVIEW_BOTTOM_PADDING_DP.dp
                         )
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(wallpaperHeight.dp)
-                    ) {
-                        if (state.drawerAvatarEnabled && state.drawerAvatarPath.isNotBlank()) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(bottom = DRAWER_PREVIEW_AVATAR_BOTTOM_MARGIN_DP.dp)
-                                    .size(DRAWER_PREVIEW_AVATAR_SIZE_DP.dp)
-                                    .background(Color.White, CircleShape)
-                                    .padding(2.dp)
-                            ) {
-                                ProjectAssetPreview(
-                                    projectId = projectId,
-                                    relativePath = state.drawerAvatarPath,
-                                    contentScale = ContentScale.Crop,
-                                    previewWidth = DRAWER_PREVIEW_AVATAR_IMAGE_SIZE_DP.dp,
-                                    previewHeight = DRAWER_PREVIEW_AVATAR_IMAGE_SIZE_DP.dp,
-                                    shape = CircleShape
-                                )
+                    if (mediaHeight > 0) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(mediaHeight.dp)
+                        ) {
+                            if (hasAvatar) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(bottom = DRAWER_PREVIEW_AVATAR_BOTTOM_MARGIN_DP.dp)
+                                        .size(DRAWER_PREVIEW_AVATAR_SIZE_DP.dp)
+                                        .background(Color.White, CircleShape)
+                                        .padding(2.dp)
+                                ) {
+                                    ProjectAssetPreview(
+                                        projectId = projectId,
+                                        relativePath = state.drawerAvatarPath,
+                                        contentScale = ContentScale.Crop,
+                                        previewWidth = DRAWER_PREVIEW_AVATAR_IMAGE_SIZE_DP.dp,
+                                        previewHeight = DRAWER_PREVIEW_AVATAR_IMAGE_SIZE_DP.dp,
+                                        shape = CircleShape
+                                    )
+                                }
                             }
                         }
+                        Spacer(modifier = Modifier.height(DRAWER_PREVIEW_WALLPAPER_GAP_DP.dp))
                     }
-                    Spacer(modifier = Modifier.height(DRAWER_PREVIEW_WALLPAPER_GAP_DP.dp))
                     Text(
                         text = state.drawerHeaderTitle.ifBlank { state.appName.ifBlank { stringResource(R.string.config_editor_preview_drawer_header_title) } },
                         style = MaterialTheme.typography.titleMedium,
@@ -3888,7 +3987,7 @@ private fun resolveDrawerCornerRadiusDp(value: String): Int {
 }
 
 private fun resolveDrawerHeaderHeightDp(
-    wallpaperHeightDp: Int,
+    mediaHeightDp: Int,
     hasSubtitle: Boolean,
     immersiveStatusBar: Boolean
 ): Int {
@@ -3898,11 +3997,23 @@ private fun resolveDrawerHeaderHeightDp(
         DRAWER_PREVIEW_BASE_HEIGHT_NO_SUBTITLE_DP
     }
     return (
-        wallpaperHeightDp.coerceIn(MIN_DRAWER_WALLPAPER_HEIGHT_DP, MAX_DRAWER_WALLPAPER_HEIGHT_DP) +
+        mediaHeightDp.coerceAtLeast(0) +
             baseChromeHeight +
             resolveDrawerPreviewStatusBarInsetDp(immersiveStatusBar)
         )
-        .coerceIn(MIN_DRAWER_HEADER_HEIGHT_DP, MAX_DRAWER_HEADER_HEIGHT_DP)
+        .coerceAtMost(MAX_DRAWER_HEADER_HEIGHT_DP)
+}
+
+private fun resolveDrawerPreviewMediaHeightDp(
+    wallpaperHeightDp: Int,
+    hasWallpaper: Boolean,
+    hasAvatar: Boolean
+): Int {
+    return when {
+        hasWallpaper -> wallpaperHeightDp.coerceIn(MIN_DRAWER_WALLPAPER_HEIGHT_DP, MAX_DRAWER_WALLPAPER_HEIGHT_DP)
+        hasAvatar -> DRAWER_PREVIEW_AVATAR_ONLY_HEIGHT_DP
+        else -> 0
+    }
 }
 
 private fun resolveDrawerPreviewStatusBarInsetDp(immersiveStatusBar: Boolean): Int {
@@ -3925,6 +4036,32 @@ private fun formatNightModeLabel(context: Context, value: String): String {
         "off" -> context.getString(R.string.config_editor_option_off)
         "on" -> context.getString(R.string.config_editor_option_on)
         "follow_theme" -> context.getString(R.string.config_editor_night_mode_follow_theme)
+        else -> value
+    }
+}
+
+private fun buildProjectExportFileName(state: ConfigEditorUiState): String {
+    val preferredBaseName = state.formState.appName.trim()
+        .ifBlank { state.sourceProjectManifest.projectName.trim() }
+        .ifBlank { state.projectId.orEmpty().trim() }
+        .ifBlank { "project" }
+    val safeBaseName = sanitizeExportFileName(preferredBaseName).ifBlank { "project" }
+    return "$safeBaseName.fireflyproj.zip"
+}
+
+private fun sanitizeExportFileName(value: String): String {
+    return value
+        .replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), "_")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+        .trim('.', ' ')
+}
+
+private fun formatScreenOrientationLabel(context: Context, value: String): String {
+    return when (value) {
+        BROWSER_SCREEN_ORIENTATION_UNSPECIFIED -> context.getString(R.string.config_editor_screen_orientation_unrestricted)
+        BROWSER_SCREEN_ORIENTATION_PORTRAIT -> context.getString(R.string.config_editor_screen_orientation_portrait)
+        BROWSER_SCREEN_ORIENTATION_LANDSCAPE -> context.getString(R.string.config_editor_screen_orientation_landscape)
         else -> value
     }
 }
@@ -3956,6 +4093,16 @@ private fun formatNavigationBackBehaviorLabel(context: Context, value: String): 
 
 private fun formatTopBarHomeBehaviorLabel(context: Context, value: String): String {
     return when (value) {
+        "default_home" -> context.getString(R.string.config_editor_home_button_behavior_default_home)
+        "default_navigation_item" -> context.getString(R.string.config_editor_home_button_behavior_default_navigation_item)
+        "run_js" -> context.getString(R.string.config_editor_action_run_js)
+        else -> value
+    }
+}
+
+private fun formatTopBarBackBehaviorLabel(context: Context, value: String): String {
+    return when (value) {
+        "default_back" -> context.getString(R.string.config_editor_back_button_behavior_default_back)
         "default_home" -> context.getString(R.string.config_editor_home_button_behavior_default_home)
         "default_navigation_item" -> context.getString(R.string.config_editor_home_button_behavior_default_navigation_item)
         "run_js" -> context.getString(R.string.config_editor_action_run_js)
@@ -4069,6 +4216,7 @@ private const val DRAWER_PREVIEW_WALLPAPER_GAP_DP = 18
 private const val DRAWER_PREVIEW_AVATAR_SIZE_DP = 72
 private const val DRAWER_PREVIEW_AVATAR_IMAGE_SIZE_DP = 68
 private const val DRAWER_PREVIEW_AVATAR_BOTTOM_MARGIN_DP = 14
+private const val DRAWER_PREVIEW_AVATAR_ONLY_HEIGHT_DP = 86
 private const val DRAWER_PREVIEW_BASE_HEIGHT_NO_SUBTITLE_DP = 92
 private const val DRAWER_PREVIEW_BASE_HEIGHT_WITH_SUBTITLE_DP = 120
 private const val DRAWER_PREVIEW_STATUS_BAR_INSET_DP = 24
@@ -4229,6 +4377,145 @@ private val pageEventActionTypes = listOf(
     "copy_to_clipboard",
     "run_js"
 )
+private data class CodeEditorSnippetTemplate(
+    @StringRes val labelRes: Int,
+    val content: String
+)
+
+private const val NEW_CODE_BLOCK_INDEX = -1
+private val commonJsEditorSnippets = listOf(
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_iife,
+        content =
+            """
+            (function () {
+                
+            })();
+            """.trimIndent()
+    ),
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_dom_ready,
+        content =
+            """
+            document.addEventListener('DOMContentLoaded', function () {
+                
+            });
+            """.trimIndent()
+    ),
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_hide_element,
+        content = "document.querySelector('SELECTOR')?.style.setProperty('display', 'none', 'important');"
+    ),
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_click_element,
+        content = "document.querySelector('SELECTOR')?.click();"
+    ),
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_set_text,
+        content =
+            """
+            const target = document.querySelector('SELECTOR');
+            if (target) {
+                target.textContent = 'TEXT';
+            }
+            """.trimIndent()
+    ),
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_native_bridge_kv,
+        content =
+            """
+            if (typeof NativeBridge !== 'undefined') {
+                NativeBridge.set('shared', 'key', 'value');
+                const value = NativeBridge.get('shared', 'key');
+                console.log(value);
+            }
+            """.trimIndent()
+    ),
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_fetch_request,
+        content =
+            """
+            (async function () {
+                try {
+                    const response = await fetch('https://example.com/api', {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    const data = await response.json();
+                    console.log(data);
+                } catch (error) {
+                    console.error('Fetch failed:', error);
+                }
+            })();
+            """.trimIndent()
+    ),
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_wait_for_element,
+        content =
+            """
+            (function () {
+                const selector = 'SELECTOR';
+                const timeoutMs = 10000;
+                const startedAt = Date.now();
+                const timer = setInterval(function () {
+                    const element = document.querySelector(selector);
+                    if (element) {
+                        clearInterval(timer);
+                        console.log('Element found:', element);
+                        return;
+                    }
+                    if (Date.now() - startedAt >= timeoutMs) {
+                        clearInterval(timer);
+                        console.warn('Element wait timed out:', selector);
+                    }
+                }, 300);
+            })();
+            """.trimIndent()
+    ),
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_remove_ads,
+        content =
+            """
+            (function () {
+                const selectors = [
+                    '.ad',
+                    '.ads',
+                    '.advertisement',
+                    '[id*="ad"]',
+                    '[class*="ad-"]'
+                ];
+
+                function removeTargets() {
+                    selectors.forEach(function (selector) {
+                        document.querySelectorAll(selector).forEach(function (node) {
+                            node.remove();
+                        });
+                    });
+                }
+
+                removeTargets();
+                const observer = new MutationObserver(removeTargets);
+                observer.observe(document.documentElement, {
+                    childList: true,
+                    subtree: true
+                });
+            })();
+            """.trimIndent()
+    ),
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_event_variables,
+        content =
+            """
+            console.log('Trigger:', '{trigger}');
+            console.log('URL:', '{url}');
+            console.log('Title:', '{title}');
+            console.log('Previous URL:', '{previousUrl}');
+            console.log('Next URL:', '{nextUrl}');
+            """.trimIndent()
+    )
+)
 
 @Composable
 private fun SectionCard(
@@ -4248,6 +4535,431 @@ private fun SectionCard(
             Spacer(modifier = Modifier.height(12.dp))
             content()
         }
+    }
+}
+
+@Composable
+private fun FullScreenCodeEditorDialog(
+    label: String,
+    value: String,
+    onDismissRequest: () -> Unit,
+    onSave: (String) -> Unit,
+    snippetTemplates: List<CodeEditorSnippetTemplate> = emptyList()
+) {
+    var draftValue by remember(value) {
+        mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
+    }
+    var snippetMenuExpanded by remember { mutableStateOf(false) }
+    val draftText = draftValue.text
+    val draftLineCount = remember(draftText) { countCodeEditorLines(draftText) }
+    val draftCharacterCount = remember(draftText) { draftText.length }
+
+    Dialog(
+        onDismissRequest = onDismissRequest,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 8.dp, top = 12.dp, end = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = stringResource(R.string.config_editor_close)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Text(
+                            text = if (draftLineCount > 0) {
+                                stringResource(
+                                    R.string.config_editor_code_stats,
+                                    draftLineCount,
+                                    draftCharacterCount
+                                )
+                            } else {
+                                stringResource(R.string.config_editor_code_empty)
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (snippetTemplates.isNotEmpty()) {
+                            Box {
+                                IconButton(
+                                    onClick = { snippetMenuExpanded = true },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Add,
+                                        contentDescription = stringResource(R.string.config_editor_insert_snippet)
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = snippetMenuExpanded,
+                                    onDismissRequest = { snippetMenuExpanded = false }
+                                ) {
+                                    snippetTemplates.forEach { template ->
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(template.labelRes)) },
+                                            onClick = {
+                                                draftValue = insertSnippetIntoEditor(
+                                                    currentValue = draftValue,
+                                                    snippet = template.content
+                                                )
+                                                snippetMenuExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        TextButton(
+                            onClick = { draftValue = TextFieldValue() },
+                            modifier = Modifier.height(34.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                        ) {
+                            Text(stringResource(R.string.config_editor_clear))
+                        }
+                        TextButton(
+                            onClick = {
+                                onSave(draftValue.text)
+                                onDismissRequest()
+                            },
+                            modifier = Modifier.height(34.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                        ) {
+                            Text(stringResource(R.string.config_save))
+                        }
+                    }
+                }
+                HorizontalDivider()
+                OutlinedTextField(
+                    value = draftValue,
+                    onValueChange = { draftValue = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(16.dp),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CodeEditorField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    previewLineCount: Int = 3,
+    snippetTemplates: List<CodeEditorSnippetTemplate> = emptyList()
+) {
+    var dialogOpen by remember { mutableStateOf(false) }
+    val lineCount = remember(value) { countCodeEditorLines(value) }
+    val characterCount = remember(value) { value.length }
+    val previewText = remember(value, previewLineCount) { buildCodePreview(value, previewLineCount) }
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { dialogOpen = true },
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        tonalElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Text(
+                        text = if (lineCount > 0) {
+                            stringResource(R.string.config_editor_code_stats, lineCount, characterCount)
+                        } else {
+                            stringResource(R.string.config_editor_code_empty)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                OutlinedButton(onClick = { dialogOpen = true }) {
+                    Text(stringResource(R.string.config_editor_edit))
+                }
+            }
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Text(
+                    text = previewText.ifBlank { stringResource(R.string.config_editor_code_empty) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = if (previewText.isBlank()) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+            }
+        }
+    }
+
+    if (dialogOpen) {
+        FullScreenCodeEditorDialog(
+            label = label,
+            value = value,
+            onDismissRequest = { dialogOpen = false },
+            onSave = onValueChange,
+            snippetTemplates = snippetTemplates
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CodeBlockListEditorField(
+    label: String,
+    blocks: List<String>,
+    onBlocksChanged: (List<String>) -> Unit,
+    modifier: Modifier = Modifier,
+    previewLineCount: Int = 3,
+    snippetTemplates: List<CodeEditorSnippetTemplate> = emptyList()
+) {
+    var editorTargetIndex by remember { mutableStateOf<Int?>(null) }
+    val blockCount = blocks.size
+
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        tonalElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Text(
+                        text = if (blockCount > 0) {
+                            stringResource(R.string.config_editor_code_blocks_count, blockCount)
+                        } else {
+                            stringResource(R.string.config_editor_code_blocks_empty)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                OutlinedButton(onClick = { editorTargetIndex = NEW_CODE_BLOCK_INDEX }) {
+                    Icon(imageVector = Icons.Filled.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.config_editor_add_code_block))
+                }
+            }
+
+            if (blocks.isEmpty()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Text(
+                        text = stringResource(R.string.config_editor_code_blocks_empty),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                blocks.forEachIndexed { index, block ->
+                    val previewText = buildCodePreview(block, previewLineCount)
+                    val lineCount = countCodeEditorLines(block)
+                    val characterCount = block.length
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(R.string.config_editor_code_block_title, index + 1),
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        text = stringResource(
+                                            R.string.config_editor_code_stats,
+                                            lineCount,
+                                            characterCount
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                TextButton(onClick = { editorTargetIndex = index }) {
+                                    Text(stringResource(R.string.config_editor_edit))
+                                }
+                            }
+
+                            Text(
+                                text = previewText.ifBlank { stringResource(R.string.config_editor_code_empty) },
+                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                                color = if (previewText.isBlank()) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                }
+                            )
+
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        if (index > 0) {
+                                            val reordered = blocks.toMutableList()
+                                            val current = reordered.removeAt(index)
+                                            reordered.add(index - 1, current)
+                                            onBlocksChanged(reordered)
+                                        }
+                                    },
+                                    enabled = index > 0
+                                ) {
+                                    Text(stringResource(R.string.config_editor_move_up))
+                                }
+                                TextButton(
+                                    onClick = {
+                                        if (index < blocks.lastIndex) {
+                                            val reordered = blocks.toMutableList()
+                                            val current = reordered.removeAt(index)
+                                            reordered.add(index + 1, current)
+                                            onBlocksChanged(reordered)
+                                        }
+                                    },
+                                    enabled = index < blocks.lastIndex
+                                ) {
+                                    Text(stringResource(R.string.config_editor_move_down))
+                                }
+                                TextButton(onClick = {
+                                    val duplicated = blocks.toMutableList()
+                                    duplicated.add(index + 1, block)
+                                    onBlocksChanged(duplicated)
+                                }) {
+                                    Text(stringResource(R.string.config_editor_duplicate))
+                                }
+                                TextButton(onClick = {
+                                    onBlocksChanged(
+                                        blocks.filterIndexed { currentIndex, _ -> currentIndex != index }
+                                    )
+                                }) {
+                                    Text(stringResource(R.string.config_editor_remove_code_block))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    val currentEditorTargetIndex = editorTargetIndex
+    if (currentEditorTargetIndex != null) {
+        val initialValue = if (currentEditorTargetIndex == NEW_CODE_BLOCK_INDEX) {
+            ""
+        } else {
+            blocks.getOrNull(currentEditorTargetIndex).orEmpty()
+        }
+        val editorTitle = if (currentEditorTargetIndex == NEW_CODE_BLOCK_INDEX) {
+            label
+        } else {
+            stringResource(
+                R.string.config_editor_code_editor_title,
+                label,
+                stringResource(R.string.config_editor_code_block_title, currentEditorTargetIndex + 1)
+            )
+        }
+
+        FullScreenCodeEditorDialog(
+            label = editorTitle,
+            value = initialValue,
+            onDismissRequest = { editorTargetIndex = null },
+            onSave = { updatedValue ->
+                val nextBlocks = blocks.toMutableList()
+                if (currentEditorTargetIndex == NEW_CODE_BLOCK_INDEX) {
+                    nextBlocks.add(updatedValue)
+                } else if (currentEditorTargetIndex in nextBlocks.indices) {
+                    nextBlocks[currentEditorTargetIndex] = updatedValue
+                }
+                onBlocksChanged(nextBlocks)
+            },
+            snippetTemplates = snippetTemplates
+        )
     }
 }
 
@@ -4323,6 +5035,59 @@ private fun LabeledDropdownField(
             }
         }
     }
+}
+
+private fun countCodeEditorLines(value: String): Int {
+    if (value.isBlank()) {
+        return 0
+    }
+    return value.trimEnd().lines().size
+}
+
+private fun buildCodePreview(value: String, previewLineCount: Int): String {
+    val trimmedValue = value.trimEnd()
+    if (trimmedValue.isBlank()) {
+        return ""
+    }
+    val lines = trimmedValue.lines()
+    val visibleLines = lines.take(previewLineCount)
+    return buildString {
+        append(visibleLines.joinToString("\n"))
+        if (lines.size > visibleLines.size) {
+            append("\n...")
+        }
+    }
+}
+
+private fun insertSnippetIntoEditor(currentValue: TextFieldValue, snippet: String): TextFieldValue {
+    val text = currentValue.text
+    val selectionStart = minOf(currentValue.selection.start, currentValue.selection.end).coerceIn(0, text.length)
+    val selectionEnd = maxOf(currentValue.selection.start, currentValue.selection.end).coerceIn(0, text.length)
+    val replacement = if (selectionStart == selectionEnd) {
+        val prefix = text.substring(0, selectionStart)
+        val suffix = text.substring(selectionEnd)
+        buildString {
+            if (prefix.isNotBlank() && !prefix.last().isWhitespace()) {
+                append("\n\n")
+            }
+            append(snippet)
+            if (suffix.isNotBlank() && !suffix.first().isWhitespace()) {
+                append("\n\n")
+            }
+        }
+    } else {
+        snippet
+    }
+    val updatedText = buildString {
+        append(text.substring(0, selectionStart))
+        append(replacement)
+        append(text.substring(selectionEnd))
+    }
+    val newCursor = selectionStart + replacement.length
+    return TextFieldValue(
+        text = updatedText,
+        selection = TextRange(newCursor)
+    )
 }
 
 @OptIn(ExperimentalLayoutApi::class)

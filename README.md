@@ -27,12 +27,16 @@
 
 - 🎨 **7 种 UI 模板** — 浏览器 / 沉浸全屏 / 顶栏 / 底栏 / 顶栏 + 标签 / 顶栏 + 底栏 / 侧边栏
 - 📦 **设备端本地打包** — 无需电脑，直接在手机上完成 APK 重打包与签名
-- 🛠 **可视化配置编辑器** — 分 Tab 编辑所有配置项（Basic / Rules / Events / Branding / Build）
+- 🛠 **可视化配置编辑器** — 分 Tab 编辑所有配置项（Basic / Rules / Events / Branding / Build），大段 JS/CSS/脚本可进入全屏代码编辑器
+- 🧩 **多代码块注入编辑 — 全局 JS/CSS 与规则 JS/CSS 支持新增、复制、排序、删除和独立全屏编辑
 - 🌐 **完整 WebView 能力** — Cookie、localStorage、IndexedDB、文件上传下载、地理位置
 - 👤 **权限桥接与提示**：相机、麦克风、地理位置、通知等能力都有宿主侧统一授权与双语提示
-- 🔒 **安全策略** — 域名白名单、外链拦截、SSL 证书错误处理可配置
+- 🧠 **NativeBridge 原生 KV 桥** — 可选启用，支持跨域页面共享本地 KV 数据，受独立 trusted hosts 控制
+- 🖱 **长按菜单** — 纯文本、链接、图片都支持长按操作，便于复制、分享、下载与跳转
+- 🔒 **安全策略** — 域名白名单、外链拦截、SSL 证书错误处理、NativeBridge trusted hosts 可配置
 - 🎯 **页面规则 & 事件** — 按 URL 匹配注入 JS/CSS、自定义错误页、监听页面生命周期
 - 🌙 **夜间模式** — 支持跟随系统主题或手动开启
+- 🗃 **项目导入导出 — 支持 `.fireflyproj.zip` 备份与迁移，导出默认文件名优先使用项目名称
 - 🌍 **多语言** — 简体中文 / English，支持跟随系统
 
 ---
@@ -139,6 +143,7 @@ cd FireflyApp
 4. 点击 **Preview** 实时预览效果
 5. 进入 **Pack** 界面 → **Prepare** → **Pack** → 生成签名 APK
 6. 直接 **Install** 安装，或 **Share** 分享给他人
+7. 也可以将项目导出为 `.fireflyproj.zip` 进行备份或迁移，默认文件名优先使用项目名称 / You can also export a project as `.fireflyproj.zip` for backup or migration
 
 ---
 
@@ -164,24 +169,29 @@ cd FireflyApp
     "userAgent": "",                     // 自定义 User-Agent（留空使用系统默认）
     "showLoadingOverlay": true,          // 加载遮罩
     "showPageProgressBar": true,         // 页面进度条
-    "showErrorView": true,              // 错误页
+    "showErrorView": true,               // 错误页
     "backAction": "go_back_or_exit",     // 返回键行为
-    "nightMode": "off"                   // 夜间模式: off / on / follow_theme
+    "nightMode": "off",                  // 夜间模式: off / on / follow_theme
+    "screenOrientation": "unspecified"   // 屏幕方向: unspecified / portrait / landscape
   },
 
   // 原生壳配置（TopBar / BottomBar / Drawer 的视觉参数）
   "shell": {
     "topBarShowBackButton": true,
     "topBarShowRefreshButton": true,
+    "topBarBackBehavior": "default_back",
     "topBarHomeBehavior": "default_home",
     "topBarRefreshBehavior": "reload",
+    "topBarBackScript": "",
+    "topBarHomeScript": "",
+    "topBarRefreshScript": "",
     "topBarFollowPageTitle": true,
     "topBarCornerRadiusDp": 18,
     "bottomBarShowTextLabels": true,
     "bottomBarCornerRadiusDp": 22,
     "bottomBarBadgeColor": "#E11D48",
     "drawerHeaderTitle": "My App",
-    "drawerWidthDp": 320
+    "drawerWidthDp": 320,
     // ... 约 50 个可配置字段
   },
 
@@ -203,7 +213,9 @@ cd FireflyApp
   // 安全策略
   "security": {
     "allowedHosts": ["example.com"],     // 域名白名单
-    "allowExternalHosts": false,         // 是否允许打开白名单外的 URL
+    "allowExternalHosts": true,          // 是否允许打开白名单外的 URL
+    "enableNativeKvBridge": false,       // 是否启用 NativeBridge 原生 KV 桥
+    "kvTrustedHosts": ["example.com"],   // 允许访问 NativeBridge 的 host 列表
     "openOtherAppsMode": "ask",          // 跳转外部应用: ask / allow / block
     "sslErrorHandling": "strict"         // SSL 证书错误处理: strict / ignore
   },
@@ -243,6 +255,36 @@ cd FireflyApp
   ]
 }
 ```
+
+---
+
+## ✍️ 配置编辑体验
+
+- **全屏代码编辑器** — 全局 JS/CSS、规则 JS/CSS、按钮 `run_js`、事件 `run_js` 都支持进入全屏编辑，适合粘贴较长脚本
+- **多代码块管理** — 全局 JS/CSS 与规则 JS/CSS 使用代码块列表管理，不需要再手写分隔符
+- **片段插入菜单** — JS 编辑器右上角 `+` 提供常用模板，如 IIFE、DOM Ready、`fetch` 请求、等待元素出现、批量移除广告节点、事件变量模板、`NativeBridge` 使用方法示例等
+- **顶栏按钮脚本** — 顶栏返回、首页、刷新按钮支持直接配置 `run_js`，可与网页逻辑或原生桥接联动
+
+## 🧠 NativeBridge 原生 KV
+
+FireflyApp 提供一个可选的原生 KV `JavascriptInterface`，接口名为 `NativeBridge`。启用后，多个受信任域名页面可以共享同一份原生本地 KV 数据。
+
+- 入口位置：`基础 / Basic -> 安全 / Security`
+- 启用方式：打开 `Enable Native KV bridge`
+- 访问控制：仅允许 `http/https` 页面访问，且当前页面 host 必须命中 `kvTrustedHosts`
+- 默认最小权限：关闭时不注入；`kvTrustedHosts` 为空时视为全部拒绝
+
+可用方法：
+
+```js
+NativeBridge.set("NameSpace", "Key", "Vlaue")
+NativeBridge.set("shared", "token", "abc123")
+const token = NativeBridge.get("shared", "token")
+NativeBridge.remove("shared", "token")
+NativeBridge.clearNamespace("shared")
+```
+
+对象值建议自行使用 `JSON.stringify()` / `JSON.parse()` 处理。
 
 ---
 
@@ -309,9 +351,11 @@ unsigned 壳 APK（含占位符）
 | 文件上传 | ✅ | `FileChooserHandler` 支持标准 file input |
 | 剪贴板 | ✅ | JS Bridge：`FireflyClipboard` |
 | 通知 | ✅ | JS Bridge：`FireflyNotificationBridge`（含权限提示） |
+| NativeBridge KV | ✅ | 可选原生 KV 桥接；仅在启用且当前页面 host 命中 `kvTrustedHosts` 时可用 |
 | 地理位置 | ✅ | `WebGeolocationHandler` 权限管理 + 白名单校验 |
 | 摄像头 / 麦克风 | ✅ | `WebPermissionHandler` 双语权限前置提示 |
 | 全屏视频 | ✅ | 自动进入/退出全屏 |
+| 长按菜单 | ✅ | 纯文本、链接、图片、图片链接均支持长按操作，图片可下载，链接/图片可复制或分享 |
 | 加载浮层 | ✅ | 可在 Basic 中开关 |
 | 夜间模式 | ✅ | Algorithmic Darkening + 跟随宿主主题 |
 | 自定义错误页 | ✅ | 可按规则覆盖标题、文案和重试动作 |
@@ -382,6 +426,7 @@ unsigned 壳 APK（含占位符）
 | URL 导航 | `allowedHosts` 域名白名单，支持通配符（`*.example.com`） |
 | 外部应用跳转 | `ask` / `allow` / `block` 三模式，弹窗显示目标应用信息 |
 | SSL 错误 | 可配置为严格校验或忽略证书错误（默认严格校验） |
+| NativeBridge KV | 独立开关 + `kvTrustedHosts` 白名单，且仅允许 `http/https` 页面访问 |
 | 文件路径 | `sanitizeRelativeProjectPath()` 防止 `../` 路径穿越 |
 | 打包名 | 正则校验 + 长度限制 + 禁止与宿主包名重复 |
 | 签名凭据 | 存于 APP 私有沙盒目录 |
@@ -433,19 +478,19 @@ keyPassword=your_key_password
 
 ## ✨ 近期更新
 
-- 新增了一个真正的“顶部 + 标签页”模板，并保留了现有的“顶部 + 底部栏”模板。
-- 在“基础设置”中，为“主页”和“刷新”按钮的行为新增了 `run_js` 支持。
-- 图标选择器现支持从相册导入自定义的 `PNG / JPEG / WebP` 格式图标。
-- 图标设计器现支持导出带有透明背景的图标素材。
-- “基础设置 -> 安全”现支持配置 SSL 证书错误的处理方式。
-- 滑动导航过渡效果、打包历史归档命名方式，以及权限授予后的安装流程均已得到改进。
-- 编辑页新增“底栏高度”和“底栏图标大小”的属性设置。
-- 项目编译页支持左右滑动来切换Tab。
-- 对签名文件校验和页面进度条显示进行优化。
-- 新增“保留当前导航页面栈”功能，至多保留当前导航5个页面完整内容。
-- 新增“导航预加载”功能，开启并设置预加载页数后允许在访问当前导航时提前加载其他导航页面。
-- 说明文档被重写成项目wiki知识库的形式，介绍界面和功能更加友好详细。
-- 错误页、Toast、加载浮层目前支持中英双语。
+- 新增顶栏返回按钮行为配置，支持 `default_back`、`default_home`、`default_navigation_item`、`run_js`，并已接入带顶栏模板。 
+- 新增 `NativeBridge` 原生 KV 桥接，使用独立开关与 `kvTrustedHosts` 控制，仅对受信任 `http/https` 页面开放。
+- 配置编辑器新增全屏代码编辑器；全局 JS/CSS 与规则 JS/CSS 升级为多代码块编辑，支持新增、复制、排序、删除。
+- JS 全屏编辑器右上角新增 `+` 片段菜单，内置 `fetch`、等待元素出现、批量移除广告节点、事件变量模板、`NativeBridge` 示例等。
+- WebView 长按已覆盖纯文本、链接、图片和图片链接，支持打开、复制、分享与下载。
+- 项目导出默认文件名优先使用项目名称；运行时模板不再打包宿主专用 `host-app` 资产。 
+- 编译页下的浏览器卡片里新增屏幕方向功能，可在“不限制”、“强制横屏”和“强制竖屏”里选择。
+- 优化错误页显示，开启错误页，Webview原生错误页会被隐藏替换成设定的错误页。
+- 导入项目和新建项目后打开项目显示优化，目前这两个操作更加丝滑流畅。
+- 侧边栏壁纸和头像两者独立占位空间优化，使得样式更自然好看。
+- API正文执行常用HTML元素，改善更新通知内容显示。
+
+---
 
 ## 🤝 贡献
 

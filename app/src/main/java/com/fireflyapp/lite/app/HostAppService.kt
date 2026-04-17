@@ -178,7 +178,7 @@ class HostAppService(
     }
 
     private fun buildAcceptLanguageHeader(): String {
-        val locale = Locale.getDefault()
+        val locale = AppLanguageManager.resolvePreferredLocale(context)
         val primary = locale.toLanguageTag().ifBlank { "en-US" }
         val language = locale.language.takeIf { it.isNotBlank() } ?: "en"
         return "$primary,$language;q=0.9,en-US;q=0.8,en;q=0.7"
@@ -219,7 +219,8 @@ class HostAppService(
         val versionCode: Int = 0,
         val is_force: Int = 0,
         val downloadUrl: String = "",
-        val changelog: String = ""
+        val changelog: String = "",
+        val changelog_en: String = ""
     ) {
         fun toPrompt(currentVersionCode: Long, currentVersionName: String): HostAppUpdatePrompt? {
             if (versionCode.toLong() <= currentVersionCode) {
@@ -232,7 +233,8 @@ class HostAppService(
                 currentVersionCode = currentVersionCode,
                 isForce = is_force != 0,
                 downloadUrl = downloadUrl.trim(),
-                changelog = changelog.trim()
+                changelog = changelog.trim(),
+                changelogEn = changelog_en.trim()
             )
         }
     }
@@ -241,7 +243,9 @@ class HostAppService(
     private data class HostAppNoticeResponse(
         val hasNotice: Boolean = false,
         val title: String = "",
+        val title_en: String = "",
         val content: String = "",
+        val content_en: String = "",
         val showOnce: Boolean = true,
         val noticeId: String = ""
     ) {
@@ -249,14 +253,25 @@ class HostAppService(
             if (!hasNotice) {
                 return null
             }
-            val resolvedTitle = title.trim().ifBlank { "Notice" }
+            val resolvedTitle = title.trim()
+            val resolvedTitleEn = title_en.trim()
             val resolvedContent = content.trim()
+            val resolvedContentEn = content_en.trim()
             val resolvedKey = noticeId.trim().ifBlank {
-                sha256("$resolvedTitle|$resolvedContent")
+                sha256(
+                    listOf(
+                        resolvedTitle,
+                        resolvedTitleEn,
+                        resolvedContent,
+                        resolvedContentEn
+                    ).joinToString(separator = "|")
+                )
             }
             return HostAppNoticePrompt(
                 title = resolvedTitle,
+                titleEn = resolvedTitleEn,
                 content = resolvedContent,
+                contentEn = resolvedContentEn,
                 showOnce = showOnce,
                 noticeKey = resolvedKey
             )
@@ -286,15 +301,42 @@ data class HostAppUpdatePrompt(
     val currentVersionCode: Long,
     val isForce: Boolean,
     val downloadUrl: String,
-    val changelog: String
-)
+    val changelog: String,
+    val changelogEn: String
+) {
+    fun localizedChangelog(context: Context): String {
+        return localizedServerText(
+            context = context,
+            primaryText = changelog,
+            englishText = changelogEn
+        )
+    }
+}
 
 data class HostAppNoticePrompt(
     val title: String,
+    val titleEn: String,
     val content: String,
+    val contentEn: String,
     val showOnce: Boolean,
     val noticeKey: String
-)
+) {
+    fun localizedTitle(context: Context): String {
+        return localizedServerText(
+            context = context,
+            primaryText = title,
+            englishText = titleEn
+        )
+    }
+
+    fun localizedContent(context: Context): String {
+        return localizedServerText(
+            context = context,
+            primaryText = content,
+            englishText = contentEn
+        )
+    }
+}
 
 private class HostAppPreferences(context: Context) {
     private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
@@ -316,5 +358,18 @@ private class HostAppPreferences(context: Context) {
     companion object {
         private const val PREFERENCES_NAME = "host_app_preferences"
         private const val NOTICE_KEY_PREFIX = "seen_notice_"
+    }
+}
+
+private fun localizedServerText(
+    context: Context,
+    primaryText: String,
+    englishText: String
+): String {
+    val primary = primaryText.trim()
+    val english = englishText.trim()
+    return when (AppLanguageManager.resolveContentLanguage(context)) {
+        AppContentLanguage.ENGLISH -> english.ifBlank { primary }
+        AppContentLanguage.CHINESE -> primary.ifBlank { english }
     }
 }

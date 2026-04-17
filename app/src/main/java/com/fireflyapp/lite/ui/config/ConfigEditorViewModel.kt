@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.app.AppLanguageManager
 import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
+import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_UNSPECIFIED
 import com.fireflyapp.lite.data.model.AppConfig
 import com.fireflyapp.lite.data.model.AppInfo
 import com.fireflyapp.lite.data.model.BrowserConfig
@@ -63,6 +64,7 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updateUserAgent(value: String) = updateForm { copy(userAgent = value) }
     fun updateBackAction(value: String) = updateForm { copy(backAction = value) }
     fun updateNightMode(value: String) = updateForm { copy(nightMode = value) }
+    fun updateScreenOrientation(value: String) = updateForm { copy(screenOrientation = value) }
     fun updateShowLoadingOverlay(value: Boolean) = updateForm { copy(showLoadingOverlay = value) }
     fun updateShowPageProgressBar(value: Boolean) = updateForm { copy(showPageProgressBar = value) }
     fun updateShowErrorView(value: Boolean) = updateForm { copy(showErrorView = value) }
@@ -70,8 +72,10 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updateTopBarShowBackButton(value: Boolean) = updateForm { copy(topBarShowBackButton = value) }
     fun updateTopBarShowHomeButton(value: Boolean) = updateForm { copy(topBarShowHomeButton = value) }
     fun updateTopBarShowRefreshButton(value: Boolean) = updateForm { copy(topBarShowRefreshButton = value) }
+    fun updateTopBarBackBehavior(value: String) = updateForm { copy(topBarBackBehavior = value) }
     fun updateTopBarHomeBehavior(value: String) = updateForm { copy(topBarHomeBehavior = value) }
     fun updateTopBarRefreshBehavior(value: String) = updateForm { copy(topBarRefreshBehavior = value) }
+    fun updateTopBarBackScript(value: String) = updateForm { copy(topBarBackScriptText = value) }
     fun updateTopBarHomeScript(value: String) = updateForm { copy(topBarHomeScriptText = value) }
     fun updateTopBarRefreshScript(value: String) = updateForm { copy(topBarRefreshScriptText = value) }
     fun updateTopBarFollowPageTitle(value: Boolean) = updateForm { copy(topBarFollowPageTitle = value) }
@@ -184,11 +188,17 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updateTopBarThemeColor(value: String) = updateForm { copy(topBarThemeColor = value) }
     fun updateBottomBarThemeColor(value: String) = updateForm { copy(bottomBarThemeColor = value) }
     fun updateAllowExternalHosts(value: Boolean) = updateForm { copy(allowExternalHosts = value) }
+    fun updateEnableNativeKvBridge(value: Boolean) = updateForm { copy(enableNativeKvBridge = value) }
+    fun updateKvTrustedHostsText(value: String) = updateForm { copy(kvTrustedHostsText = value) }
     fun updateOpenOtherAppsMode(value: String) = updateForm { copy(openOtherAppsMode = value) }
     fun updateSslErrorHandling(value: String) = updateForm { copy(sslErrorHandling = value) }
     fun updateAllowedHostsText(value: String) = updateForm { copy(allowedHostsText = value) }
-    fun updateGlobalJsText(value: String) = updateForm { copy(globalJsText = value) }
-    fun updateGlobalCssText(value: String) = updateForm { copy(globalCssText = value) }
+    fun updateGlobalJsBlocks(value: List<String>) = updateForm {
+        copy(globalJsBlocks = normalizeEditorInjectionBlocks(value))
+    }
+    fun updateGlobalCssBlocks(value: List<String>) = updateForm {
+        copy(globalCssBlocks = normalizeEditorInjectionBlocks(value))
+    }
     fun updateApplicationLabel(value: String) = updateForm { copy(applicationLabel = value) }
     fun updateVersionName(value: String) = updateForm { copy(versionName = value) }
     fun updateVersionCodeText(value: String) = updateForm { copy(versionCodeText = value) }
@@ -285,8 +295,12 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updatePageRuleErrorMessage(index: Int, value: String) = updatePageRule(index) { copy(errorMessage = value) }
     fun updatePageRuleRetryAction(index: Int, value: String) = updatePageRule(index) { copy(errorRetryAction = value) }
     fun updatePageRuleRetryUrl(index: Int, value: String) = updatePageRule(index) { copy(errorRetryUrl = value) }
-    fun updatePageRuleInjectJs(index: Int, value: String) = updatePageRule(index) { copy(injectJsText = value) }
-    fun updatePageRuleInjectCss(index: Int, value: String) = updatePageRule(index) { copy(injectCssText = value) }
+    fun updatePageRuleInjectJs(index: Int, value: List<String>) = updatePageRule(index) {
+        copy(injectJsBlocks = normalizeEditorInjectionBlocks(value))
+    }
+    fun updatePageRuleInjectCss(index: Int, value: List<String>) = updatePageRule(index) {
+        copy(injectCssBlocks = normalizeEditorInjectionBlocks(value))
+    }
     fun updatePageRuleShowTopBar(index: Int, value: RuleToggleState) = updatePageRule(index) { copy(showTopBar = value) }
     fun updatePageRuleShowBottomBar(index: Int, value: RuleToggleState) = updatePageRule(index) { copy(showBottomBar = value) }
     fun updatePageRuleShowDownloadOverlay(index: Int, value: RuleToggleState) = updatePageRule(index) { copy(showDownloadOverlay = value) }
@@ -1229,8 +1243,10 @@ data class ConfigEditorFormState(
     val topBarShowBackButton: Boolean = true,
     val topBarShowHomeButton: Boolean = false,
     val topBarShowRefreshButton: Boolean = true,
+    val topBarBackBehavior: String = "default_back",
     val topBarHomeBehavior: String = "default_home",
     val topBarRefreshBehavior: String = "reload",
+    val topBarBackScriptText: String = "",
     val topBarHomeScriptText: String = "",
     val topBarRefreshScriptText: String = "",
     val topBarFollowPageTitle: Boolean = true,
@@ -1279,12 +1295,15 @@ data class ConfigEditorFormState(
     val bottomBarThemeColor: String = "",
     val backAction: String = "go_back_or_exit",
     val nightMode: String = "off",
+    val screenOrientation: String = BROWSER_SCREEN_ORIENTATION_UNSPECIFIED,
     val allowExternalHosts: Boolean = true,
+    val enableNativeKvBridge: Boolean = false,
+    val kvTrustedHostsText: String = "",
     val openOtherAppsMode: String = "ask",
     val sslErrorHandling: String = SSL_ERROR_HANDLING_STRICT,
     val allowedHostsText: String = "",
-    val globalJsText: String = "",
-    val globalCssText: String = "",
+    val globalJsBlocks: List<String> = emptyList(),
+    val globalCssBlocks: List<String> = emptyList(),
     val applicationLabel: String = "",
     val versionName: String = "1.0.0",
     val versionCodeText: String = "1",
@@ -1319,14 +1338,17 @@ data class ConfigEditorFormState(
                 showErrorView = showErrorView,
                 backAction = backAction,
                 immersiveStatusBar = immersiveStatusBar,
-                nightMode = nightMode
+                nightMode = nightMode,
+                screenOrientation = screenOrientation
             ),
             shell = ShellConfig(
                 topBarShowBackButton = topBarShowBackButton,
                 topBarShowHomeButton = topBarShowHomeButton,
                 topBarShowRefreshButton = topBarShowRefreshButton,
+                topBarBackBehavior = topBarBackBehavior,
                 topBarHomeBehavior = topBarHomeBehavior,
                 topBarRefreshBehavior = topBarRefreshBehavior,
+                topBarBackScript = topBarBackScriptText,
                 topBarHomeScript = topBarHomeScriptText,
                 topBarRefreshScript = topBarRefreshScriptText,
                 topBarFollowPageTitle = topBarFollowPageTitle,
@@ -1394,12 +1416,14 @@ data class ConfigEditorFormState(
             security = SecurityConfig(
                 allowedHosts = allowedHostsText.lines().map { it.trim() }.filter { it.isNotBlank() },
                 allowExternalHosts = allowExternalHosts,
+                enableNativeKvBridge = enableNativeKvBridge,
+                kvTrustedHosts = kvTrustedHostsText.lines().map { it.trim() }.filter { it.isNotBlank() },
                 openOtherAppsMode = openOtherAppsMode,
                 sslErrorHandling = sslErrorHandling
             ),
             inject = InjectConfig(
-                globalJs = splitBlocks(globalJsText),
-                globalCss = splitBlocks(globalCssText)
+                globalJs = normalizeEditorInjectionBlocks(globalJsBlocks),
+                globalCss = normalizeEditorInjectionBlocks(globalCssBlocks)
             ),
             pageRules = pageRules.map { it.toPageRule() },
             pageEvents = pageEvents.map { it.toPageEventRule() }
@@ -1452,8 +1476,10 @@ data class ConfigEditorFormState(
                 topBarShowBackButton = config.shell.topBarShowBackButton,
                 topBarShowHomeButton = config.shell.topBarShowHomeButton,
                 topBarShowRefreshButton = config.shell.topBarShowRefreshButton,
+                topBarBackBehavior = config.shell.topBarBackBehavior,
                 topBarHomeBehavior = config.shell.topBarHomeBehavior,
                 topBarRefreshBehavior = config.shell.topBarRefreshBehavior,
+                topBarBackScriptText = config.shell.topBarBackScript,
                 topBarHomeScriptText = config.shell.topBarHomeScript,
                 topBarRefreshScriptText = config.shell.topBarRefreshScript,
                 topBarFollowPageTitle = config.shell.topBarFollowPageTitle,
@@ -1502,12 +1528,15 @@ data class ConfigEditorFormState(
                 bottomBarThemeColor = config.shell.bottomBarThemeColor,
                 backAction = config.browser.backAction,
                 nightMode = config.browser.nightMode,
+                screenOrientation = config.browser.screenOrientation,
                 allowExternalHosts = config.security.allowExternalHosts,
+                enableNativeKvBridge = config.security.enableNativeKvBridge,
+                kvTrustedHostsText = config.security.kvTrustedHosts.joinToString("\n"),
                 openOtherAppsMode = config.security.openOtherAppsMode,
                 sslErrorHandling = config.security.sslErrorHandling,
                 allowedHostsText = config.security.allowedHosts.joinToString("\n"),
-                globalJsText = config.inject.globalJs.joinToString(BLOCK_SEPARATOR),
-                globalCssText = config.inject.globalCss.joinToString(BLOCK_SEPARATOR),
+                globalJsBlocks = normalizeEditorInjectionBlocks(config.inject.globalJs),
+                globalCssBlocks = normalizeEditorInjectionBlocks(config.inject.globalCss),
                 applicationLabel = projectManifest.appIdentity.applicationLabel,
                 versionName = projectManifest.appIdentity.versionName,
                 versionCodeText = projectManifest.appIdentity.versionCode.toString(),
@@ -1567,8 +1596,8 @@ data class PageRuleForm(
     val showDownloadOverlay: RuleToggleState = RuleToggleState.INHERIT,
     val suppressFocusHighlight: RuleToggleState = RuleToggleState.INHERIT,
     val openExternal: RuleToggleState = RuleToggleState.INHERIT,
-    val injectJsText: String = "",
-    val injectCssText: String = ""
+    val injectJsBlocks: List<String> = emptyList(),
+    val injectCssBlocks: List<String> = emptyList()
 ) {
     fun toPageRule(): PageRule {
         return PageRule(
@@ -1589,8 +1618,8 @@ data class PageRuleForm(
                 errorMessage = errorMessage.trim().takeIf { it.isNotBlank() },
                 errorRetryAction = errorRetryAction.trim().takeIf { it.isNotBlank() },
                 errorRetryUrl = errorRetryUrl.trim().takeIf { it.isNotBlank() },
-                injectJs = splitBlocks(injectJsText),
-                injectCss = splitBlocks(injectCssText)
+                injectJs = normalizeEditorInjectionBlocks(injectJsBlocks),
+                injectCss = normalizeEditorInjectionBlocks(injectCssBlocks)
             )
         )
     }
@@ -1612,8 +1641,8 @@ data class PageRuleForm(
                 showDownloadOverlay = RuleToggleState.fromNullableBoolean(rule.overrides.showDownloadOverlay),
                 suppressFocusHighlight = RuleToggleState.fromNullableBoolean(rule.overrides.suppressFocusHighlight),
                 openExternal = RuleToggleState.fromNullableBoolean(rule.overrides.openExternal),
-                injectJsText = rule.overrides.injectJs.joinToString(BLOCK_SEPARATOR),
-                injectCssText = rule.overrides.injectCss.joinToString(BLOCK_SEPARATOR)
+                injectJsBlocks = normalizeEditorInjectionBlocks(rule.overrides.injectJs),
+                injectCssBlocks = normalizeEditorInjectionBlocks(rule.overrides.injectCss)
             )
         }
     }
@@ -1728,21 +1757,24 @@ private fun AppConfig.merge(sections: ConfigSections): AppConfig {
             template = sections.app.template,
             defaultUrl = sections.app.defaultUrl
         ),
-        browser = browser.copy(
-            userAgent = sections.browser.userAgent,
-            showLoadingOverlay = sections.browser.showLoadingOverlay,
-            showPageProgressBar = sections.browser.showPageProgressBar,
-            showErrorView = sections.browser.showErrorView,
-            backAction = sections.browser.backAction,
-            immersiveStatusBar = sections.browser.immersiveStatusBar,
-            nightMode = sections.browser.nightMode
-        ),
+            browser = browser.copy(
+                userAgent = sections.browser.userAgent,
+                showLoadingOverlay = sections.browser.showLoadingOverlay,
+                showPageProgressBar = sections.browser.showPageProgressBar,
+                showErrorView = sections.browser.showErrorView,
+                backAction = sections.browser.backAction,
+                immersiveStatusBar = sections.browser.immersiveStatusBar,
+                nightMode = sections.browser.nightMode,
+                screenOrientation = sections.browser.screenOrientation
+            ),
         shell = shell.copy(
             topBarShowBackButton = sections.shell.topBarShowBackButton,
             topBarShowHomeButton = sections.shell.topBarShowHomeButton,
             topBarShowRefreshButton = sections.shell.topBarShowRefreshButton,
+            topBarBackBehavior = sections.shell.topBarBackBehavior,
             topBarHomeBehavior = sections.shell.topBarHomeBehavior,
             topBarRefreshBehavior = sections.shell.topBarRefreshBehavior,
+            topBarBackScript = sections.shell.topBarBackScript,
             topBarHomeScript = sections.shell.topBarHomeScript,
             topBarRefreshScript = sections.shell.topBarRefreshScript,
             topBarFollowPageTitle = sections.shell.topBarFollowPageTitle,
@@ -1794,6 +1826,8 @@ private fun AppConfig.merge(sections: ConfigSections): AppConfig {
         security = security.copy(
             allowedHosts = sections.security.allowedHosts,
             allowExternalHosts = sections.security.allowExternalHosts,
+            enableNativeKvBridge = sections.security.enableNativeKvBridge,
+            kvTrustedHosts = sections.security.kvTrustedHosts,
             openOtherAppsMode = sections.security.openOtherAppsMode,
             sslErrorHandling = sections.security.sslErrorHandling
         ),
@@ -1806,10 +1840,8 @@ private fun AppConfig.merge(sections: ConfigSections): AppConfig {
     )
 }
 
-private fun splitBlocks(text: String): List<String> {
-    return text.split(BLOCK_SEPARATOR)
+private fun normalizeEditorInjectionBlocks(blocks: List<String>): List<String> {
+    return blocks
         .map { it.trim() }
         .filter { it.isNotEmpty() }
 }
-
-private const val BLOCK_SEPARATOR = "\n---\n"

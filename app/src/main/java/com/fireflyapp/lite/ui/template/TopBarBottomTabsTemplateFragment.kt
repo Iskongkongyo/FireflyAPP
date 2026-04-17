@@ -203,11 +203,7 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
     private fun setupToolbar(defaultTitle: String) {
         binding.toolbar.title = defaultTitle
         if (mainViewModel.requireConfig().shell.topBarShowBackButton) {
-            binding.toolbar.setNavigationOnClickListener {
-                if (!handleBackPressed()) {
-                    requireActivity().finish()
-                }
-            }
+            binding.toolbar.setNavigationOnClickListener { handleToolbarBackClick() }
         } else {
             binding.toolbar.setNavigationOnClickListener(null)
         }
@@ -218,7 +214,7 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
                     if (TemplateTopBarActionResolver.isRunJavaScriptBehavior(shellConfig.topBarHomeBehavior)) {
                         webFragment?.runJavaScript(shellConfig.topBarHomeScript)
                     } else {
-                        navigateHome()
+                        navigateToTopBarTarget(shellConfig.topBarHomeBehavior)
                     }
                     true
                 }
@@ -237,12 +233,32 @@ class TopBarBottomTabsTemplateFragment : Fragment(), TemplateHost, BackPressHand
         }
     }
 
-    private fun navigateHome() {
+    private fun handleToolbarBackClick() {
+        val shellConfig = mainViewModel.requireConfig().shell
+        when {
+            TemplateTopBarActionResolver.isRunJavaScriptBehavior(shellConfig.topBarBackBehavior) -> {
+                webFragment?.runJavaScript(shellConfig.topBarBackScript)
+            }
+
+            TemplateTopBarActionResolver.isNavigationTargetBehavior(shellConfig.topBarBackBehavior) -> {
+                navigateToTopBarTarget(shellConfig.topBarBackBehavior)
+            }
+
+            else -> {
+                if (!handleBackPressed()) {
+                    requireActivity().finish()
+                }
+            }
+        }
+    }
+
+    private fun navigateToTopBarTarget(behavior: String) {
         val config = mainViewModel.requireConfig()
         val items = config.navigation.items.take(MAX_ITEMS)
-        val homeTarget = TemplateTopBarActionResolver.resolveHomeTarget(
+        val homeTarget = TemplateTopBarActionResolver.resolveNavigationTarget(
             config = config,
-            navigationItems = items
+            navigationItems = items,
+            behavior = behavior
         )
         val matchingItem = items.firstOrNull { it.url == homeTarget.url }
         currentNavigationItemId = matchingItem?.id?.hashCode()

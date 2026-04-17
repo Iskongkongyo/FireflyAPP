@@ -72,7 +72,6 @@ class ProjectHubViewModel(application: Application) : AndroidViewModel(applicati
                         userMessage = appString(com.fireflyapp.lite.R.string.project_hub_created),
                         pendingOpenProjectId = project.id
                     )
-                    refresh()
                 }
                 .onFailure { throwable ->
                     _uiState.value = _uiState.value.copy(
@@ -93,7 +92,6 @@ class ProjectHubViewModel(application: Application) : AndroidViewModel(applicati
                         userMessage = appString(com.fireflyapp.lite.R.string.project_hub_imported),
                         pendingOpenProjectId = project.id
                     )
-                    refresh()
                 }
                 .onFailure { throwable ->
                     _uiState.value = _uiState.value.copy(

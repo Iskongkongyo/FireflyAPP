@@ -5,11 +5,15 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
+import android.util.TypedValue
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
@@ -81,6 +85,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -91,6 +96,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.app.ActivityOptionsCompat
+import androidx.core.text.HtmlCompat
 import com.fireflyapp.lite.BuildConfig
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.app.AppConfig
@@ -146,7 +154,7 @@ class ProjectHubActivity : ComponentActivity() {
 
             LaunchedEffect(state.pendingOpenProjectId) {
                 val projectId = state.pendingOpenProjectId ?: return@LaunchedEffect
-                editLauncher.launch(ConfigEditorActivity.createIntent(this@ProjectHubActivity, projectId))
+                launchEditorWithoutAnimation(editLauncher, projectId)
                 viewModel.consumePendingOpenProjectId()
             }
 
@@ -203,6 +211,21 @@ class ProjectHubActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    private fun launchEditorWithoutAnimation(
+        launcher: ActivityResultLauncher<Intent>,
+        projectId: String
+    ) {
+        launcher.launch(
+            ConfigEditorActivity.createIntent(
+                context = this,
+                projectId = projectId,
+                disableEnterAnimation = true
+            ),
+            ActivityOptionsCompat.makeCustomAnimation(this, 0, 0)
+        )
+        overridePendingTransition(0, 0)
     }
 }
 
@@ -285,6 +308,7 @@ private fun ProjectHubScreen(
     }
 
     state.updatePrompt?.let { updatePrompt ->
+        val localizedChangelog = updatePrompt.localizedChangelog(context)
         ProjectDashboardDialog(
             onDismissRequest = {
                 if (!updatePrompt.isForce) {
@@ -337,25 +361,28 @@ private fun ProjectHubScreen(
                         updatePrompt.versionCode
                     )
                 )
-                if (updatePrompt.changelog.isNotBlank()) {
-                    Text(updatePrompt.changelog)
+                if (localizedChangelog.isNotBlank()) {
+                    PromptBodyText(localizedChangelog)
                 }
             }
         }
     }
 
     state.noticePrompt?.let { noticePrompt ->
+        val localizedTitle = noticePrompt.localizedTitle(context)
+            .ifBlank { context.getString(R.string.project_hub_notice_title) }
+        val localizedContent = noticePrompt.localizedContent(context)
         ProjectDashboardDialog(
             onDismissRequest = onDismissNoticePrompt,
-            title = noticePrompt.title,
+            title = localizedTitle,
             confirmButton = {
                 TextButton(onClick = onDismissNoticePrompt) {
                     Text(stringResource(R.string.project_hub_close))
                 }
             }
         ) {
-            Text(
-                text = noticePrompt.content.ifBlank { stringResource(R.string.project_hub_notice_default) }
+            PromptBodyText(
+                localizedContent.ifBlank { stringResource(R.string.project_hub_notice_default) }
             )
         }
     }
@@ -1208,12 +1235,53 @@ private fun DetailPill(label: String, value: String) {
     }
 }
 
+@Composable
+private fun PromptBodyText(
+    textOrHtml: String,
+    modifier: Modifier = Modifier
+) {
+    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val linkColor = MaterialTheme.colorScheme.primary.toArgb()
+    val renderedContent = remember(textOrHtml) { renderPromptBody(textOrHtml) }
+
+    AndroidView(
+        modifier = modifier.fillMaxWidth(),
+        factory = { context ->
+            TextView(context).apply {
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                setLineSpacing(0f, 1.25f)
+                movementMethod = LinkMovementMethod.getInstance()
+                linksClickable = true
+            }
+        },
+        update = { textView ->
+            textView.setTextColor(textColor)
+            textView.setLinkTextColor(linkColor)
+            textView.text = renderedContent
+        }
+    )
+}
+
 private fun formatTimestamp(timestamp: Long): String {
     if (timestamp <= 0L) {
         return "-"
     }
     return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(timestamp))
 }
+
+private fun renderPromptBody(value: String): CharSequence {
+    return if (value.looksLikeHtml()) {
+        HtmlCompat.fromHtml(value, HtmlCompat.FROM_HTML_MODE_COMPACT)
+    } else {
+        value
+    }
+}
+
+private fun String.looksLikeHtml(): Boolean {
+    return HTML_CONTENT_PATTERN.containsMatchIn(this)
+}
+
+private val HTML_CONTENT_PATTERN = Regex("""<\s*/?\s*[a-zA-Z][^>]*>|&#?[a-zA-Z0-9]+;""")
 
 @Composable
 private fun formatTemplateLabel(template: TemplateType): String {

@@ -11,11 +11,27 @@ data class TemplateHomeTarget(
 
 object TemplateTopBarActionResolver {
     fun isRunJavaScriptBehavior(behavior: String): Boolean {
-        return behavior.trim().lowercase() == "run_js"
+        return normalizeBehavior(behavior) == "run_js"
+    }
+
+    fun isNavigationTargetBehavior(behavior: String): Boolean {
+        return normalizeBehavior(behavior) in navigationTargetBehaviors
     }
 
     fun resolveHomeTarget(config: AppConfig, navigationItems: List<NavigationItem>): TemplateHomeTarget {
-        return when (config.shell.topBarHomeBehavior.trim().lowercase()) {
+        return resolveNavigationTarget(
+            config = config,
+            navigationItems = navigationItems,
+            behavior = config.shell.topBarHomeBehavior
+        )
+    }
+
+    fun resolveNavigationTarget(
+        config: AppConfig,
+        navigationItems: List<NavigationItem>,
+        behavior: String
+    ): TemplateHomeTarget {
+        return when (normalizeBehavior(behavior)) {
             "default_navigation_item" -> {
                 val resolvedItem = navigationItems.firstOrNull {
                     it.id == config.shell.defaultNavigationItemId.trim()
@@ -41,10 +57,19 @@ object TemplateTopBarActionResolver {
     }
 
     fun performRefresh(fragment: WebContainerFragment?, behavior: String, script: String = "") {
-        when (behavior.trim().lowercase()) {
+        when (normalizeBehavior(behavior)) {
             "reload_ignore_cache" -> fragment?.reloadIgnoringCache()
             "run_js" -> fragment?.runJavaScript(script)
             else -> fragment?.reload()
         }
     }
+
+    private fun normalizeBehavior(behavior: String): String {
+        return behavior.trim().lowercase()
+    }
+
+    private val navigationTargetBehaviors = setOf(
+        "default_home",
+        "default_navigation_item"
+    )
 }

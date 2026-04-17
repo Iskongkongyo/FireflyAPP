@@ -124,8 +124,8 @@ class FireflyWebViewClient(
                 TAG,
                 "onReceivedError url=${request.url} code=${error?.errorCode} description=${error?.description} mapped=$mainFrameError view=${describeView(view)}"
             )
-            onPageLoadingChanged?.invoke(false)
             onPageLoadError(mainFrameError ?: PageLoadErrorState.Generic)
+            onPageLoadingChanged?.invoke(false)
         }
     }
 
@@ -141,8 +141,8 @@ class FireflyWebViewClient(
                 TAG,
                 "onReceivedHttpError url=${request.url} status=${errorResponse?.statusCode} reason=${errorResponse?.reasonPhrase} mapped=$mainFrameError view=${describeView(view)}"
             )
-            onPageLoadingChanged?.invoke(false)
             onPageLoadError(mainFrameError ?: PageLoadErrorState.Generic)
+            onPageLoadingChanged?.invoke(false)
         }
     }
 
@@ -161,8 +161,8 @@ class FireflyWebViewClient(
         )
         handler?.cancel()
         mainFrameError = PageLoadErrorState.Certificate
-        onPageLoadingChanged?.invoke(false)
         onPageLoadError(PageLoadErrorState.Certificate)
+        onPageLoadingChanged?.invoke(false)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)

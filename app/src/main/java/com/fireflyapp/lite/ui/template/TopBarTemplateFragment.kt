@@ -83,11 +83,7 @@ class TopBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPa
             )
         }
         if (config.shell.topBarShowBackButton) {
-            binding.toolbar.setNavigationOnClickListener {
-                if (!handleBackPressed()) {
-                    requireActivity().finish()
-                }
-            }
+            binding.toolbar.setNavigationOnClickListener { handleToolbarBackClick() }
         } else {
             binding.toolbar.setNavigationOnClickListener(null)
         }
@@ -200,10 +196,35 @@ class TopBarTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPa
     }
 
     private fun navigateHomeIfNeeded(): Boolean {
+        return navigateToConfiguredTarget(mainViewModel.requireConfig().shell.topBarHomeBehavior)
+    }
+
+    private fun handleToolbarBackClick() {
         val config = mainViewModel.requireConfig()
-        val homeTarget = TemplateTopBarActionResolver.resolveHomeTarget(
+        val shellConfig = config.shell
+        when {
+            TemplateTopBarActionResolver.isRunJavaScriptBehavior(shellConfig.topBarBackBehavior) -> {
+                webFragment?.runJavaScript(shellConfig.topBarBackScript)
+            }
+
+            TemplateTopBarActionResolver.isNavigationTargetBehavior(shellConfig.topBarBackBehavior) -> {
+                navigateToConfiguredTarget(shellConfig.topBarBackBehavior)
+            }
+
+            else -> {
+                if (!handleBackPressed()) {
+                    requireActivity().finish()
+                }
+            }
+        }
+    }
+
+    private fun navigateToConfiguredTarget(behavior: String): Boolean {
+        val config = mainViewModel.requireConfig()
+        val homeTarget = TemplateTopBarActionResolver.resolveNavigationTarget(
             config = config,
-            navigationItems = config.navigation.items
+            navigationItems = config.navigation.items,
+            behavior = behavior
         )
         if (homeTarget.url.isBlank()) {
             return false
