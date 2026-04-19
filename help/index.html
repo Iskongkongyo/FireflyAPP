@@ -1,12 +1,22 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
   <title>FireflyApp Wiki</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    html { scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     body {
       margin: 0;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", sans-serif;
@@ -17,6 +27,7 @@
       padding-top: calc(env(safe-area-inset-top, 0px) + 60px);
       padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
     }
+
     body::before {
       content: "";
       position: fixed;
@@ -27,8 +38,16 @@
         linear-gradient(135deg, #edf4ec 0%, #f5f2eb 45%, #eef3ff 100%);
       z-index: -1;
     }
-    a { color: #2259d4; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+
+    a {
+      color: #2259d4;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
     code {
       font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
       background: rgba(15, 23, 42, 0.06);
@@ -37,11 +56,28 @@
       font-size: 12px;
       color: #6d28d9;
     }
-    .zh, .en { display: none; }
-    body[data-lang="zh"] .zh { display: inline; }
-    body[data-lang="zh"] .zh.block { display: block; }
-    body[data-lang="en"] .en { display: inline; }
-    body[data-lang="en"] .en.block { display: block; }
+
+    .zh,
+    .en {
+      display: none;
+    }
+
+    body[data-lang="zh"] .zh {
+      display: inline;
+    }
+
+    body[data-lang="zh"] .zh.block {
+      display: block;
+    }
+
+    body[data-lang="en"] .en {
+      display: inline;
+    }
+
+    body[data-lang="en"] .en.block {
+      display: block;
+    }
+
     .nav-bar {
       position: fixed;
       top: 0;
@@ -58,7 +94,11 @@
       border-bottom: 1px solid rgba(15, 23, 42, 0.08);
       scrollbar-width: none;
     }
-    .nav-bar::-webkit-scrollbar { display: none; }
+
+    .nav-bar::-webkit-scrollbar {
+      display: none;
+    }
+
     .nav-link {
       flex: 0 0 auto;
       padding: 8px 14px;
@@ -68,18 +108,43 @@
       color: #5c6f82;
       white-space: nowrap;
     }
-    .nav-link.active { background: #2259d4; color: #fff; }
-    .page { max-width: 880px; margin: 0 auto; padding: 0 16px; }
-    .hero { padding: 28px 0 22px; }
-    .hero-card, .card, .faq-item, .callout {
+
+    .nav-link.active {
+      background: #2259d4;
+      color: #fff;
+    }
+
+    .page {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+
+    .hero {
+      padding: 28px 0 22px;
+    }
+
+    .hero-card,
+    .card,
+    .faq-item,
+    .callout {
       background: rgba(255, 255, 255, 0.64);
       border: 1px solid rgba(15, 23, 42, 0.08);
       border-radius: 18px;
       box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
       backdrop-filter: blur(8px);
     }
-    .hero-card { padding: 26px 20px 20px; }
-    .hero-top { display: flex; gap: 16px; align-items: center; }
+
+    .hero-card {
+      padding: 26px 20px 20px;
+    }
+
+    .hero-top {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
     .hero-icon {
       width: 74px;
       height: 74px;
@@ -87,23 +152,81 @@
       object-fit: cover;
       box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
     }
-    .hero h1 { margin: 0; font-size: 30px; line-height: 1.1; letter-spacing: -0.03em; color: #0f172a; }
-    .hero-subtitle { margin-top: 6px; color: #567084; font-size: 14px; }
-    .hero-grid, .grid-2, .grid-3, .stack, .steps { display: grid; gap: 12px; }
-    .hero-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 18px; }
-    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .hero-pill, .card { padding: 16px; }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      color: #0f172a;
+    }
+
+    .hero-subtitle {
+      margin-top: 6px;
+      color: #567084;
+      font-size: 14px;
+    }
+
+    .hero-grid,
+    .grid-2,
+    .grid-3,
+    .stack,
+    .steps {
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 18px;
+    }
+
+    .grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .hero-pill,
+    .card {
+      padding: 16px;
+    }
+
     .hero-pill {
       background: rgba(255, 255, 255, 0.66);
       border: 1px solid rgba(15, 23, 42, 0.06);
       border-radius: 16px;
       min-height: 82px;
     }
-    .hero-pill strong { display: block; font-size: 13.5px; color: #0f172a; margin-bottom: 4px; }
-    .hero-pill span, .muted, .step-card p, .section-desc, .faq-a { color: #617485; font-size: 13.5px; }
-    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-    .lang-btn, .jump-btn, .back-top {
+
+    .hero-pill strong {
+      display: block;
+      font-size: 13.5px;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+
+    .hero-pill span,
+    .muted,
+    .step-card p,
+    .section-desc,
+    .faq-a {
+      color: #617485;
+      font-size: 13.5px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .lang-btn,
+    .jump-btn,
+    .back-top {
       border: 1px solid rgba(15, 23, 42, 0.08);
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.75);
@@ -113,8 +236,18 @@
       font-weight: 700;
       cursor: pointer;
     }
-    .lang-btn.active { background: #2259d4; border-color: #2259d4; color: #fff; }
-    .section { padding: 26px 0; border-top: 1px solid rgba(15, 23, 42, 0.08); }
+
+    .lang-btn.active {
+      background: #2259d4;
+      border-color: #2259d4;
+      color: #fff;
+    }
+
+    .section {
+      padding: 26px 0;
+      border-top: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
     .section-title {
       display: flex;
       align-items: center;
@@ -124,6 +257,7 @@
       color: #0f172a;
       letter-spacing: -0.02em;
     }
+
     .section-icon {
       width: 30px;
       height: 30px;
@@ -135,13 +269,45 @@
       color: #2259d4;
       flex: 0 0 auto;
     }
-    .mini-title { margin: 0 0 8px; font-size: 15px; color: #102033; }
-    .list { margin: 0; padding-left: 18px; color: #27384a; font-size: 13.5px; }
-    .list li + li { margin-top: 6px; }
-    .callout { padding: 14px 14px 14px 16px; border-left: 4px solid #2259d4; }
-    .callout.warn { border-left-color: #ea580c; background: rgba(234, 88, 12, 0.09); }
-    .callout.ok { border-left-color: #059669; background: rgba(5, 150, 105, 0.09); }
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .mini-title {
+      margin: 0 0 8px;
+      font-size: 15px;
+      color: #102033;
+    }
+
+    .list {
+      margin: 0;
+      padding-left: 18px;
+      color: #27384a;
+      font-size: 13.5px;
+    }
+
+    .list li+li {
+      margin-top: 6px;
+    }
+
+    .callout {
+      padding: 14px 14px 14px 16px;
+      border-left: 4px solid #2259d4;
+    }
+
+    .callout.warn {
+      border-left-color: #ea580c;
+      background: rgba(234, 88, 12, 0.09);
+    }
+
+    .callout.ok {
+      border-left-color: #059669;
+      background: rgba(5, 150, 105, 0.09);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
     .chip {
       padding: 7px 11px;
       border-radius: 999px;
@@ -150,13 +316,16 @@
       font-size: 12px;
       font-weight: 700;
     }
+
     .wiki-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 13px;
       background: rgba(255, 255, 255, 0.56);
     }
-    .wiki-table th, .wiki-table td {
+
+    .wiki-table th,
+    .wiki-table td {
       padding: 12px 10px;
       border-bottom: 1px solid rgba(15, 23, 42, 0.08);
       text-align: left;
@@ -164,6 +333,7 @@
       word-break: break-word;
       overflow-wrap: break-word;
     }
+
     .wiki-table th:first-child,
     .wiki-table td:first-child {
       width: 28%;
@@ -171,6 +341,7 @@
       word-break: keep-all;
       overflow-wrap: normal;
     }
+
     .wiki-table th {
       color: #0f172a;
       font-size: 12px;
@@ -178,34 +349,54 @@
       letter-spacing: 0.04em;
       background: rgba(15, 23, 42, 0.03);
     }
-    .wiki-table tr:last-child td { border-bottom: 0; }
-    .build-mistakes-table { table-layout: auto; }
+
+    .wiki-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .build-mistakes-table {
+      table-layout: auto;
+    }
+
     .build-mistakes-table th:first-child,
     .build-mistakes-table td:first-child {
       width: 22%;
       white-space: nowrap;
     }
-    .build-mistakes-table col:nth-child(1) { width: 22%; }
-    .build-mistakes-table col:nth-child(2) { width: 24%; }
-    .build-mistakes-table col:nth-child(3) { width: 54%; }
+
+    .build-mistakes-table col:nth-child(1) {
+      width: 22%;
+    }
+
+    .build-mistakes-table col:nth-child(2) {
+      width: 24%;
+    }
+
+    .build-mistakes-table col:nth-child(3) {
+      width: 54%;
+    }
+
     .build-mistakes-table td:nth-child(2),
     .build-mistakes-table th:nth-child(2) {
       word-break: normal;
       white-space: normal;
       overflow-wrap: anywhere;
     }
+
     .build-mistakes-table td:nth-child(3),
     .build-mistakes-table th:nth-child(3) {
       word-break: normal;
       white-space: normal;
       overflow-wrap: anywhere;
     }
+
     .step {
       display: grid;
       grid-template-columns: 42px 1fr;
       gap: 12px;
       align-items: start;
     }
+
     .step-num {
       width: 42px;
       height: 42px;
@@ -218,13 +409,20 @@
       font-size: 16px;
       font-weight: 800;
     }
+
     .step-card {
       padding: 14px 14px 14px 16px;
       border-radius: 16px;
       background: rgba(255, 255, 255, 0.66);
       border: 1px solid rgba(15, 23, 42, 0.08);
     }
-    .step-card h4 { margin: 0 0 6px; font-size: 15px; color: #0f172a; }
+
+    .step-card h4 {
+      margin: 0 0 6px;
+      font-size: 15px;
+      color: #0f172a;
+    }
+
     .faq-q {
       cursor: pointer;
       padding: 15px 16px;
@@ -235,11 +433,32 @@
       font-weight: 700;
       color: #102033;
     }
-    .faq-a { display: none; padding: 0 16px 16px; }
-    .faq-item.open .faq-a { display: block; }
-    .faq-item.open .arrow { transform: rotate(90deg); }
-    .arrow { transition: transform .2s ease; color: #2259d4; }
-    .footer { padding: 28px 0 10px; text-align: center; color: #64788a; font-size: 12.5px; }
+
+    .faq-a {
+      display: none;
+      padding: 0 16px 16px;
+    }
+
+    .faq-item.open .faq-a {
+      display: block;
+    }
+
+    .faq-item.open .arrow {
+      transform: rotate(90deg);
+    }
+
+    .arrow {
+      transition: transform .2s ease;
+      color: #2259d4;
+    }
+
+    .footer {
+      padding: 28px 0 10px;
+      text-align: center;
+      color: #64788a;
+      font-size: 12.5px;
+    }
+
     .back-top {
       position: fixed;
       right: 16px;
@@ -252,28 +471,62 @@
       color: #fff;
       box-shadow: 0 12px 24px rgba(34, 89, 212, 0.26);
     }
-    .back-top.visible { display: block; }
+
+    .back-top.visible {
+      display: block;
+    }
+
     @media (max-width: 760px) {
-      .hero-top { align-items: flex-start; }
-      .hero-grid, .grid-2, .grid-3 { grid-template-columns: 1fr; }
-      .hero h1 { font-size: 26px; }
-      .section-title { font-size: 20px; }
-      .wiki-table { display: block; overflow-x: auto; }
+      .hero-top {
+        align-items: flex-start;
+      }
+
+      .hero-grid,
+      .grid-2,
+      .grid-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .hero h1 {
+        font-size: 26px;
+      }
+
+      .section-title {
+        font-size: 20px;
+      }
+
+      .wiki-table {
+        display: block;
+        overflow-x: auto;
+      }
+
       .wiki-table th:first-child,
       .wiki-table td:first-child {
         min-width: 9.5em;
       }
+
       .build-mistakes-table {
         width: 100%;
         min-width: 0;
       }
+
       .build-mistakes-table th:first-child,
       .build-mistakes-table td:first-child {
         min-width: 7em;
       }
-      .build-mistakes-table col:nth-child(1) { width: 22%; }
-      .build-mistakes-table col:nth-child(2) { width: 24%; }
-      .build-mistakes-table col:nth-child(3) { width: 54%; }
+
+      .build-mistakes-table col:nth-child(1) {
+        width: 22%;
+      }
+
+      .build-mistakes-table col:nth-child(2) {
+        width: 24%;
+      }
+
+      .build-mistakes-table col:nth-child(3) {
+        width: 54%;
+      }
+
       .build-mistakes-table th,
       .build-mistakes-table td {
         font-size: 12.5px;
@@ -281,6 +534,7 @@
     }
   </style>
 </head>
+
 <body>
   <nav class="nav-bar" id="navBar">
     <a class="nav-link zh" data-target="sec-overview">概览</a>
@@ -291,17 +545,17 @@
     <a class="nav-link en" data-target="sec-hub">Project Hub</a>
     <a class="nav-link zh" data-target="sec-editor">配置编辑器</a>
     <a class="nav-link en" data-target="sec-editor">Config Editor</a>
-    <a class="nav-link zh" data-target="sec-basic">Basic 页</a>
+    <a class="nav-link zh" data-target="sec-basic">基础页</a>
     <a class="nav-link en" data-target="sec-basic">Basic Tab</a>
     <a class="nav-link zh" data-target="sec-app-config">app-config.json</a>
     <a class="nav-link en" data-target="sec-app-config">app-config.json</a>
     <a class="nav-link zh" data-target="sec-rules">规则与事件</a>
     <a class="nav-link en" data-target="sec-rules">Rules & Events</a>
-    <a class="nav-link zh" data-target="sec-branding">Branding / Build</a>
+    <a class="nav-link zh" data-target="sec-branding">品牌 / 构建</a>
     <a class="nav-link en" data-target="sec-branding">Branding / Build</a>
     <a class="nav-link zh" data-target="sec-preview">预览与模板</a>
     <a class="nav-link en" data-target="sec-preview">Preview & Templates</a>
-    <a class="nav-link zh" data-target="sec-pack">Pack</a>
+    <a class="nav-link zh" data-target="sec-pack">打包</a>
     <a class="nav-link en" data-target="sec-pack">Pack</a>
     <a class="nav-link zh" data-target="sec-tools">工具</a>
     <a class="nav-link en" data-target="sec-tools">Tools</a>
@@ -317,7 +571,8 @@
           <div>
             <h1>FireflyApp Wiki</h1>
             <p class="hero-subtitle zh">这份帮助文档偏“项目知识库 / 使用手册”的详细说明，强烈建议先看再做项目！</p>
-            <p class="hero-subtitle en">This help page is now a project wiki and usage manual, built for reading while you configure!</p>
+            <p class="hero-subtitle en">This help page is now a project wiki and usage manual, built for reading while
+              you configure!</p>
           </div>
         </div>
         <div class="hero-grid">
@@ -325,25 +580,29 @@
             <strong class="zh">适合谁看</strong>
             <strong class="en">Who should read this</strong>
             <span class="zh block">第一次使用 FireflyApp、准备修改项目、或者打包时遇到问题的用户。</span>
-            <span class="en block">Users who are new to FireflyApp, preparing a project, or troubleshooting pack/runtime issues.</span>
+            <span class="en block">Users who are new to FireflyApp, preparing a project, or troubleshooting pack/runtime
+              issues.</span>
           </div>
           <div class="hero-pill">
             <strong class="zh">建议阅读顺序</strong>
             <strong class="en">Recommended order</strong>
-            <span class="zh block">先看“流程”和“项目中心”，再看“Config Editor 各页”，最后看“Pack”和“排错”。</span>
-            <span class="en block">Start with Workflow and Project Hub, then Config Editor tabs, and finally Pack and Troubleshooting.</span>
+            <span class="zh block">先看“流程”和“项目中心”，再看“配置编辑器 各页”，最后看“打包”和“排错”。</span>
+            <span class="en block">Start with Workflow and Project Hub, then Config Editor tabs, and finally Pack and
+              Troubleshooting.</span>
           </div>
           <div class="hero-pill">
             <strong class="zh">文档目标</strong>
             <strong class="en">Goal of this wiki</strong>
             <span class="zh block">帮助你理解每个界面、每个开关会影响什么，以及不同功能之间的联动关系。</span>
-            <span class="en block">Explain what every screen and toggle does, and how features affect one another.</span>
+            <span class="en block">Explain what every screen and toggle does, and how features affect one
+              another.</span>
           </div>
         </div>
         <div class="toolbar">
           <button class="lang-btn" type="button" onclick="setLang('zh')">中文</button>
           <button class="lang-btn" type="button" onclick="setLang('en')">English</button>
-          <a class="jump-btn" href="https://github.com/Iskongkongyo/FireflyApp" target="_blank" rel="noreferrer">GitHub</a>
+          <a class="jump-btn" href="https://github.com/Iskongkongyo/FireflyApp" target="_blank"
+            rel="noreferrer">GitHub</a>
         </div>
       </div>
     </header>
@@ -356,17 +615,18 @@
           <span class="en">Documentation Overview</span>
         </h2>
         <p class="section-desc zh">把 FireflyApp 理解成三层会比较容易：项目层、预览层、打包层。项目层负责保存配置，预览层负责实际运行网站，打包层负责生成最终 APK。</p>
-        <p class="section-desc en">Think of FireflyApp in three layers: project, preview/runtime, and pack. The project layer stores configuration, preview runs the site, and pack generates the final APK.</p>
+        <p class="section-desc en">Think of FireflyApp in three layers: project, preview/runtime, and pack. The project
+          layer stores configuration, preview runs the site, and pack generates the final APK.</p>
 
         <div class="grid-2">
           <div class="card">
             <h3 class="mini-title zh">你会在这份 Wiki 里看到什么</h3>
             <h3 class="mini-title en">What this wiki covers</h3>
             <ul class="list zh block">
-              <li>Project Hub 里每个入口和按钮的作用</li>
-              <li>Config Editor 六个标签页分别适合改什么</li>
+              <li>项目中心（即首页） 里每个入口和按钮的作用</li>
+              <li>配置编辑器 六个标签页分别适合改什么</li>
               <li>导航、预加载、权限、夜间模式这些功能之间的关系</li>
-              <li>Pack 页里的 Prepare、Preflight、Pack、Install、Share 分别代表什么</li>
+              <li>打包 页里的 准备、预检查、打包、安装、分享 分别代表什么</li>
               <li>遇到白屏、权限失败、安装冲突时先排查什么</li>
             </ul>
             <ul class="list en block">
@@ -397,7 +657,10 @@
                 </th>
               </tr>
               <tr>
-                <td><code>Project</code></td>
+                <td>
+                  <code class="zh">项目</code>
+                  <code class="en">Project</code>
+                </td>
                 <td>
                   <span class="zh">一个完整的网站转 App 配置单元</span>
                   <span class="en">A complete website-to-app configuration unit</span>
@@ -408,7 +671,10 @@
                 </td>
               </tr>
               <tr>
-                <td><code>Preview</code></td>
+                <td>
+                  <code class="zh">预览</code>
+                  <code class="en">Preview</code>
+                </td>
                 <td>
                   <span class="zh">预览运行时</span>
                   <span class="en">Preview runtime</span>
@@ -419,7 +685,10 @@
                 </td>
               </tr>
               <tr>
-                <td><code>Pack</code></td>
+                <td>
+                  <code class="zh">打包</code>
+                  <code class="en">Pack</code>
+                </td>
                 <td>
                   <span class="zh">模板 APK 重打包</span>
                   <span class="en">Template APK repack</span>
@@ -434,8 +703,9 @@
         </div>
 
         <div class="callout ok" style="margin-top:12px">
-          <span class="zh">阅读建议：如果你只想快速做出一个可安装 APP，先看“完整流程”和“Pack”；如果你准备做细节打磨，重点看“Basic 页”、“Branding / Build”和“排错”。</span>
-          <span class="en">Reading tip: if you only want a shippable APK quickly, start with Workflow and Pack. If you want polish, focus on Basic, Branding / Build, and Troubleshooting.</span>
+          <span class="zh">阅读建议：如果你只想快速做出一个可安装 APP，先看“完整流程”和“打包”；如果你准备做细节打磨，重点看“基础页”、“品牌 / 构建”和“排错”。</span>
+          <span class="en">Reading tip: if you only want a shippable APK quickly, start with Workflow and Pack. If you
+            want polish, focus on Basic, Branding / Build, and Troubleshooting.</span>
         </div>
       </section>
 
@@ -446,7 +716,8 @@
           <span class="en">End-to-End Workflow</span>
         </h2>
         <p class="section-desc zh">FireflyApp 的推荐使用流程其实很稳定：先建项目，再做基础配置，再预览，最后打包。下面这套流程适合大多数场景。</p>
-        <p class="section-desc en">The recommended FireflyApp workflow is stable: create a project, configure the basics, preview, then pack. This sequence fits most use cases.</p>
+        <p class="section-desc en">The recommended FireflyApp workflow is stable: create a project, configure the
+          basics, preview, then pack. This sequence fits most use cases.</p>
 
         <div class="steps">
           <div class="step">
@@ -454,26 +725,29 @@
             <div class="step-card">
               <h4 class="zh">创建项目</h4>
               <h4 class="en">Create a project</h4>
-              <p class="zh">从 Project Hub 新建项目，先填一个易读的项目名。项目名主要影响管理体验，最终安装后显示的应用名称可以在 Build 页单独设置。</p>
-              <p class="en">Create a new project from Project Hub. Use a readable internal name. The installed app name can be changed later in Build.</p>
+              <p class="zh">从 项目中心 新建项目，先填一个易读的项目名。项目名主要影响管理体验，最终安装后显示的应用名称可以在 编辑 页单独设置。</p>
+              <p class="en">Create a new project from Project Hub. Use a readable internal name. The installed app name
+                can be changed later in Build.</p>
             </div>
           </div>
           <div class="step">
             <div class="step-num">2</div>
             <div class="step-card">
-              <h4 class="zh">先完成 Basic 页</h4>
+              <h4 class="zh">先完成基础页</h4>
               <h4 class="en">Finish the Basic tab first</h4>
-              <p class="zh">先把默认 URL、模板、导航、浏览器行为、安全策略配好。很多预览问题都不是“代码错了”，而是 Basic 页参数之间有冲突。</p>
-              <p class="en">Set the default URL, template, navigation, browser behavior, and security first. Many preview issues come from conflicting Basic settings.</p>
+              <p class="zh">先把默认 URL、模板、导航、浏览器行为、安全策略配好。很多预览问题都不是“代码错了”，而是 基础页参数之间有冲突。</p>
+              <p class="en">Set the default URL, template, navigation, browser behavior, and security first. Many
+                preview issues come from conflicting Basic settings.</p>
             </div>
           </div>
           <div class="step">
             <div class="step-num">3</div>
             <div class="step-card">
-              <h4 class="zh">再补 Rules / Events / Branding / Build</h4>
+              <h4 class="zh">再补规则 / 事件 / 品牌 / 构建</h4>
               <h4 class="en">Then move to Rules / Events / Branding / Build</h4>
               <p class="zh">页面规则、页面事件、品牌资源和打包身份建议放在第二轮做，因为它们依赖你先确定整体模板和导航结构。</p>
-              <p class="en">Rules, events, branding, and build identity are best handled after the overall template and navigation structure are settled.</p>
+              <p class="en">Rules, events, branding, and build identity are best handled after the overall template and
+                navigation structure are settled.</p>
             </div>
           </div>
           <div class="step">
@@ -482,16 +756,18 @@
               <h4 class="zh">预览验证</h4>
               <h4 class="en">Preview and validate</h4>
               <p class="zh">预览时重点观察：导航切换、权限提示、加载浮层、错误页、夜间模式、状态栏颜色、网站对 WebView 的兼容性。</p>
-              <p class="en">During preview, focus on navigation transitions, permission prompts, loading overlay, error pages, dark mode, system bar colors, and site compatibility.</p>
+              <p class="en">During preview, focus on navigation transitions, permission prompts, loading overlay, error
+                pages, dark mode, system bar colors, and site compatibility.</p>
             </div>
           </div>
           <div class="step">
             <div class="step-num">5</div>
             <div class="step-card">
-              <h4 class="zh">Prepare → Pack → Install</h4>
+              <h4 class="zh">准备 → 打包 → 安装</h4>
               <h4 class="en">Prepare → Pack → Install</h4>
-              <p class="zh">Prepare 会先准备模板工作区并刷新预检查；Pack 才是真正生成 APK；Install / Share 则基于最新成功输出的产物。</p>
-              <p class="en">Prepare builds the workspace and refreshes preflight. Pack generates the APK. Install and Share operate on the latest successful output.</p>
+              <p class="zh">准备 会先准备模板工作区并刷新预检查；打包 才是真正生成 APK；安装 / 分享 则基于最新成功输出的产物。</p>
+              <p class="en">Prepare builds the workspace and refreshes preflight. Pack generates the APK. Install and
+                Share operate on the latest successful output.</p>
             </div>
           </div>
         </div>
@@ -500,36 +776,40 @@
       <section class="section" id="sec-hub">
         <h2 class="section-title">
           <span class="section-icon">🏠</span>
-          <span class="zh">Project Hub 项目中心</span>
+          <span class="zh">项目中心</span>
           <span class="en">Project Hub</span>
         </h2>
-        <p class="section-desc zh">Project Hub 是宿主 App 的入口页，也是你管理多个项目的地方。它负责项目列表、导入导出、语言切换、帮助入口和 Pack 跳转。</p>
-        <p class="section-desc en">Project Hub is the host app home screen. It manages your projects, import/export actions, language selection, help access, and Pack entry points.</p>
+        <p class="section-desc zh">项目中心 是宿主 App 的入口页，也是你管理多个项目的地方。它负责项目列表、导入导出、语言切换、帮助入口和 打包 跳转。</p>
+        <p class="section-desc en">Project Hub is the host app home screen. It manages your projects, import/export
+          actions, language selection, help access, and Pack entry points.</p>
 
         <div class="grid-3">
           <div class="card">
             <h3 class="mini-title zh">顶部概览</h3>
             <h3 class="mini-title en">Top dashboard</h3>
             <p class="muted zh">展示项目数量、最近项目和一些快捷入口。更像工作台，不直接影响打包结果。</p>
-            <p class="muted en">Shows project count, latest project, and quick actions. It is mainly a workspace summary.</p>
+            <p class="muted en">Shows project count, latest project, and quick actions. It is mainly a workspace
+              summary.</p>
           </div>
           <div class="card">
             <h3 class="mini-title zh">项目卡片</h3>
             <h3 class="mini-title en">Project cards</h3>
-            <p class="muted zh">每个卡片通常会提供进入编辑器、预览、导出和 Pack 等动作。以后你修改同一个项目，大多数时候都从这里进入。</p>
-            <p class="muted en">Each card provides actions such as open editor, preview, export, and Pack. Most repeated work starts here.</p>
+            <p class="muted zh">每个卡片通常会提供进入编辑器、预览、导出和 打包 等动作。以后你修改同一个项目，大多数时候都从这里进入。</p>
+            <p class="muted en">Each card provides actions such as open editor, preview, export, and Pack. Most repeated
+              work starts here.</p>
           </div>
           <div class="card">
             <h3 class="mini-title zh">侧边工具</h3>
             <h3 class="mini-title en">Side tools</h3>
             <p class="muted zh">帮助文档、图标设计器、图标仓库、语言切换和 About 都在这里。对项目内容无害，适合随时进入查看。</p>
-            <p class="muted en">Help docs, icon designer, icon catalog, language switch, and About live here. They are safe utility entries.</p>
+            <p class="muted en">Help docs, icon designer, icon catalog, language switch, and About live here. They are
+              safe utility entries.</p>
           </div>
         </div>
 
         <div class="stack" style="margin-top:12px">
           <div class="card">
-            <h3 class="mini-title zh">Project Hub 里最常用的几个动作</h3>
+            <h3 class="mini-title zh">项目中心 里最常用的几个动作</h3>
             <h3 class="mini-title en">Most-used actions in Project Hub</h3>
             <table class="wiki-table">
               <tr>
@@ -547,7 +827,10 @@
                 </th>
               </tr>
               <tr>
-                <td><code>New Project</code></td>
+                <td>
+                  <code class="zh">新建项目</code>
+                  <code class="en">New Project</code>
+                </td>
                 <td>
                   <span class="zh">从零开始做一个新项目</span>
                   <span class="en">Start a brand-new project</span>
@@ -558,18 +841,25 @@
                 </td>
               </tr>
               <tr>
-                <td><code>Import Package</code></td>
+                <td>
+                  <code class="zh">导入项目</code>
+                  <code class="en">Import Package</code>
+                </td>
                 <td>
                   <span class="zh">导入现有项目包</span>
                   <span class="en">Import an existing project package</span>
                 </td>
                 <td>
                   <span class="zh">适合迁移到新设备，或拿到别人发来的项目文件；导入完成后会直接进入编辑页</span>
-                  <span class="en">Use when moving to a new device or opening someone else’s project package; after import, the editor opens directly</span>
+                  <span class="en">Use when moving to a new device or opening someone else’s project package; after
+                    import, the editor opens directly</span>
                 </td>
               </tr>
               <tr>
-                <td><code>Preview</code></td>
+                <td>
+                  <code class="zh">预览</code>
+                  <code class="en">Preview</code>
+                </td>
                 <td>
                   <span class="zh">验证实际运行效果</span>
                   <span class="en">Validate runtime behavior</span>
@@ -580,7 +870,10 @@
                 </td>
               </tr>
               <tr>
-                <td><code>Pack</code></td>
+                <td>
+                  <code class="zh">打包</code>
+                  <code class="en">Pack</code>
+                </td>
                 <td>
                   <span class="zh">进入打包页</span>
                   <span class="en">Open the Pack page</span>
@@ -594,30 +887,32 @@
           </div>
 
           <div class="callout">
-            <span class="zh">经验建议：如果你在改一个已经接近完成的项目，不要一开始就进 Pack。先在 Project Hub 打开 Preview 走一轮完整交互，能更早发现权限、导航和主题问题。</span>
-            <span class="en">Practical tip: when refining a nearly finished project, do not jump straight into Pack. Run through Preview first to catch permission, navigation, and theme issues earlier.</span>
+            <span class="zh">经验建议：如果你在改一个已经接近完成的项目，不要一开始就进打包。先在项目中心（即首页）打开预览走一轮完整交互，能更早发现权限、导航和主题问题。</span>
+            <span class="en">Practical tip: when refining a nearly finished project, do not jump straight into Pack. Run
+              through Preview first to catch permission, navigation, and theme issues earlier.</span>
           </div>
         </div>
       </section>
       <section class="section" id="sec-editor">
         <h2 class="section-title">
           <span class="section-icon">🛠️</span>
-          <span class="zh">Config Editor 配置编辑器</span>
+          <span class="zh">配置编辑器</span>
           <span class="en">Config Editor</span>
         </h2>
-        <p class="section-desc zh">Config Editor 是整个项目的控制台。大多数用户会在这里完成 80% 以上的工作。它按标签页拆分功能，目的是让复杂配置更容易组织。</p>
-        <p class="section-desc en">Config Editor is the project control center. Most work happens here. It splits features into tabs so complex configuration stays organized.</p>
+        <p class="section-desc zh">配置编辑器是整个项目的控制台。大多数用户会在这里完成 80% 以上的工作。它按标签页拆分功能，目的是让复杂配置更容易组织。</p>
+        <p class="section-desc en">Config Editor is the project control center. Most work happens here. It splits
+          features into tabs so complex configuration stays organized.</p>
 
         <div class="grid-2">
           <div class="card">
             <h3 class="mini-title zh">六个标签页分别做什么</h3>
             <h3 class="mini-title en">What each tab is for</h3>
             <ul class="list zh block">
-              <li><code>Basic</code>：项目骨架，先确定模板、导航、浏览器、安全策略</li>
-              <li><code>Rules</code>：给特定 URL 套特殊行为</li>
-              <li><code>Events</code>：监听页面生命周期，触发动作</li>
-              <li><code>Branding</code>：应用图标、启动图、栏位颜色、抽屉图片等视觉资源</li>
-              <li><code>Build</code>：应用身份、输出命名、签名</li>
+              <li><code>基础</code>：项目骨架，先确定模板、导航、浏览器、安全策略</li>
+              <li><code>规则</code>：给特定 URL 套特殊行为</li>
+              <li><code>事件</code>：监听页面生命周期，触发动作</li>
+              <li><code>品牌</code>：应用图标、启动图、栏位颜色、抽屉图片等视觉资源</li>
+              <li><code>构建</code>：应用身份、输出命名、签名</li>
               <li><code>JSON</code>：高级编辑模式，也是最终配置真相源</li>
             </ul>
             <ul class="list en block">
@@ -634,65 +929,79 @@
             <h3 class="mini-title zh">编辑器里需要记住的几个通用动作</h3>
             <h3 class="mini-title en">Universal editor actions</h3>
             <div class="chips">
-              <span class="chip">Save</span>
-              <span class="chip">Reset</span>
-              <span class="chip">Import</span>
-              <span class="chip">Export</span>
-              <span class="chip">Preview</span>
+              <span class="chip zh">保存</span>
+              <span class="chip en">Save</span>
+              <span class="chip zh">重置</span>
+              <span class="chip en">Reset</span>
+              <span class="chip zh">导入</span>
+              <span class="chip en">Import</span>
+              <span class="chip zh">导出</span>
+              <span class="chip en">Export</span>
+              <span class="chip zh">预览</span>
+              <span class="chip en">Preview</span>
+
             </div>
             <p class="muted zh" style="margin-top:10px">保存会把当前可视化状态写回项目配置；重置会恢复到默认示例；导入导出适合做版本备份；Preview 适合做行为验证。</p>
-            <p class="muted en" style="margin-top:10px">Save writes current visual state back to project config. Reset restores bundled defaults. Import/export are useful for backups. Preview validates real behavior.</p>
+            <p class="muted en" style="margin-top:10px">Save writes current visual state back to project config. Reset
+              restores bundled defaults. Import/export are useful for backups. Preview validates real behavior.</p>
           </div>
 
           <div class="card">
             <h3 class="mini-title zh">代码编辑器增强</h3>
             <h3 class="mini-title en">Code editor enhancements</h3>
             <ul class="list zh block">
-              <li>全局 JS / CSS、规则 JS / CSS、按钮 <code>run_js</code>、事件 <code>run_js</code> 都支持进入全屏代码编辑器</li>
+              <li>全局 JS / CSS、规则 JS / CSS、按钮 <code>运行 JavaScript</code>、事件 <code>运行 JavaScript</code> 都支持进入全屏代码编辑器</li>
               <li>全局 JS / CSS 与规则 JS / CSS 已支持多代码块编辑，可新增、复制、排序、删除</li>
               <li>JS 编辑器右上角 <code>+</code> 可插入常用片段，如 <code>fetch</code>、等待元素出现、事件变量模板等</li>
             </ul>
             <ul class="list en block">
-              <li>Global JS/CSS, rule JS/CSS, button <code>run_js</code>, and event <code>run_js</code> can all open in a fullscreen code editor</li>
-              <li>Global and rule JS/CSS now support true multi-block editing with add, duplicate, reorder, and delete</li>
-              <li>The JS editor has a <code>+</code> menu for common snippets such as <code>fetch</code>, wait-for-element helpers, and event-variable templates</li>
+              <li>Global JS/CSS, rule JS/CSS, button <code>run_js</code>, and event <code>run_js</code> can all open in
+                a fullscreen code editor</li>
+              <li>Global and rule JS/CSS now support true multi-block editing with add, duplicate, reorder, and delete
+              </li>
+              <li>The JS editor has a <code>+</code> menu for common snippets such as <code>fetch</code>,
+                wait-for-element helpers, and event-variable templates</li>
             </ul>
           </div>
         </div>
 
         <div class="callout warn" style="margin-top:12px">
           <span class="zh">如果你发现可视化表单里没有你想调的字段，先不要怀疑功能不存在。很多高级字段仍然可以在 <code>JSON</code> 标签页里直接编辑。</span>
-          <span class="en">If a field is missing from the visual form, do not assume the feature does not exist. Many advanced fields are still available directly in the <code>JSON</code> tab.</span>
+          <span class="en">If a field is missing from the visual form, do not assume the feature does not exist. Many
+            advanced fields are still available directly in the <code>JSON</code> tab.</span>
         </div>
       </section>
 
       <section class="section" id="sec-basic">
         <h2 class="section-title">
           <span class="section-icon">⚙️</span>
-          <span class="zh">Basic 页：先把骨架搭好</span>
+          <span class="zh">基础页：先把骨架搭好</span>
           <span class="en">Basic Tab: Build the skeleton first</span>
         </h2>
-        <p class="section-desc zh">Basic 页是最重要的页面。推荐顺序是：先定模板，再定导航，再定浏览器行为，最后定安全策略。很多问题都可以在这里提前规避。</p>
-        <p class="section-desc en">The Basic tab is the most important screen. Recommended order: choose the template, define navigation, set browser behavior, then security. Many issues can be prevented here.</p>
+        <p class="section-desc zh">基础页是最重要的页面。推荐顺序是：先定模板，再定导航，再定浏览器行为，最后定安全策略。很多问题都可以在这里提前规避。</p>
+        <p class="section-desc en">The Basic tab is the most important screen. Recommended order: choose the template,
+          define navigation, set browser behavior, then security. Many issues can be prevented here.</p>
 
         <div class="grid-2">
           <div class="card">
-            <h3 class="mini-title zh">1. App 区域</h3>
+            <h3 class="mini-title zh">1. 应用 区域</h3>
             <h3 class="mini-title en">1. App section</h3>
             <ul class="list zh block">
-              <li><code>Project name</code> 是项目内部名字，不等于最终安装后的应用名称</li>
-              <li><code>Template</code> 决定外层壳结构，后续很多参数会跟着变化</li>
-              <li><code>defaultUrl</code> 是单页模板的主入口，也是很多规则和事件的起点</li>
+              <li><code>项目名称</code> 是项目内部名字，不等于最终安装后的应用名称</li>
+              <li><code>模板</code> 决定外层壳结构，后续很多参数会跟着变化</li>
+              <li><code>默认URL</code> 是单页模板的主入口，也是很多规则和事件的起点</li>
             </ul>
             <ul class="list en block">
-              <li><code>Project name</code> is the internal project label, not necessarily the final installed app name</li>
+              <li><code>Project name</code> is the internal project label, not necessarily the final installed app name
+              </li>
               <li><code>Template</code> decides the outer shell, and many later options depend on it</li>
-              <li><code>defaultUrl</code> is the main entry for single-page shells and often the base for rules and events</li>
+              <li><code>defaultUrl</code> is the main entry for single-page shells and often the base for rules and
+                events</li>
             </ul>
           </div>
 
           <div class="card">
-            <h3 class="mini-title zh">2. Navigation 区域</h3>
+            <h3 class="mini-title zh">2. 导航 区域</h3>
             <h3 class="mini-title en">2. Navigation section</h3>
             <ul class="list zh block">
               <li>导航项最多支持 5 个</li>
@@ -712,16 +1021,19 @@
             <h3 class="mini-title zh">3. 导航相关的高级设置</h3>
             <h3 class="mini-title en">3. Advanced navigation settings</h3>
             <ul class="list zh block">
-              <li><code>Enable swipe navigation</code>：允许左右滑动切换相邻导航项</li>
-              <li><code>Navigation preload count</code>：后台预加载相邻导航根页，减少首次切换等待</li>
-              <li><code>Preserve current navigation page stack</code>：保留当前导航项内最近页面栈</li>
-              <li><code>Navigation back behavior</code>：决定返回键优先走网页历史还是先回首页导航</li>
+              <li><code>启用滑动切换导航</code>：允许左右滑动切换相邻导航项</li>
+              <li><code>导航预加载数量</code>：后台预加载相邻导航根页，减少首次切换等待</li>
+              <li><code>保留当前导航页栈</code>：保留当前导航项内最近页面栈</li>
+              <li><code>导航返回行为</code>：决定返回键优先走网页历史还是先回首页导航</li>
             </ul>
             <ul class="list en block">
-              <li><code>Enable swipe navigation</code>: allows left/right switching between adjacent navigation items</li>
+              <li><code>Enable swipe navigation</code>: allows left/right switching between adjacent navigation items
+              </li>
               <li><code>Navigation preload count</code>: preloads nearby root pages in the background</li>
-              <li><code>Preserve current navigation page stack</code>: keeps recent pages inside the current navigation item</li>
-              <li><code>Navigation back behavior</code>: decides whether back prefers web history or returns to the home navigation item first</li>
+              <li><code>Preserve current navigation page stack</code>: keeps recent pages inside the current navigation
+                item</li>
+              <li><code>Navigation back behavior</code>: decides whether back prefers web history or returns to the home
+                navigation item first</li>
             </ul>
           </div>
 
@@ -736,22 +1048,23 @@
             <ul class="list en block">
               <li>When navigation preload is enabled, back behavior is fixed to reset-on-navigation</li>
               <li>Preserving the current navigation stack also constrains navigation back behavior</li>
-              <li>Preloaded pages stay out of web history until first real visit, and hidden-page side effects are suppressed</li>
+              <li>Preloaded pages stay out of web history until first real visit, and hidden-page side effects are
+                suppressed</li>
             </ul>
           </div>
         </div>
 
         <div class="grid-2" style="margin-top:12px">
           <div class="card">
-            <h3 class="mini-title zh">5. Browser 区域</h3>
+            <h3 class="mini-title zh">5. 浏览器 区域</h3>
             <h3 class="mini-title en">5. Browser section</h3>
             <ul class="list zh block">
-              <li><code>showLoadingOverlay</code>：切到慢页面时显示加载浮层</li>
-              <li><code>showPageProgressBar</code>：显示顶部加载进度条</li>
-              <li><code>showErrorView</code>：加载失败时显示宿主错误页</li>
-              <li><code>nightMode</code>：<code>off / on / follow_theme</code></li>
-              <li><code>screenOrientation</code>：<code>unspecified / portrait / landscape</code>，可控制不限制、强制竖屏或强制横屏</li>
-              <li><code>immersiveStatusBar</code>：是否让内容更贴近状态栏</li>
+              <li><code>显示加载浮层</code>：切到慢页面时显示加载浮层</li>
+              <li><code>显示加载进度条</code>：显示顶部加载进度条</li>
+              <li><code>显示错误页</code>：加载失败时显示宿主错误页</li>
+              <li><code>夜间模式</code>：<code>关闭 / 开启 / 跟随主题</code></li>
+              <li><code>屏幕方向</code>：<code>unspecified / portrait / landscape</code>，可控制不限制、强制竖屏或强制横屏</li>
+              <li><code>沉浸式状态栏</code>：是否让内容更贴近状态栏</li>
               <li><code>userAgent</code>：只在确实需要伪装设备类型时再改</li>
             </ul>
             <ul class="list en block">
@@ -759,28 +1072,33 @@
               <li><code>showPageProgressBar</code>: shows the top loading progress bar</li>
               <li><code>showErrorView</code>: displays the host error page when loads fail</li>
               <li><code>nightMode</code>: <code>off / on / follow_theme</code></li>
-              <li><code>screenOrientation</code>: <code>unspecified / portrait / landscape</code> to keep rotation free, force portrait, or force landscape</li>
+              <li><code>screenOrientation</code>: <code>unspecified / portrait / landscape</code> to keep rotation free,
+                force portrait, or force landscape</li>
               <li><code>immersiveStatusBar</code>: controls whether content reaches into the status bar area</li>
-              <li><code>userAgent</code>: only change this when you truly need to emulate another device/browser profile</li>
+              <li><code>userAgent</code>: only change this when you truly need to emulate another device/browser profile
+              </li>
             </ul>
           </div>
 
           <div class="card">
-            <h3 class="mini-title zh">6. Security 区域</h3>
+            <h3 class="mini-title zh">6. 安全 区域</h3>
             <h3 class="mini-title en">6. Security section</h3>
             <ul class="list zh block">
-              <li><code>allowedHosts</code> 是第一道限制，决定哪些域名允许在壳内加载</li>
-              <li><code>allowExternalHosts</code> 为关时，白名单外 URL 会被严格处理</li>
-              <li><code>Enable Native KV bridge</code> 用来控制是否向页面暴露 <code>NativeBridge</code></li>
-              <li><code>kvTrustedHosts</code> 是独立于 <code>allowedHosts</code> 的第二道限制，只决定哪些 host 能访问原生 KV</li>
-              <li><code>openOtherAppsMode</code> 支持 <code>ask / allow / block</code></li>
-              <li><code>sslErrorHandling</code> 支持 <code>strict / ignore</code>，默认建议严格校验</li>
+              <li><code>允许的Hosts</code> 是第一道限制，决定哪些域名允许在壳内加载</li>
+              <li><code>允许外部Hosts</code> 为关时，白名单外 URL 会被严格处理</li>
+              <li><code>启用原生KV桥</code> 用来控制是否向页面暴露 <code>NativeBridge</code></li>
+              <li><code>KV可信Hosts</code> 是独立于 <code>允许的Hosts</code> 的第二道限制，只决定哪些 host 能访问原生 KV</li>
+              <li><code>打开其他应用</code> 支持 <code>询问 / 允许 / 拦截</code></li>
+              <li><code>SSL证书错误处理</code> 支持 <code>严格校验 / 忽略SSL证书错误</code>，默认建议严格校验</li>
             </ul>
             <ul class="list en block">
-              <li><code>allowedHosts</code> is the first barrier that decides which domains may load inside the shell</li>
+              <li><code>allowedHosts</code> is the first barrier that decides which domains may load inside the shell
+              </li>
               <li>When <code>allowExternalHosts</code> is off, URLs outside the whitelist are handled strictly</li>
-              <li><code>Enable Native KV bridge</code> controls whether the page receives the <code>NativeBridge</code> interface</li>
-              <li><code>kvTrustedHosts</code> is a second, separate gate from <code>allowedHosts</code>, and only decides which hosts may access native KV</li>
+              <li><code>Enable Native KV bridge</code> controls whether the page receives the <code>NativeBridge</code>
+                interface</li>
+              <li><code>kvTrustedHosts</code> is a second, separate gate from <code>allowedHosts</code>, and only
+                decides which hosts may access native KV</li>
               <li><code>openOtherAppsMode</code> supports <code>ask / allow / block</code></li>
               <li><code>sslErrorHandling</code> supports <code>strict / ignore</code>, and strict is recommended</li>
             </ul>
@@ -791,22 +1109,28 @@
             <h3 class="mini-title en">7. Top-bar button behaviors</h3>
             <ul class="list zh block">
               <li>带顶栏模板支持控制返回、首页、刷新按钮是否显示</li>
-              <li>返回按钮支持 <code>default_back</code>、<code>default_home</code>、<code>default_navigation_item</code>、<code>run_js</code></li>
-              <li>首页和刷新按钮也支持原生行为与 <code>run_js</code> 结合</li>
-              <li>当按钮行为设为 <code>run_js</code> 时，会打开全屏代码编辑器，适合写较长脚本</li>
+              <li>返回按钮支持 <code>默认返回动作</code>、<code>默认首页</code>、<code>默认导航项</code>、<code>执行 JavaScript</code></li>
+              <li>首页和刷新按钮也支持原生行为与 <code>运行 JavaScript</code> 结合</li>
+              <li>当按钮行为设为 <code>运行 JavaScript</code> 时，会打开全屏代码编辑器，适合写较长脚本</li>
             </ul>
             <ul class="list en block">
               <li>Templates with a top bar can control whether back, home, and refresh buttons are shown</li>
-              <li>The back button supports <code>default_back</code>, <code>default_home</code>, <code>default_navigation_item</code>, and <code>run_js</code></li>
+              <li>The back button supports <code>default_back</code>, <code>default_home</code>,
+                <code>default_navigation_item</code>, and <code>run_js</code>
+              </li>
               <li>Home and refresh buttons also support both native behaviors and <code>run_js</code></li>
-              <li>When a button is set to <code>run_js</code>, it opens in the fullscreen code editor for longer scripts</li>
+              <li>When a button is set to <code>run_js</code>, it opens in the fullscreen code editor for longer scripts
+              </li>
             </ul>
           </div>
         </div>
 
         <div class="callout warn" style="margin-top:12px">
-          <span class="zh">最常见的 Basic 页误区：网站能在浏览器里打开，不代表它就应该被放进 <code>allowedHosts</code> 之外的跳转流程里。很多外链、登录跳转、支付流程都要结合安全策略一起测。</span>
-          <span class="en">A common Basic-tab mistake: just because a site opens in a browser does not mean it should be left outside the intended <code>allowedHosts</code> flow. External links, login redirects, and payments should be tested together with security settings.</span>
+          <span class="zh">最常见的基础页误区：网站能在浏览器里打开，不代表它就应该被放进 <code>允许的Hosts</code>
+            之外的跳转流程里。很多外链、登录跳转、支付流程都要结合安全策略一起测。</span>
+          <span class="en">A common Basic-tab mistake: just because a site opens in a browser does not mean it should be
+            left outside the intended <code>allowedHosts</code> flow. External links, login redirects, and payments
+            should be tested together with security settings.</span>
         </div>
       </section>
 
@@ -816,8 +1140,11 @@
           <span class="zh">app-config.json 详细配置说明</span>
           <span class="en">Detailed app-config.json Reference</span>
         </h2>
-        <p class="section-desc zh"><code>app-config.json</code> 是项目真正的配置真相源。可视化编辑器只是它的友好外壳。理解这份 JSON 后，你会更容易处理批量修改、高级字段和导入导出问题。</p>
-        <p class="section-desc en"><code>app-config.json</code> is the real source of truth for a project. The visual editor is only a friendly shell around it. Once you understand the JSON, advanced edits and import/export workflows become much easier.</p>
+        <p class="section-desc zh"><code>app-config.json</code> 是项目真正的配置真相源。可视化编辑器只是它的友好外壳。理解这份 JSON
+          后，你会更容易处理批量修改、高级字段和导入导出问题。</p>
+        <p class="section-desc en"><code>app-config.json</code> is the real source of truth for a project. The visual
+          editor is only a friendly shell around it. Once you understand the JSON, advanced edits and import/export
+          workflows become much easier.</p>
 
         <div class="card">
           <h3 class="mini-title zh">顶层结构</h3>
@@ -851,7 +1178,7 @@
             <tr>
               <td><code>app</code></td>
               <td>
-                <span class="zh">Basic 页的 App 区域</span>
+                <span class="zh">基础页的应用区域</span>
                 <span class="en">App area in the Basic tab</span>
               </td>
               <td>
@@ -862,29 +1189,31 @@
             <tr>
               <td><code>browser</code></td>
               <td>
-                <span class="zh">Basic 页的 Browser 区域</span>
+                <span class="zh">基础页的浏览器区域</span>
                 <span class="en">Browser area in the Basic tab</span>
               </td>
               <td>
                 <span class="zh">控制 WebView 行为，如夜间模式、加载浮层、错误页、沉浸式状态栏</span>
-                <span class="en">Controls WebView behavior such as dark mode, loading overlay, error page, and immersive status bar</span>
+                <span class="en">Controls WebView behavior such as dark mode, loading overlay, error page, and immersive
+                  status bar</span>
               </td>
             </tr>
             <tr>
               <td><code>shell</code></td>
               <td>
-                <span class="zh">Basic + Branding 的壳配置</span>
+                <span class="zh">基础 + 品牌的壳配置</span>
                 <span class="en">Shell settings across Basic and Branding</span>
               </td>
               <td>
                 <span class="zh">控制顶栏、底栏、抽屉、导航切换、预加载、阴影、颜色等原生壳行为</span>
-                <span class="en">Controls native shell behavior like bars, drawer, navigation switching, preload, shadow, and colors</span>
+                <span class="en">Controls native shell behavior like bars, drawer, navigation switching, preload,
+                  shadow, and colors</span>
               </td>
             </tr>
             <tr>
               <td><code>navigation</code></td>
               <td>
-                <span class="zh">Basic 页的 Navigation 区域</span>
+                <span class="zh">基础页的导航区域</span>
                 <span class="en">Navigation area in the Basic tab</span>
               </td>
               <td>
@@ -895,7 +1224,7 @@
             <tr>
               <td><code>security</code></td>
               <td>
-                <span class="zh">Basic 页的 Security 区域</span>
+                <span class="zh">基础页的安全区域</span>
                 <span class="en">Security area in the Basic tab</span>
               </td>
               <td>
@@ -906,29 +1235,31 @@
             <tr>
               <td><code>inject</code></td>
               <td>
-                <span class="zh">Basic 页 + JSON 页</span>
+                <span class="zh">基础页 + JSON 页</span>
                 <span class="en">Basic tab + JSON tab</span>
               </td>
               <td>
                 <span class="zh">定义全局注入的 JS / CSS，会作用于所有页面；可视化编辑器按单段内容编辑，JSON 仍然保留数组结构</span>
-                <span class="en">Defines global JS / CSS injection for all pages; the visual editor treats it as one full body, while JSON still keeps an array structure</span>
+                <span class="en">Defines global JS / CSS injection for all pages; the visual editor treats it as one
+                  full body, while JSON still keeps an array structure</span>
               </td>
             </tr>
             <tr>
               <td><code>pageRules</code></td>
               <td>
-                <span class="zh">Rules 页</span>
+                <span class="zh">规则页</span>
                 <span class="en">Rules tab</span>
               </td>
               <td>
                 <span class="zh">按 URL 规则覆盖页面标题、栏位可见性、错误页文案和页面注入</span>
-                <span class="en">Overrides title, chrome visibility, error text, and page injection based on URL rules</span>
+                <span class="en">Overrides title, chrome visibility, error text, and page injection based on URL
+                  rules</span>
               </td>
             </tr>
             <tr>
               <td><code>pageEvents</code></td>
               <td>
-                <span class="zh">Events 页</span>
+                <span class="zh">事件页</span>
                 <span class="en">Events tab</span>
               </td>
               <td>
@@ -965,7 +1296,7 @@
               <li><code>app.defaultUrl</code>：默认入口 URL</li>
               <li><code>browser.showLoadingOverlay</code>：是否显示加载浮层</li>
               <li><code>browser.showErrorView</code>：是否显示错误页</li>
-              <li><code>browser.nightMode</code>：<code>off / on / follow_theme</code></li>
+              <li><code>browser.nightMode</code>：<code>no / yes / follow theme</code></li>
               <li><code>browser.screenOrientation</code>：<code>unspecified / portrait / landscape</code></li>
               <li><code>browser.immersiveStatusBar</code>：是否启用沉浸式状态栏</li>
             </ul>
@@ -991,7 +1322,9 @@
               <li><code>shell.enableSwipeNavigation</code>：启用导航滑动切换</li>
               <li><code>shell.navigationPreloadCount</code>：后台预加载相邻导航页</li>
               <li><code>shell.topBarThemeColor</code> / <code>bottomBarThemeColor</code>：栏位主题色</li>
-              <li><code>shell.topBarBackBehavior</code> / <code>topBarHomeBehavior</code> / <code>topBarRefreshBehavior</code>：顶栏按钮行为</li>
+              <li><code>shell.topBarBackBehavior</code> / <code>topBarHomeBehavior</code> /
+                <code>topBarRefreshBehavior</code>：顶栏按钮行为
+              </li>
             </ul>
             <ul class="list en block">
               <li><code>navigation.items</code>: array of navigation items</li>
@@ -1000,7 +1333,9 @@
               <li><code>shell.enableSwipeNavigation</code>: enables swipe navigation switching</li>
               <li><code>shell.navigationPreloadCount</code>: preloads nearby navigation pages in the background</li>
               <li><code>shell.topBarThemeColor</code> / <code>bottomBarThemeColor</code>: bar theme colors</li>
-              <li><code>shell.topBarBackBehavior</code> / <code>topBarHomeBehavior</code> / <code>topBarRefreshBehavior</code>: top-bar button behaviors</li>
+              <li><code>shell.topBarBackBehavior</code> / <code>topBarHomeBehavior</code> /
+                <code>topBarRefreshBehavior</code>: top-bar button behaviors
+              </li>
             </ul>
           </div>
 
@@ -1021,13 +1356,15 @@
             <ul class="list en block">
               <li><code>security.allowedHosts</code>: host whitelist allowed inside the shell</li>
               <li><code>security.allowExternalHosts</code>: whether non-whitelisted URLs may proceed</li>
-              <li><code>security.enableNativeKvBridge</code>: whether the <code>NativeBridge</code> native KV bridge is enabled</li>
+              <li><code>security.enableNativeKvBridge</code>: whether the <code>NativeBridge</code> native KV bridge is
+                enabled</li>
               <li><code>security.kvTrustedHosts</code>: list of hosts allowed to access native KV</li>
               <li><code>security.openOtherAppsMode</code>: <code>ask / allow / block</code></li>
               <li><code>security.sslErrorHandling</code>: <code>strict / ignore</code></li>
               <li><code>inject.globalJs</code>: JS injected into all pages</li>
               <li><code>inject.globalCss</code>: CSS injected into all pages</li>
-              <li>The visual editor now supports multi-block and fullscreen code editing; the JSON tab is still the best place for final verification and bulk edits</li>
+              <li>The visual editor now supports multi-block and fullscreen code editing; the JSON tab is still the best
+                place for final verification and bulk edits</li>
             </ul>
           </div>
 
@@ -1038,14 +1375,17 @@
               <li><code>pageRules[].match</code>：按 URL 等于 / 前缀 / 包含 来匹配页面</li>
               <li><code>pageRules[].overrides</code>：覆写标题、栏位显示、错误页、注入等</li>
               <li><code>pageEvents[].trigger</code>：事件触发器，如 <code>page_finished</code></li>
-              <li><code>pageEvents[].actions</code>：动作列表，如 <code>toast</code>、<code>run_js</code>、<code>load_url</code></li>
+              <li><code>pageEvents[].actions</code>：动作列表，如 <code>toast</code>、<code>run_js</code>、<code>load_url</code>
+              </li>
               <li>这两部分最适合处理“某些页面要特殊对待”的需求</li>
             </ul>
             <ul class="list en block">
               <li><code>pageRules[].match</code>: matches pages by URL equals / prefix / contains</li>
               <li><code>pageRules[].overrides</code>: overrides title, bar visibility, error page, and injections</li>
               <li><code>pageEvents[].trigger</code>: event trigger such as <code>page_finished</code></li>
-              <li><code>pageEvents[].actions</code>: action list such as <code>toast</code>, <code>run_js</code>, or <code>load_url</code></li>
+              <li><code>pageEvents[].actions</code>: action list such as <code>toast</code>, <code>run_js</code>, or
+                <code>load_url</code>
+              </li>
               <li>These two sections are best for “special handling on specific pages”</li>
             </ul>
           </div>
@@ -1053,52 +1393,60 @@
 
         <div class="callout ok" style="margin-top:12px">
           <span class="zh">实用建议：如果你已经在可视化页面里改好了大部分内容，可以把 JSON 页当成“最终检查页”。尤其适合确认布尔值、颜色值、URL 和规则数组有没有被保存成你预期的样子。</span>
-          <span class="en">Practical tip: once most configuration is done visually, use the JSON tab as a final inspection page. It is especially useful for checking booleans, colors, URLs, and rule arrays before export or pack.</span>
+          <span class="en">Practical tip: once most configuration is done visually, use the JSON tab as a final
+            inspection page. It is especially useful for checking booleans, colors, URLs, and rule arrays before export
+            or pack.</span>
         </div>
       </section>
 
       <section class="section" id="sec-rules">
         <h2 class="section-title">
           <span class="section-icon">🧩</span>
-          <span class="zh">Rules / Events / JSON</span>
+          <span class="zh">规则 / 事件 / JSON</span>
           <span class="en">Rules / Events / JSON</span>
         </h2>
-        <p class="section-desc zh">这三个标签页适合做“细节控制”。如果 Basic 决定的是 App 骨架，这里决定的就是不同页面在骨架里的特殊行为。</p>
-        <p class="section-desc en">These tabs are for fine-grained control. If Basic defines the skeleton, these tabs define page-specific behavior inside that skeleton.</p>
+        <p class="section-desc zh">这三个标签页适合做“细节控制”。如果 基础 决定的是 应用 骨架，这里决定的就是不同页面在骨架里的特殊行为。</p>
+        <p class="section-desc en">These tabs are for fine-grained control. If Basic defines the skeleton, these tabs
+          define page-specific behavior inside that skeleton.</p>
 
         <div class="grid-3">
           <div class="card">
-            <h3 class="mini-title zh">Rules 页</h3>
+            <h3 class="mini-title zh">规则页</h3>
             <h3 class="mini-title en">Rules tab</h3>
             <p class="muted zh">按 URL 条件匹配页面，并覆盖标题、顶栏/底栏显示、错误页文案、注入脚本和样式等。</p>
-            <p class="muted en">Matches pages by URL conditions and overrides title, chrome visibility, error-page text, injected scripts, and styles.</p>
+            <p class="muted en">Matches pages by URL conditions and overrides title, chrome visibility, error-page text,
+              injected scripts, and styles.</p>
             <p class="muted zh">规则里的 JS / CSS 现在也支持多代码块管理和全屏代码编辑；如果你要做大批量修改或精确核对数组顺序，仍然可以在 JSON 页直接维护。</p>
-            <p class="muted en">Rule-level JS/CSS now support multi-block management and fullscreen editing too. For bulk changes or precise array-order checks, you can still maintain them directly in the JSON tab.</p>
+            <p class="muted en">Rule-level JS/CSS now support multi-block management and fullscreen editing too. For
+              bulk changes or precise array-order checks, you can still maintain them directly in the JSON tab.</p>
           </div>
           <div class="card">
-            <h3 class="mini-title zh">Events 页</h3>
+            <h3 class="mini-title zh">事件页</h3>
             <h3 class="mini-title en">Events tab</h3>
             <p class="muted zh">监听页面开始加载、完成、标题变化、离开页面、SPA 路由变化，然后执行一个或多个动作。</p>
-            <p class="muted en">Listens for page start, finish, title changes, page leave, and SPA route changes, then runs one or more actions.</p>
-            <p class="muted zh">事件里的 <code>run_js</code> 也会走全屏代码编辑器，更适合编写较长逻辑，并可配合事件模板变量调试。</p>
-            <p class="muted en">Event <code>run_js</code> actions also use the fullscreen code editor, which is better for longer scripts and easier event-variable debugging.</p>
+            <p class="muted en">Listens for page start, finish, title changes, page leave, and SPA route changes, then
+              runs one or more actions.</p>
+            <p class="muted zh">事件里的 <code>运行 JavaScript</code> 也会走全屏代码编辑器，更适合编写较长逻辑，并可配合事件模板变量调试。</p>
+            <p class="muted en">Event <code>run_js</code> actions also use the fullscreen code editor, which is better
+              for longer scripts and easier event-variable debugging.</p>
           </div>
           <div class="card">
             <h3 class="mini-title zh">JSON 页</h3>
             <h3 class="mini-title en">JSON tab</h3>
             <p class="muted zh">适合处理可视化表单还没暴露的字段，也是做复杂规则时最直接的方式。</p>
-            <p class="muted en">Best for fields not exposed in the visual editor and for advanced configuration authoring.</p>
+            <p class="muted en">Best for fields not exposed in the visual editor and for advanced configuration
+              authoring.</p>
           </div>
         </div>
 
         <div class="grid-2" style="margin-top:12px">
           <div class="card">
-            <h3 class="mini-title zh">Rules 页常见用法</h3>
+            <h3 class="mini-title zh">规则页常见用法</h3>
             <h3 class="mini-title en">Common Rule use cases</h3>
             <ul class="list zh block">
               <li>某个页面隐藏顶栏或底栏，让它更像全屏页</li>
               <li>对特定 URL 注入 JS / CSS</li>
-              <li>替换标题，让原网页 title 不再直接显示到原生栏位</li>
+              <li>替换标题，让原网页 标题 不再直接显示到原生栏位</li>
               <li>定义更友好的错误标题、错误说明和重试动作</li>
             </ul>
             <ul class="list en block">
@@ -1110,13 +1458,13 @@
           </div>
 
           <div class="card">
-            <h3 class="mini-title zh">Events 页常见用法</h3>
+            <h3 class="mini-title zh">事件页常见用法</h3>
             <h3 class="mini-title en">Common Event use cases</h3>
             <ul class="list zh block">
-              <li><code>page_finished</code> 后弹一个 Toast 提示</li>
-              <li><code>spa_url_changed</code> 时补跑一段 JS</li>
+              <li><code>页面加载完成</code> 后弹一个 Toast 提示</li>
+              <li><code>SPA 路由变化</code> 时补跑一段 JS</li>
               <li>检测离开页面时自动复制链接或跳转</li>
-              <li>用 <code>run_js</code> 做一些网站自身没暴露入口的行为</li>
+              <li>用 <code>运行 JavaScript</code> 做一些网站自身没暴露入口的行为</li>
             </ul>
             <ul class="list en block">
               <li>Show a toast after <code>page_finished</code></li>
@@ -1128,40 +1476,58 @@
         </div>
 
         <div class="card" style="margin-top:12px">
-          <h3 class="mini-title zh">Events 常见触发器与动作</h3>
+          <h3 class="mini-title zh">事件常见触发器与动作</h3>
           <h3 class="mini-title en">Common Event triggers and actions</h3>
           <div class="grid-2">
             <div>
-              <p class="muted zh"><strong>触发器</strong>：<code>page_started</code>、<code>page_finished</code>、<code>page_title_changed</code>、<code>page_left</code>、<code>spa_url_changed</code></p>
-              <p class="muted en"><strong>Triggers</strong>: <code>page_started</code>, <code>page_finished</code>, <code>page_title_changed</code>, <code>page_left</code>, <code>spa_url_changed</code></p>
+              <p class="muted zh">
+                <strong>触发器</strong>：<code>page_started</code>、<code>page_finished</code>、<code>page_title_changed</code>、<code>page_left</code>、<code>spa_url_changed</code>
+              </p>
+              <p class="muted en"><strong>Triggers</strong>: <code>page_started</code>, <code>page_finished</code>,
+                <code>page_title_changed</code>, <code>page_left</code>, <code>spa_url_changed</code>
+              </p>
             </div>
             <div>
-              <p class="muted zh"><strong>动作</strong>：<code>toast</code>、<code>load_url</code>、<code>open_external</code>、<code>reload</code>、<code>reload_ignore_cache</code>、<code>go_back</code>、<code>copy_to_clipboard</code>、<code>run_js</code></p>
-              <p class="muted en"><strong>Actions</strong>: <code>toast</code>, <code>load_url</code>, <code>open_external</code>, <code>reload</code>, <code>reload_ignore_cache</code>, <code>go_back</code>, <code>copy_to_clipboard</code>, <code>run_js</code></p>
+              <p class="muted zh">
+                <strong>动作</strong>：<code>toast</code>、<code>load_url</code>、<code>open_external</code>、<code>reload</code>、<code>reload_ignore_cache</code>、<code>go_back</code>、<code>copy_to_clipboard</code>、<code>run_js</code>
+              </p>
+              <p class="muted en"><strong>Actions</strong>: <code>toast</code>, <code>load_url</code>,
+                <code>open_external</code>, <code>reload</code>, <code>reload_ignore_cache</code>, <code>go_back</code>,
+                <code>copy_to_clipboard</code>, <code>run_js</code>
+              </p>
             </div>
           </div>
           <div class="callout ok" style="margin-top:12px">
-            <span class="zh">事件支持模板变量：<code>{url}</code>、<code>{title}</code>、<code>{trigger}</code>、<code>{previousUrl}</code>、<code>{nextUrl}</code>。调试复杂事件时，最先试的通常是一条 <code>toast</code>。</span>
-            <span class="en">Events support template variables such as <code>{url}</code>, <code>{title}</code>, <code>{trigger}</code>, <code>{previousUrl}</code>, and <code>{nextUrl}</code>. For debugging, start with a simple <code>toast</code>.</span>
+            <span
+              class="zh">事件支持模板变量：<code>{url}</code>、<code>{title}</code>、<code>{trigger}</code>、<code>{previousUrl}</code>、<code>{nextUrl}</code>。调试复杂事件时，最先试的通常是一条
+              <code>toast</code>。</span>
+            <span class="en">Events support template variables such as <code>{url}</code>, <code>{title}</code>,
+              <code>{trigger}</code>, <code>{previousUrl}</code>, and <code>{nextUrl}</code>. For debugging, start with
+              a simple <code>toast</code>.</span>
           </div>
         </div>
         <div class="callout" style="margin-top:12px">
-          <span class="zh">如果你启用了 <code>NativeBridge</code>，那么全局 JS、规则 JS、按钮 <code>run_js</code> 和事件 <code>run_js</code> 都可以直接调用它；前提是当前页面 host 命中 <code>kvTrustedHosts</code>。</span>
-          <span class="en">If <code>NativeBridge</code> is enabled, global JS, rule JS, button <code>run_js</code>, and event <code>run_js</code> can all call it directly, as long as the current page host matches <code>kvTrustedHosts</code>.</span>
+          <span class="zh">如果你启用了 <code>NativeBridge</code>，那么全局 JS、规则 JS、按钮 <code>运行 JavaScript</code> 和事件
+            <code>运行 JavaScript</code>
+            都可以直接调用它；前提是当前页面 host 命中 <code>kvTrustedHosts</code>。</span>
+          <span class="en">If <code>NativeBridge</code> is enabled, global JS, rule JS, button <code>run_js</code>, and
+            event <code>run_js</code> can all call it directly, as long as the current page host matches
+            <code>kvTrustedHosts</code>.</span>
         </div>
       </section>
       <section class="section" id="sec-branding">
         <h2 class="section-title">
           <span class="section-icon">🎨</span>
-          <span class="zh">Branding / Build：视觉与应用身份</span>
+          <span class="zh">品牌 / 构建：视觉与应用身份</span>
           <span class="en">Branding / Build: Visuals and app identity</span>
         </h2>
-        <p class="section-desc zh">Branding 页负责“看起来像不像一个独立 App”，Build 页负责“装上手机之后叫什么、版本号是多少、用什么签名”。</p>
-        <p class="section-desc en">Branding decides whether the result looks like a real standalone app. Build decides how the app is identified after installation and how it is signed.</p>
+        <p class="section-desc zh">品牌页负责“看起来像不像一个独立 App”，构建页负责“装上手机之后叫什么、版本号是多少、用什么签名”。</p>
+        <p class="section-desc en">Branding decides whether the result looks like a real standalone app. Build decides
+          how the app is identified after installation and how it is signed.</p>
 
         <div class="grid-2">
           <div class="card">
-            <h3 class="mini-title zh">Branding 页通常会改的内容</h3>
+            <h3 class="mini-title zh">品牌页通常会改的内容</h3>
             <h3 class="mini-title en">Typical Branding changes</h3>
             <ul class="list zh block">
               <li>应用图标：会随项目一起保存、导出并在 Pack 时替换模板图标</li>
@@ -1180,7 +1546,7 @@
           </div>
 
           <div class="card">
-            <h3 class="mini-title zh">Build 页通常会改的内容</h3>
+            <h3 class="mini-title zh">打包页通常会改的内容</h3>
             <h3 class="mini-title en">Typical Build changes</h3>
             <ul class="list zh block">
               <li>应用名称、版本名、版本号、包名</li>
@@ -1198,7 +1564,7 @@
         </div>
 
         <div class="card" style="margin-top:12px">
-          <h3 class="mini-title zh">Build 页里最容易弄错的三个点</h3>
+          <h3 class="mini-title zh">构建页里最容易弄错的三个点</h3>
           <h3 class="mini-title en">Three Build-tab mistakes to avoid</h3>
           <table class="wiki-table build-mistakes-table">
             <colgroup>
@@ -1221,36 +1587,48 @@
               </th>
             </tr>
             <tr>
-              <td><code>packageName</code></td>
+              <td>
+                <code class="zh">包名</code>
+                <code class="en">packageName</code>
+              </td>
               <td>
                 <span class="zh">包名格式错误</span>
                 <span class="en">Invalid package name format</span>
               </td>
               <td>
                 <span class="zh">请使用小写字母和数字，并用点分隔，例如 <code>com.example.app</code></span>
-                <span class="en">Use lowercase letters and digits separated by dots, such as <code>com.example.app</code></span>
+                <span class="en">Use lowercase letters and digits separated by dots, such as
+                  <code>com.example.app</code></span>
               </td>
             </tr>
             <tr>
-              <td><code>versionCode</code></td>
+              <td>
+                <code class="zh">版本号</code>
+                <code class="en">versionCode</code>
+              </td>
               <td>
                 <span class="zh">覆盖更新时版本号不够大</span>
                 <span class="en">Version code too low for updates</span>
               </td>
               <td>
                 <span class="zh">如果已安装旧版 APP，新包要覆盖安装，版本号必须更高</span>
-                <span class="en">If an older app is already installed, the new APK must have a higher version code to update it</span>
+                <span class="en">If an older app is already installed, the new APK must have a higher version code to
+                  update it</span>
               </td>
             </tr>
             <tr>
-              <td><code>Signing</code></td>
+              <td>
+                <code class="zh">签名</code>
+                <code class="en">Signing</code>
+              </td>
               <td>
                 <span class="zh">签名变了导致无法覆盖安装</span>
                 <span class="en">Signature mismatch prevents update installs</span>
               </td>
               <td>
                 <span class="zh">只要签名证书不同，即使包名相同也无法正常覆盖更新</span>
-                <span class="en">If signing certificates differ, update installs will fail even when the package name matches</span>
+                <span class="en">If signing certificates differ, update installs will fail even when the package name
+                  matches</span>
               </td>
             </tr>
           </table>
@@ -1264,7 +1642,8 @@
           <span class="en">Preview and Runtime Templates</span>
         </h2>
         <p class="section-desc zh">Preview 不是“假预览”，而是当前运行时模板在宿主内的真实表现。你在这里看到的大部分行为，就是打包后 APP 的实际行为。</p>
-        <p class="section-desc en">Preview is not a fake mockup. It is the real runtime behavior of the selected template running inside the host app, and most of it matches the packed app.</p>
+        <p class="section-desc en">Preview is not a fake mockup. It is the real runtime behavior of the selected
+          template running inside the host app, and most of it matches the packed app.</p>
 
         <div class="card">
           <h3 class="mini-title zh">7 种模板怎么选</h3>
@@ -1285,7 +1664,10 @@
               </th>
             </tr>
             <tr>
-              <td><code>browser</code></td>
+              <td>
+                <code class="zh">浏览器</code>
+                <code class="en">browser</code>
+              </td>
               <td>
                 <span class="zh">纯网页、不要原生壳</span>
                 <span class="en">Web-only experience with no native chrome</span>
@@ -1296,7 +1678,10 @@
               </td>
             </tr>
             <tr>
-              <td><code>immersive_single_page</code></td>
+              <td>
+                <code class="zh">沉浸式</code>
+                <code class="en">immersive_single_page</code>
+              </td>
               <td>
                 <span class="zh">沉浸式内容页</span>
                 <span class="en">Immersive media or content pages</span>
@@ -1307,7 +1692,10 @@
               </td>
             </tr>
             <tr>
-              <td><code>top_bar</code></td>
+              <td>
+                <code class="zh">顶栏</code>
+                <code class="en">top_bar</code>
+              </td>
               <td>
                 <span class="zh">需要标题、返回、刷新</span>
                 <span class="en">Title + back + refresh toolbar flow</span>
@@ -1318,7 +1706,10 @@
               </td>
             </tr>
             <tr>
-              <td><code>bottom_bar</code></td>
+              <td>
+                <code class="zh">底栏</code>
+                <code class="en">bottom_bar</code>
+              </td>
               <td>
                 <span class="zh">典型多入口 Tab 结构</span>
                 <span class="en">Typical multi-entry tab layout</span>
@@ -1329,7 +1720,10 @@
               </td>
             </tr>
             <tr>
-              <td><code>top_bar_tabs</code></td>
+              <td>
+                <code class="zh">顶栏 + 标签</code>
+                <code class="en">top_bar_tabs</code>
+              </td>
               <td>
                 <span class="zh">顶部工具栏 + 顶部标签</span>
                 <span class="en">Top toolbar + top tabs</span>
@@ -1340,7 +1734,10 @@
               </td>
             </tr>
             <tr>
-              <td><code>top_bar_bottom_tabs</code></td>
+              <td>
+                <code class="zh">顶栏 + 底栏</code>
+                <code class="en">top_bar_bottom_tabs</code>
+              </td>
               <td>
                 <span class="zh">顶部工具栏 + 底部导航</span>
                 <span class="en">Top toolbar + bottom navigation</span>
@@ -1351,7 +1748,10 @@
               </td>
             </tr>
             <tr>
-              <td><code>side_drawer</code></td>
+              <td>
+                <code class="zh">侧边栏</code>
+                <code class="en">side_drawer</code>
+              </td>
               <td>
                 <span class="zh">入口多、需要抽屉菜单</span>
                 <span class="en">Many entries with a drawer menu</span>
@@ -1384,7 +1784,8 @@
               <li>Whether error pages, dark mode, and top/status bar colors stay consistent</li>
               <li>Whether external links, downloads, and uploads behave as expected</li>
               <li>Whether long-press behavior for links, images, and image-links matches what you expect</li>
-              <li>If the project uses <code>NativeBridge</code>, verify trusted and untrusted hosts both behave correctly in Preview</li>
+              <li>If the project uses <code>NativeBridge</code>, verify trusted and untrusted hosts both behave
+                correctly in Preview</li>
             </ul>
           </div>
 
@@ -1401,95 +1802,104 @@
               <li>Location, camera, microphone, and notification access are mediated by the host app</li>
               <li>Some requests show a pre-permission explanation dialog with the requesting host</li>
               <li>Approved trusted hosts can be remembered to reduce repetitive prompts</li>
-              <li>If a site relies heavily on native capabilities, always run a full preview interaction before packing</li>
+              <li>If a site relies heavily on native capabilities, always run a full preview interaction before packing
+              </li>
             </ul>
           </div>
         </div>
 
         <div class="callout ok" style="margin-top:12px">
           <span class="zh">关于导航预加载：它最适合多导航、相邻页面切换频繁、且首页较重的网站。对单页、极轻页面或者需要绝对最保守行为的场景，可以保持为 0。</span>
-          <span class="en">About navigation preload: it works best for multi-navigation projects with frequent adjacent switches and heavy root pages. For single-page or very light pages, keeping it at 0 is often fine.</span>
+          <span class="en">About navigation preload: it works best for multi-navigation projects with frequent adjacent
+            switches and heavy root pages. For single-page or very light pages, keeping it at 0 is often fine.</span>
         </div>
       </section>
 
       <section class="section" id="sec-pack">
         <h2 class="section-title">
           <span class="section-icon">📦</span>
-          <span class="zh">Pack 页：从项目到 APK</span>
+          <span class="zh">打包 页：从项目到 APK</span>
           <span class="en">Pack Page: From project to APK</span>
         </h2>
         <p class="section-desc zh">Pack 页不是一个按钮，而是一整套流程。建议把它理解成“工作区准备 → 预检查 → 重打包 → 签名 → 安装/分享”。</p>
-        <p class="section-desc en">The Pack page is not a single action. It is a pipeline: workspace preparation, preflight, repack, signing, and finally install/share.</p>
+        <p class="section-desc en">The Pack page is not a single action. It is a pipeline: workspace preparation,
+          preflight, repack, signing, and finally install/share.</p>
 
         <div class="steps">
           <div class="step">
             <div class="step-num">1</div>
             <div class="step-card">
-              <h4 class="zh">Prepare</h4>
+              <h4 class="zh">准备</h4>
               <h4 class="en">Prepare</h4>
               <p class="zh">解包模板 APK，注入当前项目配置与资源，准备工作区。你可以把它理解成“为这次打包搭一个临时工位”。</p>
-              <p class="en">Unpacks the template APK, injects current project assets/config, and prepares the workspace for this build.</p>
+              <p class="en">Unpacks the template APK, injects current project assets/config, and prepares the workspace
+                for this build.</p>
             </div>
           </div>
           <div class="step">
             <div class="step-num">2</div>
             <div class="step-card">
-              <h4 class="zh">Preflight</h4>
+              <h4 class="zh">预检查</h4>
               <h4 class="en">Preflight</h4>
               <p class="zh">检查最终包名、签名、已安装版本、版本号、是否存在覆盖更新冲突。这一步能提前发现“安装不了”的原因。</p>
-              <p class="en">Checks output package identity, signing, installed versions, version code, and update conflicts before actual packaging.</p>
+              <p class="en">Checks output package identity, signing, installed versions, version code, and update
+                conflicts before actual packaging.</p>
             </div>
           </div>
           <div class="step">
             <div class="step-num">3</div>
             <div class="step-card">
-              <h4 class="zh">Pack</h4>
+              <h4 class="zh">打包</h4>
               <h4 class="en">Pack</h4>
               <p class="zh">执行模板 APK 重打包、二进制 Manifest 修补、zipalign 和签名。最终会生成一个最新成功产物。</p>
-              <p class="en">Runs the template APK repack, binary manifest patching, zipalign, and signing, then generates the newest successful artifact.</p>
+              <p class="en">Runs the template APK repack, binary manifest patching, zipalign, and signing, then
+                generates the newest successful artifact.</p>
             </div>
           </div>
           <div class="step">
             <div class="step-num">4</div>
             <div class="step-card">
-              <h4 class="zh">Install / Share</h4>
+              <h4 class="zh">安装 / 分享</h4>
               <h4 class="en">Install / Share</h4>
               <p class="zh">安装和分享都依赖最新成功输出的 APK。安装前如果系统提示未知应用安装权限，需要先在系统设置里授权宿主。</p>
-              <p class="en">Install and Share both use the latest successful APK. If Android asks for unknown-app installation permission, grant it to the host app first.</p>
+              <p class="en">Install and Share both use the latest successful APK. If Android asks for unknown-app
+                installation permission, grant it to the host app first.</p>
             </div>
           </div>
         </div>
 
         <div class="grid-2" style="margin-top:12px">
           <div class="card">
-            <h3 class="mini-title zh">Pack 页里常见的信息区块</h3>
+            <h3 class="mini-title zh">打包页里常见的信息区块</h3>
             <h3 class="mini-title en">Common Pack-page panels</h3>
             <ul class="list zh block">
-              <li><strong>Project Summary</strong>：项目名、包名、模板、版本信息</li>
-              <li><strong>Preflight</strong>：可直接安装、可覆盖更新、签名冲突、版本降级等状态</li>
-              <li><strong>Execution / Log</strong>：当前任务状态和打包日志</li>
-              <li><strong>Outputs / History</strong>：最终 APK 路径和历史产物记录</li>
+              <li><strong>项目摘要</strong>：项目名、包名、模板、版本信息</li>
+              <li><strong>预检查</strong>：可直接安装、可覆盖更新、签名冲突、版本降级等状态</li>
+              <li><strong>执行/日志</strong>：当前任务状态和打包日志</li>
+              <li><strong>产物 / 历史</strong>：最终 APK 路径和历史产物记录</li>
             </ul>
             <ul class="list en block">
               <li><strong>Project Summary</strong>: project name, package, template, version info</li>
-              <li><strong>Preflight</strong>: install-ready, update-compatible, signature conflicts, version downgrade, etc.</li>
+              <li><strong>Preflight</strong>: install-ready, update-compatible, signature conflicts, version downgrade,
+                etc.</li>
               <li><strong>Execution / Log</strong>: current job status and pack log</li>
               <li><strong>Outputs / History</strong>: final APK path and previous successful artifacts</li>
             </ul>
           </div>
 
           <div class="card">
-            <h3 class="mini-title zh">为什么要看 Pack Log</h3>
+            <h3 class="mini-title zh">为什么要看 打包日志</h3>
             <h3 class="mini-title en">Why Pack Log matters</h3>
             <ul class="list zh block">
               <li>能看出失败发生在工作区准备、打包、签名还是自检阶段</li>
-              <li>如果 PackageManager 拒绝 APK，日志通常会先给出提示</li>
+              <li>如果 包管理器 拒绝 APK，日志通常会先给出提示</li>
               <li>安装冲突、版本回退、签名不一致等问题，日志比表面 Toast 更完整</li>
             </ul>
             <ul class="list en block">
               <li>It shows whether failure happened during workspace prep, packaging, signing, or artifact checks</li>
               <li>If PackageManager rejects the APK, the log usually explains it first</li>
-              <li>Install conflicts, downgrade issues, and signer mismatches are easier to understand from the log than from a toast alone</li>
+              <li>Install conflicts, downgrade issues, and signer mismatches are easier to understand from the log than
+                from a toast alone</li>
             </ul>
           </div>
         </div>
@@ -1502,38 +1912,50 @@
           <span class="en">Extra Tools and Resources</span>
         </h2>
         <p class="section-desc zh">除了编辑和打包，FireflyApp 还提供了一些辅助工具，帮助你更快整理项目资源、导入导出工程，或者查找图标。</p>
-        <p class="section-desc en">Beyond editing and packing, FireflyApp includes a few utility tools that make it easier to manage assets, import/export projects, and choose icons.</p>
+        <p class="section-desc en">Beyond editing and packing, FireflyApp includes a few utility tools that make it
+          easier to manage assets, import/export projects, and choose icons.</p>
 
         <div class="grid-2">
           <div class="card">
-            <h3 class="mini-title zh">Help Docs</h3>
+            <h3 class="mini-title zh">帮助文档</h3>
             <h3 class="mini-title en">Help Docs</h3>
             <p class="muted zh">就是你现在看到的这份文档。它会随宿主一起打包到本地资源里，所以离线也能打开。</p>
-            <p class="muted en">This very page. It is bundled into local assets, so it stays available offline inside the host app.</p>
+            <p class="muted en">This very page. It is bundled into local assets, so it stays available offline inside
+              the host app.</p>
           </div>
           <div class="card">
-            <h3 class="mini-title zh">Icon Designer</h3>
+            <h3 class="mini-title zh">图标设计</h3>
             <h3 class="mini-title en">Icon Designer</h3>
             <p class="muted zh">用于快速做一个项目图标，适合没有现成应用图标时做临时或基础版本。</p>
-            <p class="muted en">Useful for creating a quick project icon when you do not yet have a production-ready one.</p>
+            <p class="muted en">Useful for creating a quick project icon when you do not yet have a production-ready
+              one.</p>
           </div>
           <div class="card">
-            <h3 class="mini-title zh">Icon Catalog</h3>
+            <h3 class="mini-title zh">图标仓库</h3>
             <h3 class="mini-title en">Icon Catalog</h3>
             <p class="muted zh">浏览内置图标并复制图标 ID，适合给导航项、顶栏按钮、抽屉入口统一选图标。</p>
-            <p class="muted en">Browse built-in icons and copy IDs for navigation items, toolbar buttons, and drawer actions.</p>
+            <p class="muted en">Browse built-in icons and copy IDs for navigation items, toolbar buttons, and drawer
+              actions.</p>
           </div>
           <div class="card">
-            <h3 class="mini-title zh">Import / Export</h3>
+            <h3 class="mini-title zh">导入 / 导出</h3>
             <h3 class="mini-title en">Import / Export</h3>
-            <p class="muted zh">支持导入 <code>.fireflyproj.zip</code> 项目包或单独的 <code>app-config.json</code>，也支持导出整个项目。导出项目包时，默认文件名会优先使用项目名称。</p>
-            <p class="muted en">Supports importing a full <code>.fireflyproj.zip</code> package or a standalone <code>app-config.json</code>, and exporting the whole project. Exported package names now prefer the project name by default.</p>
+            <p class="muted zh">支持导入 <code>.fireflyproj.zip</code> 项目包或单独的
+              <code>app-config.json</code>，也支持导出整个项目。导出项目包时，默认文件名会优先使用项目名称。
+            </p>
+            <p class="muted en">Supports importing a full <code>.fireflyproj.zip</code> package or a standalone
+              <code>app-config.json</code>, and exporting the whole project. Exported package names now prefer the
+              project name by default.
+            </p>
           </div>
         </div>
 
         <div class="callout" style="margin-top:12px">
-          <span class="zh">团队协作建议：如果你要把项目发给别人继续改，优先导出整个项目包，而不是只导出 <code>app-config.json</code>。这样图标、启动图、抽屉壁纸和签名信息才更完整。</span>
-          <span class="en">Teamwork tip: if someone else will continue the project, export the full project package rather than only <code>app-config.json</code>. That way icons, splash assets, drawer images, and signing data are preserved more completely.</span>
+          <span class="zh">团队协作建议：如果你要把项目发给别人继续改，优先导出整个项目包，而不是只导出
+            <code>app-config.json</code>。这样图标、启动图、抽屉壁纸和签名信息才更完整。</span>
+          <span class="en">Teamwork tip: if someone else will continue the project, export the full project package
+            rather than only <code>app-config.json</code>. That way icons, splash assets, drawer images, and signing
+            data are preserved more completely.</span>
         </div>
       </section>
 
@@ -1544,7 +1966,8 @@
           <span class="en">Troubleshooting and FAQ</span>
         </h2>
         <p class="section-desc zh">这部分更偏“先看哪里、先怀疑什么”。如果你遇到异常，建议先从最贴近现象的条目开始查。</p>
-        <p class="section-desc en">This section is about where to look first and what to suspect first. Start with the item that best matches the visible symptom.</p>
+        <p class="section-desc en">This section is about where to look first and what to suspect first. Start with the
+          item that best matches the visible symptom.</p>
 
         <div class="stack">
           <div class="faq-item">
@@ -1554,8 +1977,11 @@
               <span class="arrow">▶</span>
             </div>
             <div class="faq-a">
-              <span class="zh block">先看 Pack 页的 <strong>Preflight</strong> 和 <strong>Pack Log</strong>。优先排查：包名冲突、签名不一致、版本号比已安装版本低、系统未授予安装未知应用权限。</span>
-              <span class="en block">Check the <strong>Preflight</strong> panel and <strong>Pack Log</strong> first. The usual causes are package conflicts, signer mismatch, version downgrade, or missing “install unknown apps” permission.</span>
+              <span class="zh block">先看 打包 页的 <strong>预检查</strong> 和
+                <strong>打包日志</strong>。优先排查：包名冲突、签名不一致、版本号比已安装版本低、系统未授予安装未知应用权限。</span>
+              <span class="en block">Check the <strong>Preflight</strong> panel and <strong>Pack Log</strong> first. The
+                usual causes are package conflicts, signer mismatch, version downgrade, or missing “install unknown
+                apps” permission.</span>
             </div>
           </div>
 
@@ -1566,8 +1992,11 @@
               <span class="arrow">▶</span>
             </div>
             <div class="faq-a">
-              <span class="zh block">先检查是否启用了 <code>Enable swipe navigation</code> 和 <code>Navigation preload count</code>。重页面建议适度开启预加载；轻页面或问题站点可以先把预加载设为 0，再看行为是否稳定。</span>
-              <span class="en block">Check whether <code>Enable swipe navigation</code> and <code>Navigation preload count</code> are enabled. Heavy pages often benefit from preload. For lighter or problematic sites, try setting preload to 0 first and compare behavior.</span>
+              <span class="zh block">先检查是否启用了 <code>启用滑动切换导航</code> 和
+                <code>导航预加载数量</code>。重页面建议适度开启预加载；轻页面或问题站点可以先把预加载设为 0，再看行为是否稳定。</span>
+              <span class="en block">Check whether <code>Enable swipe navigation</code> and
+                <code>Navigation preload count</code> are enabled. Heavy pages often benefit from preload. For lighter
+                or problematic sites, try setting preload to 0 first and compare behavior.</span>
             </div>
           </div>
 
@@ -1578,8 +2007,10 @@
               <span class="arrow">▶</span>
             </div>
             <div class="faq-a">
-              <span class="zh block">先在 Preview 里完整走一遍权限流程，确认是否出现宿主前置提示、系统授权弹窗，以及站点本身的权限确认 UI。再检查相关域名是否确实在可访问范围内。</span>
-              <span class="en block">Run through the full permission flow in Preview first. Confirm the host prompt, system permission dialog, and the site’s own post-grant UI all appear correctly. Then verify the requesting host is actually allowed.</span>
+              <span class="zh block">先在 预览 里完整走一遍权限流程，确认是否出现宿主前置提示、系统授权弹窗，以及站点本身的权限确认 UI。再检查相关域名是否确实在可访问范围内。</span>
+              <span class="en block">Run through the full permission flow in Preview first. Confirm the host prompt,
+                system permission dialog, and the site’s own post-grant UI all appear correctly. Then verify the
+                requesting host is actually allowed.</span>
             </div>
           </div>
 
@@ -1590,8 +2021,11 @@
               <span class="arrow">▶</span>
             </div>
             <div class="faq-a">
-              <span class="zh block">优先检查 <code>nightMode</code> 是否为 <code>on</code> 或 <code>follow_theme</code>，再确认顶栏、底栏、标签栏是否使用了自定义浅色主题色。夜间模式下建议尽量避免继续沿用纯白色默认栏位颜色。</span>
-              <span class="en block">First confirm <code>nightMode</code> is set to <code>on</code> or <code>follow_theme</code>. Then inspect whether top, bottom, or tab bars still use custom light colors. In dark mode, avoid forcing pure white bar colors unless you truly want that look.</span>
+              <span class="zh block">优先检查 <code>夜间模式</code> 是否为 <code>开启</code> 或
+                <code>跟随主题</code>，再确认顶栏、底栏、标签栏是否使用了自定义浅色主题色。夜间模式下建议尽量避免继续沿用纯白色默认栏位颜色。</span>
+              <span class="en block">First confirm <code>nightMode</code> is set to <code>on</code> or
+                <code>follow_theme</code>. Then inspect whether top, bottom, or tab bars still use custom light colors.
+                In dark mode, avoid forcing pure white bar colors unless you truly want that look.</span>
             </div>
           </div>
 
@@ -1602,8 +2036,11 @@
               <span class="arrow">▶</span>
             </div>
             <div class="faq-a">
-              <span class="zh block">默认建议保留 <code>strict</code>。只有在你明确知道目标站点使用的是可信的自签证书或内网证书时，才考虑切换为 <code>ignore</code>。否则相当于降低了安全门槛。</span>
-              <span class="en block">Keep <code>strict</code> unless you explicitly trust the site’s self-signed or internal certificate. Switching to <code>ignore</code> lowers the safety bar and should be used sparingly.</span>
+              <span class="zh block">默认建议保留 <code>严格校验</code>。只有在你明确知道目标站点使用的是可信的自签证书或内网证书时，才考虑切换为
+                <code>忽略SSL证书错误</code>。否则相当于降低了安全门槛。</span>
+              <span class="en block">Keep <code>strict</code> unless you explicitly trust the site’s self-signed or
+                internal certificate. Switching to <code>ignore</code> lowers the safety bar and should be used
+                sparingly.</span>
             </div>
           </div>
 
@@ -1614,20 +2051,25 @@
               <span class="arrow">▶</span>
             </div>
             <div class="faq-a">
-              <span class="zh block">因为单独导入 <code>app-config.json</code> 只会带配置，不会带项目图片、图标、启动图、抽屉壁纸、头像等资源。需要完整迁移时，请导入或导出整个 <code>.fireflyproj.zip</code>。</span>
-              <span class="en block">Because importing only <code>app-config.json</code> brings over configuration, not project assets such as icons, splash images, drawer wallpapers, or avatars. Use the full <code>.fireflyproj.zip</code> format for complete transfers.</span>
+              <span class="zh block">因为单独导入 <code>app-config.json</code>
+                只会带配置，不会带项目图片、图标、启动图、抽屉壁纸、头像等资源。需要完整迁移时，请导入或导出整个 <code>.fireflyproj.zip</code>。</span>
+              <span class="en block">Because importing only <code>app-config.json</code> brings over configuration, not
+                project assets such as icons, splash images, drawer wallpapers, or avatars. Use the full
+                <code>.fireflyproj.zip</code> format for complete transfers.</span>
             </div>
           </div>
 
           <div class="faq-item">
             <div class="faq-q" onclick="toggleFaq(this)">
-              <span class="zh">7. Pack 成功了，但更新安装时提示签名冲突怎么办？</span>
+              <span class="zh">7. 打包成功了，但更新安装时提示签名冲突怎么办？</span>
               <span class="en">7. Pack succeeds, but update install reports a signer conflict</span>
               <span class="arrow">▶</span>
             </div>
             <div class="faq-a">
               <span class="zh block">说明当前输出 APK 的签名证书和已安装版本不一致。解决方式通常有两个：继续使用与旧版本相同的 keystore 重新打包，或者先卸载旧版本再安装新包。</span>
-              <span class="en block">This means the new APK is signed with a different certificate than the installed version. The usual fixes are: rebuild with the same keystore as the old version, or uninstall the old app before installing the new one.</span>
+              <span class="en block">This means the new APK is signed with a different certificate than the installed
+                version. The usual fixes are: rebuild with the same keystore as the old version, or uninstall the old
+                app before installing the new one.</span>
             </div>
           </div>
 
@@ -1638,15 +2080,23 @@
               <span class="arrow">▶</span>
             </div>
             <div class="faq-a">
-              <span class="zh block">先检查 <code>Enable Native KV bridge</code> 是否开启；再确认当前页面是不是 <code>http/https</code>，且 host 命中了 <code>kvTrustedHosts</code>。如果 trusted hosts 留空，或者页面只是本地页 / 非可信域名页，<code>NativeBridge</code> 就不会按你预期工作。</span>
-              <span class="en block">First check whether <code>Enable Native KV bridge</code> is turned on. Then verify the current page is <code>http/https</code> and its host matches <code>kvTrustedHosts</code>. If the trusted-host list is empty, or the page is local / untrusted, <code>NativeBridge</code> will not behave as expected.</span>
+              <span class="zh block">先检查 <code>Enable Native KV bridge</code> 是否开启；再确认当前页面是不是 <code>http/https</code>，且
+                host 命中了 <code>kvTrustedHosts</code>。如果 trusted hosts 留空，或者页面只是本地页 / 非可信域名页，<code>NativeBridge</code>
+                就不会按你预期工作。</span>
+              <span class="en block">First check whether <code>Enable Native KV bridge</code> is turned on. Then verify
+                the current page is <code>http/https</code> and its host matches <code>kvTrustedHosts</code>. If the
+                trusted-host list is empty, or the page is local / untrusted, <code>NativeBridge</code> will not behave
+                as expected.</span>
             </div>
           </div>
         </div>
 
         <div class="callout ok" style="margin-top:12px">
-          <span class="zh">一个很实用的排错顺序：先看 Basic 页是否有冲突设置，再看 Preview 是否能复现，再看 Pack 的 Preflight 和 Log。这样通常能把问题快速缩小到“配置层 / 运行时层 / 打包层”中的某一层。</span>
-          <span class="en">A practical debugging order: check Basic for conflicting settings, reproduce in Preview, then inspect Pack preflight and logs. This usually narrows the problem down to configuration, runtime, or packaging.</span>
+          <span class="zh">一个很实用的排错顺序：先看 Basic 页是否有冲突设置，再看 Preview 是否能复现，再看 Pack 的 Preflight 和 Log。这样通常能把问题快速缩小到“配置层 /
+            运行时层 / 打包层”中的某一层。</span>
+          <span class="en">A practical debugging order: check Basic for conflicting settings, reproduce in Preview, then
+            inspect Pack preflight and logs. This usually narrows the problem down to configuration, runtime, or
+            packaging.</span>
         </div>
       </section>
     </main>
@@ -1663,11 +2113,11 @@
     function setLang(lang) {
       document.body.setAttribute("data-lang", lang);
       var buttons = document.querySelectorAll(".lang-btn");
-      buttons.forEach(function(button) {
+      buttons.forEach(function (button) {
         var isZh = button.textContent.trim() === "中文";
         button.classList.toggle("active", (lang === "zh" && isZh) || (lang === "en" && !isZh));
       });
-      try { localStorage.setItem("firefly-help-lang", lang); } catch (e) {}
+      try { localStorage.setItem("firefly-help-lang", lang); } catch (e) { }
       window.dispatchEvent(new Event("firefly-help-lang-changed"));
     }
 
@@ -1678,7 +2128,7 @@
           setLang(saved);
           return;
         }
-      } catch (e) {}
+      } catch (e) { }
       var navLang = navigator.language || "";
       if (navigator.languages && navigator.languages.length > 0) {
         navLang = navigator.languages[0];
@@ -1691,10 +2141,10 @@
     }
 
     var backTopBtn = document.getElementById("backTop");
-    backTopBtn.addEventListener("click", function() {
+    backTopBtn.addEventListener("click", function () {
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
-    window.addEventListener("scroll", function() {
+    window.addEventListener("scroll", function () {
       backTopBtn.classList.toggle("visible", window.scrollY > 420);
     }, { passive: true });
 
@@ -1722,24 +2172,24 @@
 
       function bindLinkEvents() {
         var links = getVisibleLinks();
-        links.forEach(function(link) {
+        links.forEach(function (link) {
           if (link.dataset.bound === "1") return;
           link.dataset.bound = "1";
-        link.addEventListener("click", function(e) {
-          e.preventDefault();
-          var id = link.getAttribute("data-target");
-          var target = document.getElementById(id);
-          if (!target) return;
-          clickCooldown = true;
-          getVisibleLinks().forEach(function(item) {
-            item.classList.toggle("active", item.getAttribute("data-target") === id);
+          link.addEventListener("click", function (e) {
+            e.preventDefault();
+            var id = link.getAttribute("data-target");
+            var target = document.getElementById(id);
+            if (!target) return;
+            clickCooldown = true;
+            getVisibleLinks().forEach(function (item) {
+              item.classList.toggle("active", item.getAttribute("data-target") === id);
+            });
+            var navHeight = navBar ? navBar.offsetHeight : 56;
+            var top = target.getBoundingClientRect().top + window.scrollY - navHeight - 8;
+            window.scrollTo({ top: top, behavior: "smooth" });
+            scrollNavToLink(link);
+            setTimeout(function () { clickCooldown = false; }, 900);
           });
-          var navHeight = navBar ? navBar.offsetHeight : 56;
-          var top = target.getBoundingClientRect().top + window.scrollY - navHeight - 8;
-          window.scrollTo({ top: top, behavior: "smooth" });
-          scrollNavToLink(link);
-          setTimeout(function() { clickCooldown = false; }, 900);
-        });
         });
       }
 
@@ -1755,7 +2205,7 @@
           }
         }
         if (!currentId && sections.length) currentId = sections[0].id;
-        links.forEach(function(link) {
+        links.forEach(function (link) {
           var active = link.getAttribute("data-target") === currentId;
           link.classList.toggle("active", active);
           if (active) scrollNavToLink(link);
@@ -1765,7 +2215,7 @@
       bindLinkEvents();
       window.addEventListener("scroll", updateActiveLink, { passive: true });
       window.addEventListener("resize", updateActiveLink, { passive: true });
-      window.addEventListener("firefly-help-lang-changed", function() {
+      window.addEventListener("firefly-help-lang-changed", function () {
         bindLinkEvents();
         updateActiveLink();
       });
@@ -1773,4 +2223,5 @@
     })();
   </script>
 </body>
+
 </html>
