@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.annotation.StringRes
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -51,6 +52,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -100,23 +102,25 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
@@ -681,8 +685,16 @@ private fun ConfigEditorScreen(
         initialPage = state.selectedTab.ordinal,
         pageCount = { editorTabs.size }
     )
+    var activeCodeEditorRequest by remember { mutableStateOf<CodeEditorOverlayRequest?>(null) }
     val latestSelectedTab by rememberUpdatedState(state.selectedTab)
     val latestOnSelectTab by rememberUpdatedState(onSelectTab)
+    val openCodeEditor: OnOpenCodeEditor = { request ->
+        activeCodeEditorRequest = request
+    }
+
+    BackHandler(enabled = activeCodeEditorRequest != null) {
+        activeCodeEditorRequest = null
+    }
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.isScrollInProgress to pagerState.currentPage }
@@ -704,238 +716,258 @@ private fun ConfigEditorScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .imePadding()
     ) {
         Column(
-            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding()
         ) {
-            Row(
+            Column(
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 8.dp, top = 12.dp, end = 8.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = state.formState.appName.ifBlank { stringResource(R.string.config_editor_project_fallback) },
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                    TextButton(onClick = onExport, enabled = !state.isSaving) {
+                        Text(stringResource(R.string.config_export))
+                    }
+                    TextButton(onClick = onReset, enabled = !state.isSaving) {
+                        Text(stringResource(R.string.config_reset))
+                    }
+                    TextButton(onClick = onSave, enabled = !state.isSaving) {
+                        Text(stringResource(R.string.config_save))
+                    }
+                }
+                if (state.isLoading || state.isSaving) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+
+            ScrollableTabRow(
+                selectedTabIndex = state.selectedTab.ordinal,
+                edgePadding = 8.dp,
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                editorTabs.forEach { tab ->
+                    Tab(
+                        selected = state.selectedTab == tab,
+                        onClick = { onSelectTab(tab) },
+                        text = { Text(stringResource(editorTabTitleRes(tab))) }
+                    )
+                }
+            }
+
+            if (state.isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                return
+            }
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 8.dp, top = 12.dp, end = 8.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = null
+                    .weight(1f)
+            ) { page ->
+                when (editorTabs[page]) {
+                    EditorTab.BASIC -> ConfigFormContent(
+                        state = state.formState,
+                        projectId = state.projectId,
+                        onAppNameChanged = onAppNameChanged,
+                        onDefaultUrlChanged = onDefaultUrlChanged,
+                        onTemplateSelected = onTemplateSelected,
+                        onUserAgentChanged = onUserAgentChanged,
+                        onBackActionSelected = onBackActionSelected,
+                        onNightModeChanged = onNightModeChanged,
+                        onScreenOrientationChanged = onScreenOrientationChanged,
+                        onLoadingOverlayChanged = onLoadingOverlayChanged,
+                        onShowPageProgressBarChanged = onShowPageProgressBarChanged,
+                        onErrorViewChanged = onErrorViewChanged,
+                        onImmersiveStatusBarChanged = onImmersiveStatusBarChanged,
+                        onTopBarShowBackButtonChanged = onTopBarShowBackButtonChanged,
+                        onTopBarShowHomeButtonChanged = onTopBarShowHomeButtonChanged,
+                        onTopBarShowRefreshButtonChanged = onTopBarShowRefreshButtonChanged,
+                        onTopBarBackBehaviorChanged = onTopBarBackBehaviorChanged,
+                        onTopBarBackScriptChanged = onTopBarBackScriptChanged,
+                        onTopBarHomeBehaviorChanged = onTopBarHomeBehaviorChanged,
+                        onTopBarHomeScriptChanged = onTopBarHomeScriptChanged,
+                        onTopBarRefreshBehaviorChanged = onTopBarRefreshBehaviorChanged,
+                        onTopBarRefreshScriptChanged = onTopBarRefreshScriptChanged,
+                        onTopBarFollowPageTitleChanged = onTopBarFollowPageTitleChanged,
+                        onTopBarTitleCenteredChanged = onTopBarTitleCenteredChanged,
+                        onTopBarHeightChanged = onTopBarHeightChanged,
+                        onTopBarIconSizeChanged = onTopBarIconSizeChanged,
+                        onTopBarCornerRadiusChanged = onTopBarCornerRadiusChanged,
+                        onTopBarShadowChanged = onTopBarShadowChanged,
+                        onTopBarBackIconChanged = onTopBarBackIconChanged,
+                        onTopBarHomeIconChanged = onTopBarHomeIconChanged,
+                        onTopBarRefreshIconChanged = onTopBarRefreshIconChanged,
+                        onBottomBarShowTextLabelsChanged = onBottomBarShowTextLabelsChanged,
+                        onBottomBarHeightChanged = onBottomBarHeightChanged,
+                        onBottomBarIconSizeChanged = onBottomBarIconSizeChanged,
+                        onBottomBarCornerRadiusChanged = onBottomBarCornerRadiusChanged,
+                        onBottomBarShadowChanged = onBottomBarShadowChanged,
+                        onBottomBarBadgeColorChanged = onBottomBarBadgeColorChanged,
+                        onBottomBarBadgeTextColorChanged = onBottomBarBadgeTextColorChanged,
+                        onBottomBarBadgeGravityChanged = onBottomBarBadgeGravityChanged,
+                        onBottomBarBadgeMaxCharacterCountChanged = onBottomBarBadgeMaxCharacterCountChanged,
+                        onBottomBarBadgeHorizontalOffsetChanged = onBottomBarBadgeHorizontalOffsetChanged,
+                        onBottomBarBadgeVerticalOffsetChanged = onBottomBarBadgeVerticalOffsetChanged,
+                        onBottomBarSelectedColorChanged = onBottomBarSelectedColorChanged,
+                        onDrawerHeaderTitleChanged = onDrawerHeaderTitleChanged,
+                        onDrawerHeaderSubtitleChanged = onDrawerHeaderSubtitleChanged,
+                        onDrawerWidthChanged = onDrawerWidthChanged,
+                        onDrawerCornerRadiusChanged = onDrawerCornerRadiusChanged,
+                        onDrawerHeaderBackgroundColorChanged = onDrawerHeaderBackgroundColorChanged,
+                        onDrawerWallpaperEnabledChanged = onDrawerWallpaperEnabledChanged,
+                        onImportDrawerWallpaper = onImportDrawerWallpaper,
+                        onClearDrawerWallpaper = onClearDrawerWallpaper,
+                        onDrawerWallpaperHeightChanged = onDrawerWallpaperHeightChanged,
+                        onDrawerAvatarEnabledChanged = onDrawerAvatarEnabledChanged,
+                        onImportDrawerAvatar = onImportDrawerAvatar,
+                        onClearDrawerAvatar = onClearDrawerAvatar,
+                        onDrawerHeaderImageUrlChanged = onDrawerHeaderImageUrlChanged,
+                        onDrawerHeaderImageHeightChanged = onDrawerHeaderImageHeightChanged,
+                        onDrawerHeaderImageScaleModeChanged = onDrawerHeaderImageScaleModeChanged,
+                        onDrawerHeaderImageOverlayPresetChanged = onDrawerHeaderImageOverlayPresetChanged,
+                        onDrawerHeaderImageOverlayColorChanged = onDrawerHeaderImageOverlayColorChanged,
+                        onDrawerMenuIconChanged = onDrawerMenuIconChanged,
+                        onDefaultNavigationItemIdChanged = onDefaultNavigationItemIdChanged,
+                        onEnableSwipeNavigationChanged = onEnableSwipeNavigationChanged,
+                        onPreserveNavigationPageStackChanged = onPreserveNavigationPageStackChanged,
+                        onNavigationPreloadCountChanged = onNavigationPreloadCountChanged,
+                        onNavigationBackBehaviorChanged = onNavigationBackBehaviorChanged,
+                        onTopBarThemeColorChanged = onTopBarThemeColorChanged,
+                        onBottomBarThemeColorChanged = onBottomBarThemeColorChanged,
+                        onAllowExternalHostsChanged = onAllowExternalHostsChanged,
+                        onEnableNativeKvBridgeChanged = onEnableNativeKvBridgeChanged,
+                        onKvTrustedHostsChanged = onKvTrustedHostsChanged,
+                        onOpenOtherAppsModeChanged = onOpenOtherAppsModeChanged,
+                        onSslErrorHandlingChanged = onSslErrorHandlingChanged,
+                        onAllowedHostsChanged = onAllowedHostsChanged,
+                        onGlobalJsChanged = onGlobalJsChanged,
+                        onGlobalCssChanged = onGlobalCssChanged,
+                        onAddNavigationItem = onAddNavigationItem,
+                        onRemoveNavigationItem = onRemoveNavigationItem,
+                        onNavigationIdChanged = onNavigationIdChanged,
+                        onNavigationTitleChanged = onNavigationTitleChanged,
+                        onNavigationUrlChanged = onNavigationUrlChanged,
+                        onNavigationIconChanged = onNavigationIconChanged,
+                        onNavigationSelectedIconChanged = onNavigationSelectedIconChanged,
+                        onNavigationBadgeCountChanged = onNavigationBadgeCountChanged,
+                        onNavigationShowUnreadDotChanged = onNavigationShowUnreadDotChanged,
+                        onImportCustomIconRequested = onImportCustomIconRequested,
+                        onApplyIconValue = onApplyIconValue,
+                        onOpenCodeEditor = openCodeEditor
+                    )
+
+                    EditorTab.RULES -> PageRulesContent(
+                        pageRules = state.formState.pageRules,
+                        onAddPageRule = onAddPageRule,
+                        onRemovePageRule = onRemovePageRule,
+                        onUrlEqualsChanged = onPageRuleUrlEqualsChanged,
+                        onUrlStartsWithChanged = onPageRuleUrlStartsWithChanged,
+                        onUrlContainsChanged = onPageRuleUrlContainsChanged,
+                        onTitleChanged = onPageRuleTitleChanged,
+                        onLoadingTextChanged = onPageRuleLoadingTextChanged,
+                        onErrorTitleChanged = onPageRuleErrorTitleChanged,
+                        onErrorMessageChanged = onPageRuleErrorMessageChanged,
+                        onRetryActionChanged = onPageRuleRetryActionChanged,
+                        onRetryUrlChanged = onPageRuleRetryUrlChanged,
+                        onInjectJsChanged = onPageRuleInjectJsChanged,
+                        onInjectCssChanged = onPageRuleInjectCssChanged,
+                        onShowTopBarChanged = onPageRuleShowTopBarChanged,
+                        onShowBottomBarChanged = onPageRuleShowBottomBarChanged,
+                        onShowDownloadOverlayChanged = onPageRuleShowDownloadOverlayChanged,
+                        onSuppressFocusHighlightChanged = onPageRuleSuppressFocusHighlightChanged,
+                        onOpenExternalChanged = onPageRuleOpenExternalChanged,
+                        onOpenCodeEditor = openCodeEditor
+                    )
+
+                    EditorTab.EVENTS -> PageEventsContent(
+                        pageEvents = state.formState.pageEvents,
+                        onAddPageEvent = onAddPageEvent,
+                        onRemovePageEvent = onRemovePageEvent,
+                        onPageEventIdChanged = onPageEventIdChanged,
+                        onPageEventEnabledChanged = onPageEventEnabledChanged,
+                        onPageEventTriggerChanged = onPageEventTriggerChanged,
+                        onPageEventUrlEqualsChanged = onPageEventUrlEqualsChanged,
+                        onPageEventUrlStartsWithChanged = onPageEventUrlStartsWithChanged,
+                        onPageEventUrlContainsChanged = onPageEventUrlContainsChanged,
+                        onAddPageEventAction = onAddPageEventAction,
+                        onRemovePageEventAction = onRemovePageEventAction,
+                        onPageEventActionTypeChanged = onPageEventActionTypeChanged,
+                        onPageEventActionValueChanged = onPageEventActionValueChanged,
+                        onPageEventActionUrlChanged = onPageEventActionUrlChanged,
+                        onPageEventActionScriptChanged = onPageEventActionScriptChanged,
+                        onOpenCodeEditor = openCodeEditor
+                    )
+
+                    EditorTab.BRANDING -> BrandingContent(
+                        state = state.formState,
+                        onImportIcon = onImportIcon,
+                        onClearIcon = onClearIcon,
+                        onImportSplash = onImportSplash,
+                        onClearSplash = onClearSplash,
+                        onSplashSkipEnabledChanged = onSplashSkipEnabledChanged,
+                        onSplashSkipSecondsChanged = onSplashSkipSecondsChanged,
+                        projectId = state.projectId
+                    )
+
+                    EditorTab.BUILD -> BuildConfigContent(
+                        state = state.formState,
+                        onApplicationLabelChanged = onApplicationLabelChanged,
+                        onVersionNameChanged = onVersionNameChanged,
+                        onVersionCodeChanged = onVersionCodeChanged,
+                        onPackageNameChanged = onPackageNameChanged,
+                        onOutputApkNameTemplateChanged = onOutputApkNameTemplateChanged,
+                        onSigningStorePasswordChanged = onSigningStorePasswordChanged,
+                        onSigningKeyAliasChanged = onSigningKeyAliasChanged,
+                        onSigningKeyPasswordChanged = onSigningKeyPasswordChanged,
+                        onImportKeystore = onImportKeystore,
+                        onClearKeystore = onClearKeystore
+                    )
+
+                    EditorTab.JSON -> ConfigJsonContent(
+                        rawJson = state.rawJson,
+                        onRawJsonChanged = onRawJsonChanged
                     )
                 }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = state.formState.appName.ifBlank { stringResource(R.string.config_editor_project_fallback) },
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                }
-                TextButton(onClick = onExport, enabled = !state.isSaving) {
-                    Text(stringResource(R.string.config_export))
-                }
-                TextButton(onClick = onReset, enabled = !state.isSaving) {
-                    Text(stringResource(R.string.config_reset))
-                }
-                TextButton(onClick = onSave, enabled = !state.isSaving) {
-                    Text(stringResource(R.string.config_save))
-                }
-            }
-            if (state.isLoading || state.isSaving) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
         }
 
-        ScrollableTabRow(
-            selectedTabIndex = state.selectedTab.ordinal,
-            edgePadding = 8.dp,
-            containerColor = MaterialTheme.colorScheme.surface
-        ) {
-            editorTabs.forEach { tab ->
-                Tab(
-                    selected = state.selectedTab == tab,
-                    onClick = { onSelectTab(tab) },
-                    text = { Text(stringResource(editorTabTitleRes(tab))) }
-                )
-            }
-        }
-
-        if (state.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            return
-        }
-
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) { page ->
-            when (editorTabs[page]) {
-                EditorTab.BASIC -> ConfigFormContent(
-                    state = state.formState,
-                    projectId = state.projectId,
-                    onAppNameChanged = onAppNameChanged,
-                    onDefaultUrlChanged = onDefaultUrlChanged,
-                    onTemplateSelected = onTemplateSelected,
-                    onUserAgentChanged = onUserAgentChanged,
-                    onBackActionSelected = onBackActionSelected,
-                    onNightModeChanged = onNightModeChanged,
-                    onScreenOrientationChanged = onScreenOrientationChanged,
-                    onLoadingOverlayChanged = onLoadingOverlayChanged,
-                    onShowPageProgressBarChanged = onShowPageProgressBarChanged,
-                    onErrorViewChanged = onErrorViewChanged,
-                    onImmersiveStatusBarChanged = onImmersiveStatusBarChanged,
-                    onTopBarShowBackButtonChanged = onTopBarShowBackButtonChanged,
-                    onTopBarShowHomeButtonChanged = onTopBarShowHomeButtonChanged,
-                    onTopBarShowRefreshButtonChanged = onTopBarShowRefreshButtonChanged,
-                    onTopBarBackBehaviorChanged = onTopBarBackBehaviorChanged,
-                    onTopBarBackScriptChanged = onTopBarBackScriptChanged,
-                    onTopBarHomeBehaviorChanged = onTopBarHomeBehaviorChanged,
-                    onTopBarHomeScriptChanged = onTopBarHomeScriptChanged,
-                    onTopBarRefreshBehaviorChanged = onTopBarRefreshBehaviorChanged,
-                    onTopBarRefreshScriptChanged = onTopBarRefreshScriptChanged,
-                    onTopBarFollowPageTitleChanged = onTopBarFollowPageTitleChanged,
-                    onTopBarTitleCenteredChanged = onTopBarTitleCenteredChanged,
-                    onTopBarHeightChanged = onTopBarHeightChanged,
-                    onTopBarIconSizeChanged = onTopBarIconSizeChanged,
-                    onTopBarCornerRadiusChanged = onTopBarCornerRadiusChanged,
-                    onTopBarShadowChanged = onTopBarShadowChanged,
-                    onTopBarBackIconChanged = onTopBarBackIconChanged,
-                    onTopBarHomeIconChanged = onTopBarHomeIconChanged,
-                    onTopBarRefreshIconChanged = onTopBarRefreshIconChanged,
-                    onBottomBarShowTextLabelsChanged = onBottomBarShowTextLabelsChanged,
-                    onBottomBarHeightChanged = onBottomBarHeightChanged,
-                    onBottomBarIconSizeChanged = onBottomBarIconSizeChanged,
-                    onBottomBarCornerRadiusChanged = onBottomBarCornerRadiusChanged,
-                    onBottomBarShadowChanged = onBottomBarShadowChanged,
-                    onBottomBarBadgeColorChanged = onBottomBarBadgeColorChanged,
-                    onBottomBarBadgeTextColorChanged = onBottomBarBadgeTextColorChanged,
-                    onBottomBarBadgeGravityChanged = onBottomBarBadgeGravityChanged,
-                    onBottomBarBadgeMaxCharacterCountChanged = onBottomBarBadgeMaxCharacterCountChanged,
-                    onBottomBarBadgeHorizontalOffsetChanged = onBottomBarBadgeHorizontalOffsetChanged,
-                    onBottomBarBadgeVerticalOffsetChanged = onBottomBarBadgeVerticalOffsetChanged,
-                    onBottomBarSelectedColorChanged = onBottomBarSelectedColorChanged,
-                    onDrawerHeaderTitleChanged = onDrawerHeaderTitleChanged,
-                    onDrawerHeaderSubtitleChanged = onDrawerHeaderSubtitleChanged,
-                    onDrawerWidthChanged = onDrawerWidthChanged,
-                    onDrawerCornerRadiusChanged = onDrawerCornerRadiusChanged,
-                    onDrawerHeaderBackgroundColorChanged = onDrawerHeaderBackgroundColorChanged,
-                    onDrawerWallpaperEnabledChanged = onDrawerWallpaperEnabledChanged,
-                    onImportDrawerWallpaper = onImportDrawerWallpaper,
-                    onClearDrawerWallpaper = onClearDrawerWallpaper,
-                    onDrawerWallpaperHeightChanged = onDrawerWallpaperHeightChanged,
-                    onDrawerAvatarEnabledChanged = onDrawerAvatarEnabledChanged,
-                    onImportDrawerAvatar = onImportDrawerAvatar,
-                    onClearDrawerAvatar = onClearDrawerAvatar,
-                    onDrawerHeaderImageUrlChanged = onDrawerHeaderImageUrlChanged,
-                    onDrawerHeaderImageHeightChanged = onDrawerHeaderImageHeightChanged,
-                    onDrawerHeaderImageScaleModeChanged = onDrawerHeaderImageScaleModeChanged,
-                    onDrawerHeaderImageOverlayPresetChanged = onDrawerHeaderImageOverlayPresetChanged,
-                    onDrawerHeaderImageOverlayColorChanged = onDrawerHeaderImageOverlayColorChanged,
-                onDrawerMenuIconChanged = onDrawerMenuIconChanged,
-                onDefaultNavigationItemIdChanged = onDefaultNavigationItemIdChanged,
-                onEnableSwipeNavigationChanged = onEnableSwipeNavigationChanged,
-                onPreserveNavigationPageStackChanged = onPreserveNavigationPageStackChanged,
-                onNavigationPreloadCountChanged = onNavigationPreloadCountChanged,
-                onNavigationBackBehaviorChanged = onNavigationBackBehaviorChanged,
-                    onTopBarThemeColorChanged = onTopBarThemeColorChanged,
-                    onBottomBarThemeColorChanged = onBottomBarThemeColorChanged,
-                    onAllowExternalHostsChanged = onAllowExternalHostsChanged,
-                    onEnableNativeKvBridgeChanged = onEnableNativeKvBridgeChanged,
-                    onKvTrustedHostsChanged = onKvTrustedHostsChanged,
-                    onOpenOtherAppsModeChanged = onOpenOtherAppsModeChanged,
-                    onSslErrorHandlingChanged = onSslErrorHandlingChanged,
-                    onAllowedHostsChanged = onAllowedHostsChanged,
-                    onGlobalJsChanged = onGlobalJsChanged,
-                    onGlobalCssChanged = onGlobalCssChanged,
-                    onAddNavigationItem = onAddNavigationItem,
-                    onRemoveNavigationItem = onRemoveNavigationItem,
-                    onNavigationIdChanged = onNavigationIdChanged,
-                    onNavigationTitleChanged = onNavigationTitleChanged,
-                    onNavigationUrlChanged = onNavigationUrlChanged,
-                    onNavigationIconChanged = onNavigationIconChanged,
-                    onNavigationSelectedIconChanged = onNavigationSelectedIconChanged,
-                    onNavigationBadgeCountChanged = onNavigationBadgeCountChanged,
-                    onNavigationShowUnreadDotChanged = onNavigationShowUnreadDotChanged,
-                    onImportCustomIconRequested = onImportCustomIconRequested,
-                    onApplyIconValue = onApplyIconValue
-                )
-
-                EditorTab.RULES -> PageRulesContent(
-                    pageRules = state.formState.pageRules,
-                    onAddPageRule = onAddPageRule,
-                    onRemovePageRule = onRemovePageRule,
-                    onUrlEqualsChanged = onPageRuleUrlEqualsChanged,
-                    onUrlStartsWithChanged = onPageRuleUrlStartsWithChanged,
-                    onUrlContainsChanged = onPageRuleUrlContainsChanged,
-                    onTitleChanged = onPageRuleTitleChanged,
-                    onLoadingTextChanged = onPageRuleLoadingTextChanged,
-                    onErrorTitleChanged = onPageRuleErrorTitleChanged,
-                    onErrorMessageChanged = onPageRuleErrorMessageChanged,
-                    onRetryActionChanged = onPageRuleRetryActionChanged,
-                    onRetryUrlChanged = onPageRuleRetryUrlChanged,
-                    onInjectJsChanged = onPageRuleInjectJsChanged,
-                    onInjectCssChanged = onPageRuleInjectCssChanged,
-                    onShowTopBarChanged = onPageRuleShowTopBarChanged,
-                    onShowBottomBarChanged = onPageRuleShowBottomBarChanged,
-                    onShowDownloadOverlayChanged = onPageRuleShowDownloadOverlayChanged,
-                    onSuppressFocusHighlightChanged = onPageRuleSuppressFocusHighlightChanged,
-                    onOpenExternalChanged = onPageRuleOpenExternalChanged
-                )
-
-                EditorTab.EVENTS -> PageEventsContent(
-                    pageEvents = state.formState.pageEvents,
-                    onAddPageEvent = onAddPageEvent,
-                    onRemovePageEvent = onRemovePageEvent,
-                    onPageEventIdChanged = onPageEventIdChanged,
-                    onPageEventEnabledChanged = onPageEventEnabledChanged,
-                    onPageEventTriggerChanged = onPageEventTriggerChanged,
-                    onPageEventUrlEqualsChanged = onPageEventUrlEqualsChanged,
-                    onPageEventUrlStartsWithChanged = onPageEventUrlStartsWithChanged,
-                    onPageEventUrlContainsChanged = onPageEventUrlContainsChanged,
-                    onAddPageEventAction = onAddPageEventAction,
-                    onRemovePageEventAction = onRemovePageEventAction,
-                    onPageEventActionTypeChanged = onPageEventActionTypeChanged,
-                    onPageEventActionValueChanged = onPageEventActionValueChanged,
-                    onPageEventActionUrlChanged = onPageEventActionUrlChanged,
-                    onPageEventActionScriptChanged = onPageEventActionScriptChanged
-                )
-
-                EditorTab.BRANDING -> BrandingContent(
-                    state = state.formState,
-                    onImportIcon = onImportIcon,
-                    onClearIcon = onClearIcon,
-                    onImportSplash = onImportSplash,
-                    onClearSplash = onClearSplash,
-                    onSplashSkipEnabledChanged = onSplashSkipEnabledChanged,
-                    onSplashSkipSecondsChanged = onSplashSkipSecondsChanged,
-                    projectId = state.projectId
-                )
-
-                EditorTab.BUILD -> BuildConfigContent(
-                    state = state.formState,
-                    onApplicationLabelChanged = onApplicationLabelChanged,
-                    onVersionNameChanged = onVersionNameChanged,
-                    onVersionCodeChanged = onVersionCodeChanged,
-                    onPackageNameChanged = onPackageNameChanged,
-                    onOutputApkNameTemplateChanged = onOutputApkNameTemplateChanged,
-                    onSigningStorePasswordChanged = onSigningStorePasswordChanged,
-                    onSigningKeyAliasChanged = onSigningKeyAliasChanged,
-                    onSigningKeyPasswordChanged = onSigningKeyPasswordChanged,
-                    onImportKeystore = onImportKeystore,
-                    onClearKeystore = onClearKeystore
-                )
-
-                EditorTab.JSON -> ConfigJsonContent(
-                    rawJson = state.rawJson,
-                    onRawJsonChanged = onRawJsonChanged
-                )
-            }
+        activeCodeEditorRequest?.let { request ->
+            FullScreenCodeEditorOverlay(
+                label = request.label,
+                value = request.value,
+                onDismissRequest = { activeCodeEditorRequest = null },
+                onSave = { updatedValue ->
+                    request.onSave(updatedValue)
+                    activeCodeEditorRequest = null
+                },
+                snippetTemplates = request.snippetTemplates
+            )
         }
     }
 }
@@ -1213,7 +1245,8 @@ private fun ConfigFormContent(
     onNavigationBadgeCountChanged: (Int, String) -> Unit,
     onNavigationShowUnreadDotChanged: (Int, Boolean) -> Unit,
     onImportCustomIconRequested: (EditorIconTarget) -> Unit,
-    onApplyIconValue: (EditorIconTarget, String) -> Unit
+    onApplyIconValue: (EditorIconTarget, String) -> Unit,
+    onOpenCodeEditor: OnOpenCodeEditor
 ) {
     val selectedTemplateSpec = TemplateCatalog.specFor(state.templateType)
     val context = LocalContext.current
@@ -1514,7 +1547,8 @@ private fun ConfigFormContent(
                     onTopBarRefreshIconChanged = onTopBarRefreshIconChanged,
                     onTopBarThemeColorChanged = onTopBarThemeColorChanged,
                     onImportCustomIconRequested = onImportCustomIconRequested,
-                    onApplyIconValue = onApplyIconValue
+                    onApplyIconValue = onApplyIconValue,
+                    onOpenCodeEditor = onOpenCodeEditor
                 )
             }
         }
@@ -1753,14 +1787,16 @@ private fun ConfigFormContent(
                 blocks = state.globalJsBlocks,
                 onBlocksChanged = onGlobalJsChanged,
                 modifier = Modifier.fillMaxWidth(),
-                snippetTemplates = commonJsEditorSnippets
+                snippetTemplates = commonJsEditorSnippets,
+                onOpenCodeEditor = onOpenCodeEditor
             )
             Spacer(modifier = Modifier.height(12.dp))
             CodeBlockListEditorField(
                 label = stringResource(R.string.config_field_global_css_single),
                 blocks = state.globalCssBlocks,
                 onBlocksChanged = onGlobalCssChanged,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                onOpenCodeEditor = onOpenCodeEditor
             )
         }
         }
@@ -1794,7 +1830,8 @@ private fun TopBarShellSection(
     onTopBarRefreshIconChanged: (String) -> Unit,
     onTopBarThemeColorChanged: (String) -> Unit,
     onImportCustomIconRequested: (EditorIconTarget) -> Unit,
-    onApplyIconValue: (EditorIconTarget, String) -> Unit
+    onApplyIconValue: (EditorIconTarget, String) -> Unit,
+    onOpenCodeEditor: OnOpenCodeEditor
 ) {
     SectionCard(title = stringResource(R.string.config_editor_section_top_bar)) {
         val context = LocalContext.current
@@ -1829,7 +1866,8 @@ private fun TopBarShellSection(
                     value = state.topBarBackScriptText,
                     onValueChange = onTopBarBackScriptChanged,
                     modifier = Modifier.fillMaxWidth(),
-                    snippetTemplates = commonJsEditorSnippets
+                    snippetTemplates = commonJsEditorSnippets,
+                    onOpenCodeEditor = onOpenCodeEditor
                 )
             }
         }
@@ -1853,7 +1891,8 @@ private fun TopBarShellSection(
                 value = state.topBarHomeScriptText,
                 onValueChange = onTopBarHomeScriptChanged,
                 modifier = Modifier.fillMaxWidth(),
-                snippetTemplates = commonJsEditorSnippets
+                snippetTemplates = commonJsEditorSnippets,
+                onOpenCodeEditor = onOpenCodeEditor
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -1877,7 +1916,8 @@ private fun TopBarShellSection(
                 value = state.topBarRefreshScriptText,
                 onValueChange = onTopBarRefreshScriptChanged,
                 modifier = Modifier.fillMaxWidth(),
-                snippetTemplates = commonJsEditorSnippets
+                snippetTemplates = commonJsEditorSnippets,
+                onOpenCodeEditor = onOpenCodeEditor
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
@@ -2413,7 +2453,8 @@ private fun PageRulesContent(
     onShowBottomBarChanged: (Int, RuleToggleState) -> Unit,
     onShowDownloadOverlayChanged: (Int, RuleToggleState) -> Unit,
     onSuppressFocusHighlightChanged: (Int, RuleToggleState) -> Unit,
-    onOpenExternalChanged: (Int, RuleToggleState) -> Unit
+    onOpenExternalChanged: (Int, RuleToggleState) -> Unit,
+    onOpenCodeEditor: OnOpenCodeEditor
 ) {
     var selectedPageRuleIndex by remember { mutableStateOf(0) }
     val context = LocalContext.current
@@ -2500,7 +2541,8 @@ private fun PageRulesContent(
                     onShowBottomBarChanged = { onShowBottomBarChanged(selectedPageRuleIndex, it) },
                     onShowDownloadOverlayChanged = { onShowDownloadOverlayChanged(selectedPageRuleIndex, it) },
                     onSuppressFocusHighlightChanged = { onSuppressFocusHighlightChanged(selectedPageRuleIndex, it) },
-                    onOpenExternalChanged = { onOpenExternalChanged(selectedPageRuleIndex, it) }
+                    onOpenExternalChanged = { onOpenExternalChanged(selectedPageRuleIndex, it) },
+                    onOpenCodeEditor = onOpenCodeEditor
                 )
             }
             }
@@ -2525,7 +2567,8 @@ private fun PageEventsContent(
     onPageEventActionTypeChanged: (Int, Int, String) -> Unit,
     onPageEventActionValueChanged: (Int, Int, String) -> Unit,
     onPageEventActionUrlChanged: (Int, Int, String) -> Unit,
-    onPageEventActionScriptChanged: (Int, Int, String) -> Unit
+    onPageEventActionScriptChanged: (Int, Int, String) -> Unit,
+    onOpenCodeEditor: OnOpenCodeEditor
 ) {
     var selectedEventIndex by remember { mutableStateOf(0) }
     var selectedActionIndex by remember { mutableStateOf(0) }
@@ -2696,7 +2739,8 @@ private fun PageEventsContent(
                         onTypeChanged = { onPageEventActionTypeChanged(selectedEventIndex, selectedActionIndex, it) },
                         onValueChanged = { onPageEventActionValueChanged(selectedEventIndex, selectedActionIndex, it) },
                         onUrlChanged = { onPageEventActionUrlChanged(selectedEventIndex, selectedActionIndex, it) },
-                        onScriptChanged = { onPageEventActionScriptChanged(selectedEventIndex, selectedActionIndex, it) }
+                        onScriptChanged = { onPageEventActionScriptChanged(selectedEventIndex, selectedActionIndex, it) },
+                        onOpenCodeEditor = onOpenCodeEditor
                     )
                 }
             }
@@ -2724,7 +2768,8 @@ private fun PageRuleEditor(
     onShowBottomBarChanged: (RuleToggleState) -> Unit,
     onShowDownloadOverlayChanged: (RuleToggleState) -> Unit,
     onSuppressFocusHighlightChanged: (RuleToggleState) -> Unit,
-    onOpenExternalChanged: (RuleToggleState) -> Unit
+    onOpenExternalChanged: (RuleToggleState) -> Unit,
+    onOpenCodeEditor: OnOpenCodeEditor
 ) {
     val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -2842,14 +2887,16 @@ private fun PageRuleEditor(
             blocks = rule.injectJsBlocks,
             onBlocksChanged = onInjectJsChanged,
             modifier = Modifier.fillMaxWidth(),
-            snippetTemplates = commonJsEditorSnippets
+            snippetTemplates = commonJsEditorSnippets,
+            onOpenCodeEditor = onOpenCodeEditor
         )
         Spacer(modifier = Modifier.height(12.dp))
         CodeBlockListEditorField(
             label = stringResource(R.string.config_editor_rule_css_injection),
             blocks = rule.injectCssBlocks,
             onBlocksChanged = onInjectCssChanged,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            onOpenCodeEditor = onOpenCodeEditor
         )
     }
 }
@@ -2862,7 +2909,8 @@ private fun PageEventActionEditor(
     onTypeChanged: (String) -> Unit,
     onValueChanged: (String) -> Unit,
     onUrlChanged: (String) -> Unit,
-    onScriptChanged: (String) -> Unit
+    onScriptChanged: (String) -> Unit,
+    onOpenCodeEditor: OnOpenCodeEditor
 ) {
     val context = LocalContext.current
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -2910,7 +2958,8 @@ private fun PageEventActionEditor(
                     value = action.script.ifBlank { action.value },
                     onValueChange = onScriptChanged,
                     modifier = Modifier.fillMaxWidth(),
-                    snippetTemplates = commonJsEditorSnippets
+                    snippetTemplates = commonJsEditorSnippets,
+                    onOpenCodeEditor = onOpenCodeEditor
                 )
             }
 
@@ -4382,7 +4431,15 @@ private data class CodeEditorSnippetTemplate(
     val content: String
 )
 
-private const val NEW_CODE_BLOCK_INDEX = -1
+private data class CodeEditorOverlayRequest(
+    val label: String,
+    val value: String,
+    val snippetTemplates: List<CodeEditorSnippetTemplate> = emptyList(),
+    val onSave: (String) -> Unit
+)
+
+private typealias OnOpenCodeEditor = (CodeEditorOverlayRequest) -> Unit
+
 private val commonJsEditorSnippets = listOf(
     CodeEditorSnippetTemplate(
         labelRes = R.string.config_editor_js_snippet_iife,
@@ -4539,7 +4596,7 @@ private fun SectionCard(
 }
 
 @Composable
-private fun FullScreenCodeEditorDialog(
+private fun FullScreenCodeEditorOverlay(
     label: String,
     value: String,
     onDismissRequest: () -> Unit,
@@ -4547,126 +4604,227 @@ private fun FullScreenCodeEditorDialog(
     snippetTemplates: List<CodeEditorSnippetTemplate> = emptyList()
 ) {
     var draftValue by remember(value) {
-        mutableStateOf(TextFieldValue(text = value, selection = TextRange(value.length)))
+        mutableStateOf(TextFieldValue(text = value, selection = TextRange.Zero))
     }
     var snippetMenuExpanded by remember { mutableStateOf(false) }
+    var isEditorFocused by remember { mutableStateOf(false) }
+    val editorScrollState = rememberScrollState()
+    val density = LocalDensity.current
+    var editorViewportHeightPx by remember { mutableStateOf(0) }
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     val draftText = draftValue.text
     val draftLineCount = remember(draftText) { countCodeEditorLines(draftText) }
     val draftCharacterCount = remember(draftText) { draftText.length }
+    val editorShape = RoundedCornerShape(22.dp)
+    val focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f)
+    val unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f)
+    val containerColor = if (isEditorFocused) focusedContainerColor else unfocusedContainerColor
+    val borderColor = if (isEditorFocused) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+    val borderWidth = if (isEditorFocused) 2.dp else 1.dp
 
-    Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+    LaunchedEffect(draftValue.selection, draftText, editorViewportHeightPx, textLayoutResult) {
+        val layout = textLayoutResult ?: return@LaunchedEffect
+        if (editorViewportHeightPx <= 0) {
+            return@LaunchedEffect
+        }
+        val cursorOffset = draftValue.selection.end.coerceIn(0, draftText.length)
+        val cursorRect = layout.getCursorRect(cursorOffset)
+        val currentScroll = editorScrollState.value.toFloat()
+        val visibleTop = currentScroll
+        val visibleBottom = currentScroll + editorViewportHeightPx
+        val topPaddingPx = with(density) { 24.dp.toPx() }
+        val bottomPaddingPx = with(density) { 84.dp.toPx() }
+        val targetScroll = when {
+            cursorRect.bottom + bottomPaddingPx > visibleBottom ->
+                (cursorRect.bottom + bottomPaddingPx - editorViewportHeightPx).toInt()
+
+            cursorRect.top - topPaddingPx < visibleTop ->
+                (cursorRect.top - topPaddingPx).toInt()
+
+            else -> null
+        }
+        targetScroll?.let { desired ->
+            editorScrollState.animateScrollTo(desired.coerceAtLeast(0))
+        }
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding()
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp, top = 12.dp, end = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                IconButton(
+                    onClick = onDismissRequest,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.config_editor_close)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Text(
+                        text = if (draftLineCount > 0) {
+                            stringResource(
+                                R.string.config_editor_code_stats,
+                                draftLineCount,
+                                draftCharacterCount
+                            )
+                        } else {
+                            stringResource(R.string.config_editor_code_empty)
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (snippetTemplates.isNotEmpty()) {
+                        Box {
+                            IconButton(
+                                onClick = { snippetMenuExpanded = true },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Add,
+                                    contentDescription = stringResource(R.string.config_editor_insert_snippet)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = snippetMenuExpanded,
+                                onDismissRequest = { snippetMenuExpanded = false }
+                            ) {
+                                snippetTemplates.forEach { template ->
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(template.labelRes)) },
+                                        onClick = {
+                                            draftValue = insertSnippetIntoEditor(
+                                                currentValue = draftValue,
+                                                snippet = template.content
+                                            )
+                                            snippetMenuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    TextButton(
+                        onClick = { draftValue = TextFieldValue() },
+                        modifier = Modifier.height(34.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text(stringResource(R.string.config_editor_clear))
+                    }
+                    TextButton(
+                        onClick = {
+                            onSave(draftValue.text)
+                            onDismissRequest()
+                        },
+                        modifier = Modifier.height(34.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Text(stringResource(R.string.config_save))
+                    }
+                }
+            }
+            HorizontalDivider()
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .imePadding()
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Row(
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 8.dp, top = 12.dp, end = 8.dp, bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .weight(1f),
+                    shape = editorShape,
+                    color = containerColor,
+                    tonalElevation = if (isEditorFocused) 2.dp else 0.dp
                 ) {
-                    IconButton(
-                        onClick = onDismissRequest,
-                        modifier = Modifier.size(40.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .border(
+                                width = borderWidth,
+                                color = borderColor,
+                                shape = editorShape
+                            )
+                            .clip(editorShape)
+                            .background(containerColor)
                     ) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = stringResource(R.string.config_editor_close)
+                        BasicTextField(
+                            value = draftValue,
+                            onValueChange = {
+                                draftValue = it
+                                isEditorFocused = true
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused || focusState.hasFocus) {
+                                        isEditorFocused = true
+                                    }
+                                }
+                                .onSizeChanged { editorViewportHeightPx = it.height }
+                                .verticalScroll(editorScrollState)
+                                .padding(horizontal = 16.dp, vertical = 18.dp),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = FontFamily.Monospace,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            onTextLayout = { layoutResult ->
+                                textLayoutResult = layoutResult
+                            },
+                            decorationBox = { innerTextField ->
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    innerTextField()
+                                }
+                            }
                         )
                     }
-                    Column(modifier = Modifier.weight(1f)) {
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (isEditorFocused) {
                         Text(
-                            text = label,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Text(
-                            text = if (draftLineCount > 0) {
-                                stringResource(
-                                    R.string.config_editor_code_stats,
-                                    draftLineCount,
-                                    draftCharacterCount
-                                )
-                            } else {
-                                stringResource(R.string.config_editor_code_empty)
-                            },
+                            text = stringResource(R.string.config_editor_code_stats, draftLineCount, draftCharacterCount),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        if (snippetTemplates.isNotEmpty()) {
-                            Box {
-                                IconButton(
-                                    onClick = { snippetMenuExpanded = true },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Add,
-                                        contentDescription = stringResource(R.string.config_editor_insert_snippet)
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = snippetMenuExpanded,
-                                    onDismissRequest = { snippetMenuExpanded = false }
-                                ) {
-                                    snippetTemplates.forEach { template ->
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(template.labelRes)) },
-                                            onClick = {
-                                                draftValue = insertSnippetIntoEditor(
-                                                    currentValue = draftValue,
-                                                    snippet = template.content
-                                                )
-                                                snippetMenuExpanded = false
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                        TextButton(
-                            onClick = { draftValue = TextFieldValue() },
-                            modifier = Modifier.height(34.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                        ) {
-                            Text(stringResource(R.string.config_editor_clear))
-                        }
-                        TextButton(
-                            onClick = {
-                                onSave(draftValue.text)
-                                onDismissRequest()
-                            },
-                            modifier = Modifier.height(34.dp),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                        ) {
-                            Text(stringResource(R.string.config_save))
-                        }
-                    }
                 }
-                HorizontalDivider()
-                OutlinedTextField(
-                    value = draftValue,
-                    onValueChange = { draftValue = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(16.dp),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace)
-                )
             }
         }
     }
@@ -4679,17 +4837,29 @@ private fun CodeEditorField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     previewLineCount: Int = 3,
-    snippetTemplates: List<CodeEditorSnippetTemplate> = emptyList()
+    snippetTemplates: List<CodeEditorSnippetTemplate> = emptyList(),
+    onOpenCodeEditor: OnOpenCodeEditor
 ) {
-    var dialogOpen by remember { mutableStateOf(false) }
     val lineCount = remember(value) { countCodeEditorLines(value) }
     val characterCount = remember(value) { value.length }
     val previewText = remember(value, previewLineCount) { buildCodePreview(value, previewLineCount) }
+    val openEditor = remember(label, value, snippetTemplates, onValueChange, onOpenCodeEditor) {
+        {
+            onOpenCodeEditor(
+                CodeEditorOverlayRequest(
+                    label = label,
+                    value = value,
+                    snippetTemplates = snippetTemplates,
+                    onSave = onValueChange
+                )
+            )
+        }
+    }
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { dialogOpen = true },
+            .clickable(onClick = openEditor),
         shape = RoundedCornerShape(18.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
         tonalElevation = 0.dp
@@ -4720,7 +4890,7 @@ private fun CodeEditorField(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                OutlinedButton(onClick = { dialogOpen = true }) {
+                OutlinedButton(onClick = openEditor) {
                     Text(stringResource(R.string.config_editor_edit))
                 }
             }
@@ -4745,16 +4915,6 @@ private fun CodeEditorField(
             }
         }
     }
-
-    if (dialogOpen) {
-        FullScreenCodeEditorDialog(
-            label = label,
-            value = value,
-            onDismissRequest = { dialogOpen = false },
-            onSave = onValueChange,
-            snippetTemplates = snippetTemplates
-        )
-    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -4765,9 +4925,9 @@ private fun CodeBlockListEditorField(
     onBlocksChanged: (List<String>) -> Unit,
     modifier: Modifier = Modifier,
     previewLineCount: Int = 3,
-    snippetTemplates: List<CodeEditorSnippetTemplate> = emptyList()
+    snippetTemplates: List<CodeEditorSnippetTemplate> = emptyList(),
+    onOpenCodeEditor: OnOpenCodeEditor
 ) {
-    var editorTargetIndex by remember { mutableStateOf<Int?>(null) }
     val blockCount = blocks.size
 
     Surface(
@@ -4802,7 +4962,20 @@ private fun CodeBlockListEditorField(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                OutlinedButton(onClick = { editorTargetIndex = NEW_CODE_BLOCK_INDEX }) {
+                OutlinedButton(
+                    onClick = {
+                        onOpenCodeEditor(
+                            CodeEditorOverlayRequest(
+                                label = label,
+                                value = "",
+                                snippetTemplates = snippetTemplates,
+                                onSave = { updatedValue ->
+                                    onBlocksChanged(blocks + updatedValue)
+                                }
+                            )
+                        )
+                    }
+                ) {
                     Icon(imageVector = Icons.Filled.Add, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.config_editor_add_code_block))
@@ -4829,6 +5002,12 @@ private fun CodeBlockListEditorField(
                     val previewText = buildCodePreview(block, previewLineCount)
                     val lineCount = countCodeEditorLines(block)
                     val characterCount = block.length
+                    val blockTitle = stringResource(R.string.config_editor_code_block_title, index + 1)
+                    val editorTitle = stringResource(
+                        R.string.config_editor_code_editor_title,
+                        label,
+                        blockTitle
+                    )
 
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -4848,7 +5027,7 @@ private fun CodeBlockListEditorField(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = stringResource(R.string.config_editor_code_block_title, index + 1),
+                                        text = blockTitle,
                                         style = MaterialTheme.typography.titleSmall
                                     )
                                     Text(
@@ -4861,7 +5040,24 @@ private fun CodeBlockListEditorField(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                TextButton(onClick = { editorTargetIndex = index }) {
+                                TextButton(
+                                    onClick = {
+                                        onOpenCodeEditor(
+                                            CodeEditorOverlayRequest(
+                                                label = editorTitle,
+                                                value = block,
+                                                snippetTemplates = snippetTemplates,
+                                                onSave = { updatedValue ->
+                                                    val nextBlocks = blocks.toMutableList()
+                                                    if (index in nextBlocks.indices) {
+                                                        nextBlocks[index] = updatedValue
+                                                        onBlocksChanged(nextBlocks)
+                                                    }
+                                                }
+                                            )
+                                        )
+                                    }
+                                ) {
                                     Text(stringResource(R.string.config_editor_edit))
                                 }
                             }
@@ -4926,40 +5122,6 @@ private fun CodeBlockListEditorField(
                 }
             }
         }
-    }
-
-    val currentEditorTargetIndex = editorTargetIndex
-    if (currentEditorTargetIndex != null) {
-        val initialValue = if (currentEditorTargetIndex == NEW_CODE_BLOCK_INDEX) {
-            ""
-        } else {
-            blocks.getOrNull(currentEditorTargetIndex).orEmpty()
-        }
-        val editorTitle = if (currentEditorTargetIndex == NEW_CODE_BLOCK_INDEX) {
-            label
-        } else {
-            stringResource(
-                R.string.config_editor_code_editor_title,
-                label,
-                stringResource(R.string.config_editor_code_block_title, currentEditorTargetIndex + 1)
-            )
-        }
-
-        FullScreenCodeEditorDialog(
-            label = editorTitle,
-            value = initialValue,
-            onDismissRequest = { editorTargetIndex = null },
-            onSave = { updatedValue ->
-                val nextBlocks = blocks.toMutableList()
-                if (currentEditorTargetIndex == NEW_CODE_BLOCK_INDEX) {
-                    nextBlocks.add(updatedValue)
-                } else if (currentEditorTargetIndex in nextBlocks.indices) {
-                    nextBlocks[currentEditorTargetIndex] = updatedValue
-                }
-                onBlocksChanged(nextBlocks)
-            },
-            snippetTemplates = snippetTemplates
-        )
     }
 }
 
