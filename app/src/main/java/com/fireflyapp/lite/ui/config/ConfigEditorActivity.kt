@@ -40,10 +40,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -82,6 +84,8 @@ import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabPosition
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
@@ -109,6 +113,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -121,6 +126,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.WindowCompat
@@ -145,6 +151,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 private enum class DrawerMediaTarget {
     WALLPAPER,
@@ -681,10 +690,16 @@ private fun ConfigEditorScreen(
     onRawJsonChanged: (String) -> Unit
 ) {
     val editorTabs = remember { EditorTab.values().toList() }
+    val configuration = LocalConfiguration.current
+    val useFullWidthEditorTabs = configuration.screenWidthDp >= 600
     val pagerState = rememberPagerState(
         initialPage = state.selectedTab.ordinal,
         pageCount = { editorTabs.size }
     )
+    val pagerIndicatorPosition = (
+        pagerState.currentPage.toFloat() + pagerState.currentPageOffsetFraction
+        ).coerceIn(0f, editorTabs.lastIndex.toFloat())
+    val displayedSelectedTabIndex = pagerIndicatorPosition.roundToInt().coerceIn(0, editorTabs.lastIndex)
     var activeCodeEditorRequest by remember { mutableStateOf<CodeEditorOverlayRequest?>(null) }
     val latestSelectedTab by rememberUpdatedState(state.selectedTab)
     val latestOnSelectTab by rememberUpdatedState(onSelectTab)
@@ -764,17 +779,44 @@ private fun ConfigEditorScreen(
                 }
             }
 
-            ScrollableTabRow(
-                selectedTabIndex = state.selectedTab.ordinal,
-                edgePadding = 8.dp,
-                containerColor = MaterialTheme.colorScheme.surface
-            ) {
-                editorTabs.forEach { tab ->
-                    Tab(
-                        selected = state.selectedTab == tab,
-                        onClick = { onSelectTab(tab) },
-                        text = { Text(stringResource(editorTabTitleRes(tab))) }
-                    )
+            if (useFullWidthEditorTabs) {
+                TabRow(
+                    selectedTabIndex = displayedSelectedTabIndex,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    indicator = { tabPositions ->
+                        ConfigEditorPagerTabIndicator(
+                            tabPositions = tabPositions,
+                            pagerState = pagerState
+                        )
+                    }
+                ) {
+                    editorTabs.forEachIndexed { index, tab ->
+                        Tab(
+                            selected = displayedSelectedTabIndex == index,
+                            onClick = { onSelectTab(tab) },
+                            text = { Text(stringResource(editorTabTitleRes(tab))) }
+                        )
+                    }
+                }
+            } else {
+                ScrollableTabRow(
+                    selectedTabIndex = displayedSelectedTabIndex,
+                    edgePadding = 8.dp,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    indicator = { tabPositions ->
+                        ConfigEditorPagerTabIndicator(
+                            tabPositions = tabPositions,
+                            pagerState = pagerState
+                        )
+                    }
+                ) {
+                    editorTabs.forEachIndexed { index, tab ->
+                        Tab(
+                            selected = displayedSelectedTabIndex == index,
+                            onClick = { onSelectTab(tab) },
+                            text = { Text(stringResource(editorTabTitleRes(tab))) }
+                        )
+                    }
                 }
             }
 
@@ -981,6 +1023,41 @@ private fun editorTabTitleRes(tab: EditorTab): Int {
         EditorTab.BRANDING -> R.string.config_editor_tab_branding
         EditorTab.BUILD -> R.string.config_editor_tab_build
         EditorTab.JSON -> R.string.config_tab_json
+    }
+}
+
+@Composable
+private fun ConfigEditorPagerTabIndicator(
+    tabPositions: List<TabPosition>,
+    pagerState: PagerState
+) {
+    if (tabPositions.isEmpty()) {
+        return
+    }
+
+    val continuousPageOffset = (
+        pagerState.currentPage.toFloat() + pagerState.currentPageOffsetFraction
+        ).coerceIn(0f, tabPositions.lastIndex.toFloat())
+    val startIndex = floor(continuousPageOffset).toInt().coerceIn(0, tabPositions.lastIndex)
+    val endIndex = ceil(continuousPageOffset).toInt().coerceIn(0, tabPositions.lastIndex)
+    val fraction = continuousPageOffset - startIndex
+    val startTab = tabPositions[startIndex]
+    val endTab = tabPositions[endIndex]
+    val indicatorLeft = lerp(startTab.left, endTab.left, fraction)
+    val indicatorWidth = lerp(startTab.width, endTab.width, fraction)
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomStart
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = indicatorLeft)
+                .width(indicatorWidth)
+                .height(3.dp)
+                .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                .background(MaterialTheme.colorScheme.primary)
+        )
     }
 }
 

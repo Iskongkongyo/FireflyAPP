@@ -89,6 +89,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -1126,6 +1127,9 @@ private fun ProjectWorkspaceCard(
     onPack: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val useFullWidthActionButtons = configuration.screenWidthDp >= 600
+
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth()
@@ -1179,34 +1183,83 @@ private fun ProjectWorkspaceCard(
                 )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                TextButton(onClick = onEdit) {
-                    Icon(imageVector = Icons.Filled.Edit, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.project_hub_action_edit))
+            if (useFullWidthActionButtons) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    ProjectWorkspaceActionButton(
+                        label = stringResource(R.string.project_hub_action_edit),
+                        icon = Icons.Filled.Edit,
+                        onClick = onEdit,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ProjectWorkspaceActionButton(
+                        label = stringResource(R.string.project_hub_action_preview),
+                        icon = Icons.Filled.PlayArrow,
+                        onClick = onLaunch,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ProjectWorkspaceActionButton(
+                        label = stringResource(R.string.project_hub_action_pack),
+                        icon = Icons.Filled.Build,
+                        onClick = onPack,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ProjectWorkspaceActionButton(
+                        label = stringResource(R.string.project_hub_delete_action),
+                        icon = Icons.Filled.Delete,
+                        onClick = onDelete,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
-                TextButton(onClick = onLaunch) {
-                    Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.project_hub_action_preview))
-                }
-                TextButton(onClick = onPack) {
-                    Icon(imageVector = Icons.Filled.Build, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.project_hub_action_pack))
-                }
-                TextButton(onClick = onDelete) {
-                    Icon(imageVector = Icons.Filled.Delete, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(stringResource(R.string.project_hub_delete_action))
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    ProjectWorkspaceActionButton(
+                        label = stringResource(R.string.project_hub_action_edit),
+                        icon = Icons.Filled.Edit,
+                        onClick = onEdit
+                    )
+                    ProjectWorkspaceActionButton(
+                        label = stringResource(R.string.project_hub_action_preview),
+                        icon = Icons.Filled.PlayArrow,
+                        onClick = onLaunch
+                    )
+                    ProjectWorkspaceActionButton(
+                        label = stringResource(R.string.project_hub_action_pack),
+                        icon = Icons.Filled.Build,
+                        onClick = onPack
+                    )
+                    ProjectWorkspaceActionButton(
+                        label = stringResource(R.string.project_hub_delete_action),
+                        icon = Icons.Filled.Delete,
+                        onClick = onDelete
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ProjectWorkspaceActionButton(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = modifier
+    ) {
+        Icon(imageVector = icon, contentDescription = null)
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(label)
     }
 }
 
