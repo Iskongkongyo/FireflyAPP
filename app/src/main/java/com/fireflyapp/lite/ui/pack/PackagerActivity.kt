@@ -20,11 +20,13 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -47,6 +49,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
@@ -116,6 +119,9 @@ class PackagerActivity : ComponentActivity() {
                     uiState = uiState,
                     onPrepareWorkspace = viewModel::prepareWorkspace,
                     onExecuteBuild = viewModel::executeBuild,
+                    onCameraPermissionChange = viewModel::updateSensitiveCameraPermission,
+                    onMicrophonePermissionChange = viewModel::updateSensitiveMicrophonePermission,
+                    onLocationPermissionChange = viewModel::updateSensitiveLocationPermission,
                     onDeleteHistoryEntry = viewModel::deleteHistoryEntry,
                     onInstallArtifact = ::installArtifact,
                     onShareArtifact = ::shareArtifact,
@@ -233,6 +239,9 @@ private fun PackagerScreen(
     uiState: PackagerUiState,
     onPrepareWorkspace: () -> Unit,
     onExecuteBuild: () -> Unit,
+    onCameraPermissionChange: (Boolean) -> Unit,
+    onMicrophonePermissionChange: (Boolean) -> Unit,
+    onLocationPermissionChange: (Boolean) -> Unit,
     onDeleteHistoryEntry: (TemplatePackHistoryEntry) -> Unit,
     onInstallArtifact: (String) -> Unit,
     onShareArtifact: (String) -> Unit,
@@ -351,6 +360,70 @@ private fun PackagerScreen(
                     Text(
                         text = stringResource(R.string.packager_pipeline_desc),
                         style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            PackPageCard {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Security,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Column {
+                            Text(
+                                text = stringResource(R.string.packager_permissions_title),
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                text = stringResource(R.string.packager_permissions_desc),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    if (uiState.sensitivePermissions.usesLegacyDefaults) {
+                        Text(
+                            text = stringResource(R.string.packager_permissions_legacy_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    PermissionToggleRow(
+                        label = stringResource(R.string.packager_permission_camera),
+                        supportingText = stringResource(R.string.packager_permission_camera_desc),
+                        checked = uiState.sensitivePermissions.cameraEnabled,
+                        enabled = !uiState.isPreparing && !uiState.isBuilding,
+                        onCheckedChange = onCameraPermissionChange
+                    )
+                    PermissionToggleRow(
+                        label = stringResource(R.string.packager_permission_microphone),
+                        supportingText = stringResource(R.string.packager_permission_microphone_desc),
+                        checked = uiState.sensitivePermissions.microphoneEnabled,
+                        enabled = !uiState.isPreparing && !uiState.isBuilding,
+                        onCheckedChange = onMicrophonePermissionChange
+                    )
+                    PermissionToggleRow(
+                        label = stringResource(R.string.packager_permission_location),
+                        supportingText = stringResource(R.string.packager_permission_location_desc),
+                        checked = uiState.sensitivePermissions.locationEnabled,
+                        enabled = !uiState.isPreparing && !uiState.isBuilding,
+                        onCheckedChange = onLocationPermissionChange
+                    )
+                    Text(
+                        text = stringResource(R.string.packager_permissions_fixed_note),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -623,6 +696,38 @@ private fun PackPageCard(
         shape = MaterialTheme.shapes.large
     ) {
         content()
+    }
+}
+
+@Composable
+private fun PermissionToggleRow(
+    label: String,
+    supportingText: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = supportingText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled
+        )
     }
 }
 

@@ -45,5 +45,20 @@ data class ProjectSigning(
 
 @Serializable
 data class ProjectPackaging(
-    val outputApkNameTemplate: String = ""
-)
+    val outputApkNameTemplate: String = "",
+    val enableCameraPermission: Boolean? = null,
+    val enableMicrophonePermission: Boolean? = null,
+    val enableLocationPermission: Boolean? = null
+) {
+    fun isCameraPermissionEnabled(): Boolean = enableCameraPermission ?: true
+
+    fun isMicrophonePermissionEnabled(): Boolean = enableMicrophonePermission ?: true
+
+    fun isLocationPermissionEnabled(): Boolean = enableLocationPermission ?: true
+
+    fun usesLegacySensitivePermissionDefaults(): Boolean {
+        return enableCameraPermission == null &&
+            enableMicrophonePermission == null &&
+            enableLocationPermission == null
+    }
+}

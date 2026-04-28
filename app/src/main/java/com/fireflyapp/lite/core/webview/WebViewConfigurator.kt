@@ -12,7 +12,8 @@ object WebViewConfigurator {
         webView.settings.apply {
             javaScriptEnabled = config.javaScriptEnabled
             domStorageEnabled = config.domStorageEnabled
-            builtInZoomControls = false
+            setSupportZoom(config.allowPageZoom)
+            builtInZoomControls = config.allowPageZoom
             displayZoomControls = false
             javaScriptCanOpenWindowsAutomatically = false
             loadWithOverviewMode = true

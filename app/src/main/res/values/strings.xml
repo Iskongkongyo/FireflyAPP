@@ -131,6 +131,7 @@
     <string name="config_editor_screen_orientation">Screen orientation</string>
     <string name="config_editor_show_page_progress_bar">Show page progress bar</string>
     <string name="config_editor_immersive_status_bar">Immersive status bar</string>
+    <string name="config_editor_allow_page_zoom">Allow page zoom</string>
     <string name="config_editor_open_other_apps">Open other apps</string>
     <string name="config_editor_ssl_error_handling">SSL certificate errors</string>
     <string name="config_editor_ssl_error_handling_strict">Strict validation (Recommended)</string>
@@ -485,6 +486,16 @@
     <string name="packager_workspace_ready">Template Workspace Ready</string>
     <string name="packager_workspace_pending">Workspace Pending</string>
     <string name="packager_project_summary">Project Summary</string>
+    <string name="packager_permissions_title">Sensitive Permissions</string>
+    <string name="packager_permissions_desc">Optional: Permissions to be retained in the final packaged APK. (Note: Permissions required for project preview are not affected by these settings.)</string>
+    <string name="packager_permissions_legacy_note">This older project is still using legacy permission defaults. These switches show the current legacy behavior until you change and save them.</string>
+    <string name="packager_permissions_fixed_note">Internet and notifications stay enabled by default. Turn off the items above if the final app does not need them.</string>
+    <string name="packager_permission_camera">Camera</string>
+    <string name="packager_permission_camera_desc">Needed for website photo capture and video recording.</string>
+    <string name="packager_permission_microphone">Microphone</string>
+    <string name="packager_permission_microphone_desc">Needed for website audio capture and voice recording.</string>
+    <string name="packager_permission_location">Location</string>
+    <string name="packager_permission_location_desc">Needed for website geolocation and map positioning.</string>
     <string name="packager_preflight_title">Preflight Checks</string>
     <string name="packager_preflight_desc">Inspect the final package identity, signer, and whether the APK can replace an installed app.</string>
     <string name="packager_preflight_pending_message">Preflight checks are pending.</string>
@@ -630,6 +641,7 @@
     <string name="packager_message_repack_failed">Template APK repack failed.</string>
     <string name="packager_message_history_deleted">Pack history entry deleted.</string>
     <string name="packager_message_history_delete_failed">Unable to delete the selected pack history entry.</string>
+    <string name="packager_message_permission_save_failed">Unable to save the selected permission options.</string>
     <string name="packager_message_signed_ready">Signed APK generated and ready to install.</string>
     <string name="packager_message_signed_verified">Signed APK generated and passed artifact self-check.</string>
     <string name="packager_message_signed_with_warnings">Signed APK generated with artifact self-check warnings. Review the pack log before installing.</string>

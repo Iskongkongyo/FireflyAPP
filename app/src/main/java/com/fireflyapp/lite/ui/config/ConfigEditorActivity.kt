@@ -310,6 +310,7 @@ class ConfigEditorActivity : ComponentActivity() {
                     onBackActionSelected = viewModel::updateBackAction,
                     onNightModeChanged = viewModel::updateNightMode,
                     onScreenOrientationChanged = viewModel::updateScreenOrientation,
+                    onAllowPageZoomChanged = viewModel::updateAllowPageZoom,
                     onLoadingOverlayChanged = viewModel::updateShowLoadingOverlay,
                     onShowPageProgressBarChanged = viewModel::updateShowPageProgressBar,
                     onErrorViewChanged = viewModel::updateShowErrorView,
@@ -561,6 +562,7 @@ private fun ConfigEditorScreen(
     onBackActionSelected: (String) -> Unit,
     onNightModeChanged: (String) -> Unit,
     onScreenOrientationChanged: (String) -> Unit,
+    onAllowPageZoomChanged: (Boolean) -> Unit,
     onLoadingOverlayChanged: (Boolean) -> Unit,
     onShowPageProgressBarChanged: (Boolean) -> Unit,
     onErrorViewChanged: (Boolean) -> Unit,
@@ -843,6 +845,7 @@ private fun ConfigEditorScreen(
                         onBackActionSelected = onBackActionSelected,
                         onNightModeChanged = onNightModeChanged,
                         onScreenOrientationChanged = onScreenOrientationChanged,
+                        onAllowPageZoomChanged = onAllowPageZoomChanged,
                         onLoadingOverlayChanged = onLoadingOverlayChanged,
                         onShowPageProgressBarChanged = onShowPageProgressBarChanged,
                         onErrorViewChanged = onErrorViewChanged,
@@ -1245,6 +1248,7 @@ private fun ConfigFormContent(
     onBackActionSelected: (String) -> Unit,
     onNightModeChanged: (String) -> Unit,
     onScreenOrientationChanged: (String) -> Unit,
+    onAllowPageZoomChanged: (Boolean) -> Unit,
     onLoadingOverlayChanged: (Boolean) -> Unit,
     onShowPageProgressBarChanged: (Boolean) -> Unit,
     onErrorViewChanged: (Boolean) -> Unit,
@@ -1759,6 +1763,11 @@ private fun ConfigFormContent(
                 onValueChange = onScreenOrientationChanged
             )
             Spacer(modifier = Modifier.height(12.dp))
+            ToggleRow(
+                label = stringResource(R.string.config_editor_allow_page_zoom),
+                checked = state.allowPageZoom,
+                onCheckedChange = onAllowPageZoomChanged
+            )
             ToggleRow(
                 label = stringResource(R.string.config_toggle_loading_overlay),
                 checked = state.showLoadingOverlay,

@@ -32,6 +32,9 @@ class WebPermissionHandler(
 
             val grantedResources = request.resources.filter { resource ->
                 val permission = mapToAndroidPermission(resource) ?: return@filter false
+                if (!isPermissionDeclared(permission)) {
+                    return@filter false
+                }
                 result[permission] == true || hasPermission(permission)
             }.toTypedArray()
 
@@ -55,12 +58,19 @@ class WebPermissionHandler(
         }
 
         val requestedResources = request.resources
-        val androidPermissions = requestedResources
+        val supportedResources = requestedResources.filter { resource ->
+            val permission = mapToAndroidPermission(resource) ?: return@filter false
+            isPermissionDeclared(permission)
+        }
+        val androidPermissions = supportedResources
             .mapNotNull(::mapToAndroidPermission)
             .distinct()
 
         if (androidPermissions.isEmpty()) {
-            Log.e(TAG, "Permission resources unsupported: ${request.resources.joinToString()}")
+            Log.e(
+                TAG,
+                "Permission resources unsupported or not declared: ${request.resources.joinToString()}"
+            )
             request.deny()
             return
         }
@@ -73,8 +83,11 @@ class WebPermissionHandler(
         val deniedPermissions = androidPermissions.filterNot(::hasPermission)
         if (deniedPermissions.isEmpty()) {
             pendingRequest = null
-            Log.d(TAG, "Permission already granted: origin=${request.origin} resources=${requestedResources.joinToString()}")
-            request.grant(requestedResources.filter { mapToAndroidPermission(it) != null }.toTypedArray())
+            Log.d(
+                TAG,
+                "Permission already granted: origin=${request.origin} resources=${supportedResources.joinToString()}"
+            )
+            request.grant(supportedResources.toTypedArray())
             return
         }
 
@@ -85,8 +98,11 @@ class WebPermissionHandler(
             return
         }
 
-        if (arePermissionsApproved(host, requestedResources)) {
-            Log.d(TAG, "Permission host prompt already approved: host=$host resources=${requestedResources.joinToString()}")
+        if (arePermissionsApproved(host, supportedResources.toTypedArray())) {
+            Log.d(
+                TAG,
+                "Permission host prompt already approved: host=$host resources=${supportedResources.joinToString()}"
+            )
             launcher.launch(deniedPermissions.toTypedArray())
             return
         }
@@ -99,12 +115,12 @@ class WebPermissionHandler(
         }
 
         permissionDialog = AlertDialog.Builder(context)
-            .setTitle(permissionDialogTitleRes(requestedResources))
-            .setMessage(context.getString(permissionDialogMessageRes(requestedResources), host))
+            .setTitle(permissionDialogTitleRes(supportedResources.toTypedArray()))
+            .setMessage(context.getString(permissionDialogMessageRes(supportedResources.toTypedArray()), host))
             .setCancelable(true)
             .setPositiveButton(R.string.permission_prompt_allow) { _, _ ->
                 permissionDialog = null
-                approvePermissions(host, requestedResources)
+                approvePermissions(host, supportedResources.toTypedArray())
                 launcher.launch(deniedPermissions.toTypedArray())
             }
             .setNegativeButton(R.string.permission_prompt_cancel) { _, _ ->
@@ -119,7 +135,7 @@ class WebPermissionHandler(
             }
             .show()
 
-        Log.d(TAG, "Showing permission prompt: host=$host resources=${requestedResources.joinToString()}")
+        Log.d(TAG, "Showing permission prompt: host=$host resources=${supportedResources.joinToString()}")
     }
 
     fun onCanceled(request: PermissionRequest?) {
@@ -175,6 +191,11 @@ class WebPermissionHandler(
     private fun hasPermission(permission: String): Boolean {
         val context = fragment.context ?: return false
         return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun isPermissionDeclared(permission: String): Boolean {
+        val context = fragment.context ?: return false
+        return DeclaredPermissionInspector.hasDeclaredPermission(context, permission)
     }
 
     private fun mapToAndroidPermission(resource: String): String? {

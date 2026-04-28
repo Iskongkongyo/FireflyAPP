@@ -36,7 +36,7 @@ class WebGeolocationHandler(
                 return@registerForActivityResult
             }
 
-            val granted = locationPermissions.any { permission ->
+            val granted = declaredLocationPermissions().any { permission ->
                 result[permission] == true || hasPermission(permission)
             }
             Log.d(TAG, "Geolocation Android permission result: origin=$origin granted=$granted")
@@ -59,6 +59,12 @@ class WebGeolocationHandler(
 
         if (uri == null || host.isNullOrBlank() || !isAllowedOrigin(uri)) {
             Log.e(TAG, "Geolocation origin denied: origin=$origin currentPage=${currentPageUrlProvider()} allowedHosts=${allowedHostsProvider()}")
+            safeCallback.invoke(safeOrigin, false, false)
+            return
+        }
+
+        if (declaredLocationPermissions().isEmpty()) {
+            Log.d(TAG, "Geolocation permissions are not declared in this app manifest: origin=$safeOrigin")
             safeCallback.invoke(safeOrigin, false, false)
             return
         }
@@ -117,7 +123,7 @@ class WebGeolocationHandler(
         pendingOrigin = origin
         pendingCallback = callback
 
-        val deniedPermissions = locationPermissions.filterNot(::hasPermission)
+        val deniedPermissions = declaredLocationPermissions().filterNot(::hasPermission)
         if (deniedPermissions.isEmpty()) {
             pendingOrigin = null
             pendingCallback = null
@@ -157,6 +163,13 @@ class WebGeolocationHandler(
     private fun hasPermission(permission: String): Boolean {
         val context = fragment.context ?: return false
         return ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun declaredLocationPermissions(): List<String> {
+        val context = fragment.context ?: return emptyList()
+        return locationPermissions.filter { permission ->
+            DeclaredPermissionInspector.hasDeclaredPermission(context, permission)
+        }
     }
 
     private fun hostsMatch(originHost: String, currentHost: String): Boolean {

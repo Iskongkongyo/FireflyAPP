@@ -65,6 +65,7 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updateBackAction(value: String) = updateForm { copy(backAction = value) }
     fun updateNightMode(value: String) = updateForm { copy(nightMode = value) }
     fun updateScreenOrientation(value: String) = updateForm { copy(screenOrientation = value) }
+    fun updateAllowPageZoom(value: Boolean) = updateForm { copy(allowPageZoom = value) }
     fun updateShowLoadingOverlay(value: Boolean) = updateForm { copy(showLoadingOverlay = value) }
     fun updateShowPageProgressBar(value: Boolean) = updateForm { copy(showPageProgressBar = value) }
     fun updateShowErrorView(value: Boolean) = updateForm { copy(showErrorView = value) }
@@ -1236,6 +1237,7 @@ data class ConfigEditorFormState(
     val defaultUrl: String = "",
     val templateType: TemplateType = TemplateType.TOP_BAR,
     val userAgent: String = "",
+    val allowPageZoom: Boolean = false,
     val showLoadingOverlay: Boolean = true,
     val showPageProgressBar: Boolean = true,
     val showErrorView: Boolean = true,
@@ -1332,6 +1334,7 @@ data class ConfigEditorFormState(
                 defaultUrl = defaultUrl
             ),
             browser = BrowserConfig(
+                allowPageZoom = allowPageZoom,
                 userAgent = userAgent,
                 showLoadingOverlay = showLoadingOverlay,
                 showPageProgressBar = showPageProgressBar,
@@ -1469,6 +1472,7 @@ data class ConfigEditorFormState(
                 defaultUrl = config.app.defaultUrl,
                 templateType = config.app.template,
                 userAgent = config.browser.userAgent,
+                allowPageZoom = config.browser.allowPageZoom,
                 showLoadingOverlay = config.browser.showLoadingOverlay,
                 showPageProgressBar = config.browser.showPageProgressBar,
                 showErrorView = config.browser.showErrorView,
@@ -1758,6 +1762,7 @@ private fun AppConfig.merge(sections: ConfigSections): AppConfig {
             defaultUrl = sections.app.defaultUrl
         ),
             browser = browser.copy(
+                allowPageZoom = sections.browser.allowPageZoom,
                 userAgent = sections.browser.userAgent,
                 showLoadingOverlay = sections.browser.showLoadingOverlay,
                 showPageProgressBar = sections.browser.showPageProgressBar,

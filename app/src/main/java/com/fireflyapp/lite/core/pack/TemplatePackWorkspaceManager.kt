@@ -117,6 +117,25 @@ class TemplatePackWorkspaceManager(
             manifestFile = manifestFile,
             versionCode = projectManifest.appIdentity.versionCode
         )
+        val retainedPermissions = buildSet {
+            add(PERMISSION_INTERNET)
+            add(PERMISSION_NOTIFICATIONS)
+            if (projectManifest.packaging.isCameraPermissionEnabled()) {
+                add(PERMISSION_CAMERA)
+            }
+            if (projectManifest.packaging.isMicrophonePermissionEnabled()) {
+                add(PERMISSION_RECORD_AUDIO)
+                add(PERMISSION_MODIFY_AUDIO_SETTINGS)
+            }
+            if (projectManifest.packaging.isLocationPermissionEnabled()) {
+                add(PERMISSION_ACCESS_FINE_LOCATION)
+                add(PERMISSION_ACCESS_COARSE_LOCATION)
+            }
+        }
+        val permissionFilterResult = manifestPatcher.filterUsesPermissions(
+            manifestFile = manifestFile,
+            retainedPermissions = retainedPermissions
+        )
         val configFile = unpackedDir.resolve(GENERATED_CONFIG_PATH)
         configFile.parentFile?.mkdirs()
         configFile.writeText(rawConfig, Charsets.UTF_8)
@@ -159,6 +178,11 @@ class TemplatePackWorkspaceManager(
                 )
                 appendLine("Output package name: $targetPackageName")
                 appendLine("Output APK file name: $artifactFileName")
+                appendLine(
+                    "Sensitive permission defaults: legacy=${projectManifest.packaging.usesLegacySensitivePermissionDefaults()}"
+                )
+                appendLine("Retained manifest permissions: ${permissionFilterResult.retainedPermissions.joinToString().ifBlank { "-" }}")
+                appendLine("Removed manifest permissions: ${permissionFilterResult.removedPermissions.joinToString().ifBlank { "-" }}")
                 appendLine("Icon mode: ${projectManifest.branding.iconMode}")
                 appendLine("Icon source: ${projectManifest.branding.iconPath.ifBlank { "-" }}")
                 appendLine("Icon result: $iconResult")
@@ -728,6 +752,13 @@ class TemplatePackWorkspaceManager(
         private const val ICON_ROUND_FILE_NAME = "ic_launcher_round.png"
         private const val ICON_RESOURCE_NAME = "ic_launcher"
         private const val ICON_ROUND_RESOURCE_NAME = "ic_launcher_round"
+        private const val PERMISSION_INTERNET = "android.permission.INTERNET"
+        private const val PERMISSION_CAMERA = "android.permission.CAMERA"
+        private const val PERMISSION_RECORD_AUDIO = "android.permission.RECORD_AUDIO"
+        private const val PERMISSION_MODIFY_AUDIO_SETTINGS = "android.permission.MODIFY_AUDIO_SETTINGS"
+        private const val PERMISSION_ACCESS_FINE_LOCATION = "android.permission.ACCESS_FINE_LOCATION"
+        private const val PERMISSION_ACCESS_COARSE_LOCATION = "android.permission.ACCESS_COARSE_LOCATION"
+        private const val PERMISSION_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS"
         private val launcherIconFileNames = setOf(ICON_FILE_NAME, ICON_ROUND_FILE_NAME)
         private val reservedArtifactFileNames = setOf(
             TEMPLATE_SOURCE_FILE_NAME,

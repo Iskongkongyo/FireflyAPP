@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 data class BrowserConfig(
     val javaScriptEnabled: Boolean = true,
     val domStorageEnabled: Boolean = true,
+    val allowPageZoom: Boolean = false,
     val userAgent: String = "",
     val showLoadingOverlay: Boolean = true,
     val showPageProgressBar: Boolean = true,

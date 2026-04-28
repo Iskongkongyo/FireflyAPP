@@ -2,6 +2,7 @@ package com.fireflyapp.lite.core.pack
 
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.ArrayDeque
 
 class BinaryManifestPatcher {
     data class StringPoolEntry(
@@ -24,6 +25,11 @@ class BinaryManifestPatcher {
     data class ManifestStructureCheck(
         val isValid: Boolean,
         val message: String
+    )
+
+    data class ManifestPermissionFilterResult(
+        val retainedPermissions: List<String>,
+        val removedPermissions: List<String>
     )
 
     private data class StringPoolChunk(
@@ -221,6 +227,20 @@ class BinaryManifestPatcher {
                 message = throwable.message ?: "Binary AndroidManifest.xml structure could not be parsed."
             )
         }
+    }
+
+    fun filterUsesPermissions(
+        manifestFile: File,
+        retainedPermissions: Set<String>
+    ): ManifestPermissionFilterResult {
+        val manifestBytes = manifestFile.readBytes()
+        val strings = parseStringPool(manifestBytes)
+        val result = filterUsesPermissions(manifestBytes, strings, retainedPermissions)
+        manifestFile.writeBytes(result.manifestBytes)
+        return ManifestPermissionFilterResult(
+            retainedPermissions = result.retainedPermissions,
+            removedPermissions = result.removedPermissions
+        )
     }
 
     private fun replaceEncodedSequence(source: ByteArray, oldValue: String, newValue: String): Int {
@@ -497,6 +517,114 @@ class BinaryManifestPatcher {
         return patched
     }
 
+    private fun filterUsesPermissions(
+        manifestBytes: ByteArray,
+        strings: List<String>,
+        retainedPermissions: Set<String>
+    ): PermissionFilterResult {
+        val retained = linkedSetOf<String>()
+        val removed = linkedSetOf<String>()
+        val removalRanges = mutableListOf<IntRange>()
+        val openElements = ArrayDeque<OpenElement>()
+
+        var offset = RES_XML_FILE_HEADER_SIZE
+        while (offset <= manifestBytes.size - RES_XML_CHUNK_HEADER_SIZE) {
+            val chunkType = readU16(manifestBytes, offset)
+            val chunkSize = readU32(manifestBytes, offset + 4)
+            if (chunkSize <= 0 || offset + chunkSize > manifestBytes.size) {
+                break
+            }
+
+            when (chunkType) {
+                RES_XML_START_ELEMENT_TYPE -> {
+                    val extOffset = offset + RES_XML_TREE_NODE_HEADER_SIZE
+                    val nameIndex = readU32(manifestBytes, extOffset + 4)
+                    val tagName = strings.getOrNull(nameIndex).orEmpty()
+                    val attributeStart = readU16(manifestBytes, extOffset + 8)
+                    val attributeSize = readU16(manifestBytes, extOffset + 10)
+                    val attributeCount = readU16(manifestBytes, extOffset + 12)
+                    val permissionName = if (tagName == TAG_USES_PERMISSION) {
+                        readAttributeValue(
+                            manifestBytes = manifestBytes,
+                            strings = strings,
+                            extOffset = extOffset,
+                            attributeStart = attributeStart,
+                            attributeSize = attributeSize,
+                            attributeCount = attributeCount,
+                            attributeName = ATTRIBUTE_NAME
+                        )
+                    } else {
+                        null
+                    }
+                    val shouldRemove = tagName == TAG_USES_PERMISSION &&
+                        !permissionName.isNullOrBlank() &&
+                        permissionName !in retainedPermissions
+                    if (tagName == TAG_USES_PERMISSION && !permissionName.isNullOrBlank()) {
+                        if (shouldRemove) {
+                            removed += permissionName
+                        } else {
+                            retained += permissionName
+                        }
+                    }
+                    openElements.addLast(
+                        OpenElement(
+                            tagName = tagName,
+                            startOffset = offset,
+                            shouldRemove = shouldRemove
+                        )
+                    )
+                }
+
+                RES_XML_END_ELEMENT_TYPE -> {
+                    val extOffset = offset + RES_XML_TREE_NODE_HEADER_SIZE
+                    val nameIndex = readU32(manifestBytes, extOffset + 4)
+                    val tagName = strings.getOrNull(nameIndex).orEmpty()
+                    val openElement = if (openElements.isEmpty()) {
+                        null
+                    } else {
+                        openElements.removeLast()
+                    }
+                    if (openElement != null &&
+                        openElement.shouldRemove &&
+                        openElement.tagName == tagName
+                    ) {
+                        removalRanges += openElement.startOffset until (offset + chunkSize)
+                    }
+                }
+            }
+
+            offset += chunkSize
+        }
+
+        if (removalRanges.isEmpty()) {
+            return PermissionFilterResult(
+                manifestBytes = manifestBytes,
+                retainedPermissions = retained.toList(),
+                removedPermissions = removed.toList()
+            )
+        }
+
+        val rebuiltManifest = ByteArrayOutputStream(manifestBytes.size)
+        var cursor = 0
+        mergeRanges(removalRanges).forEach { range ->
+            if (cursor < range.first) {
+                rebuiltManifest.write(manifestBytes, cursor, range.first - cursor)
+            }
+            cursor = range.last + 1
+        }
+        if (cursor < manifestBytes.size) {
+            rebuiltManifest.write(manifestBytes, cursor, manifestBytes.size - cursor)
+        }
+
+        val rebuiltBytes = rebuiltManifest.toByteArray()
+        writeU32(rebuiltBytes, 4, rebuiltBytes.size)
+        return PermissionFilterResult(
+            manifestBytes = rebuiltBytes,
+            retainedPermissions = retained.toList(),
+            removedPermissions = removed.toList()
+        )
+    }
+
     private fun patchBooleanAttributes(
         manifestBytes: ByteArray,
         strings: List<String>,
@@ -663,6 +791,59 @@ class BinaryManifestPatcher {
 
             offset += chunkSize
         }
+    }
+
+    private fun readAttributeValue(
+        manifestBytes: ByteArray,
+        strings: List<String>,
+        extOffset: Int,
+        attributeStart: Int,
+        attributeSize: Int,
+        attributeCount: Int,
+        attributeName: String
+    ): String? {
+        var attributeOffset = extOffset + attributeStart
+        repeat(attributeCount) {
+            val attributeNameIndex = readU32(manifestBytes, attributeOffset + 4)
+            val currentAttributeName = strings.getOrNull(attributeNameIndex)
+            if (currentAttributeName == attributeName) {
+                val rawValueIndex = readU32(manifestBytes, attributeOffset + 8)
+                val rawValue = strings.getOrNull(rawValueIndex)
+                if (!rawValue.isNullOrBlank()) {
+                    return rawValue
+                }
+
+                val dataType = manifestBytes[attributeOffset + 15].toInt() and 0xFF
+                val dataValue = readU32(manifestBytes, attributeOffset + 16)
+                if (dataType == TYPE_STRING) {
+                    return strings.getOrNull(dataValue)
+                }
+                return null
+            }
+            attributeOffset += attributeSize
+        }
+        return null
+    }
+
+    private fun mergeRanges(ranges: List<IntRange>): List<IntRange> {
+        if (ranges.isEmpty()) {
+            return emptyList()
+        }
+
+        val sortedRanges = ranges.sortedBy { it.first }
+        val merged = mutableListOf<IntRange>()
+        var current = sortedRanges.first()
+        for (index in 1 until sortedRanges.size) {
+            val next = sortedRanges[index]
+            current = if (next.first <= current.last + 1) {
+                current.first..maxOf(current.last, next.last)
+            } else {
+                merged += current
+                next
+            }
+        }
+        merged += current
+        return merged
     }
 
     private fun parseStringPool(manifestBytes: ByteArray): List<String> {
@@ -873,6 +1054,18 @@ class BinaryManifestPatcher {
         }
     }
 
+    private data class PermissionFilterResult(
+        val manifestBytes: ByteArray,
+        val retainedPermissions: List<String>,
+        val removedPermissions: List<String>
+    )
+
+    private data class OpenElement(
+        val tagName: String,
+        val startOffset: Int,
+        val shouldRemove: Boolean
+    )
+
     private companion object {
         const val CHUNK_ALIGNMENT = 4
         const val RES_XML_FILE_HEADER_SIZE = 8
@@ -880,11 +1073,15 @@ class BinaryManifestPatcher {
         const val RES_STRING_POOL_TYPE = 0x0001
         const val RES_XML_RESOURCE_MAP_TYPE = 0x0180
         const val RES_XML_START_ELEMENT_TYPE = 0x0102
+        const val RES_XML_END_ELEMENT_TYPE = 0x0103
         const val RES_XML_TREE_NODE_HEADER_SIZE = 16
+        const val TYPE_STRING = 0x03
         const val TYPE_INT_BOOLEAN = 0x12
         const val TYPE_INT_DEC = 0x10
         const val FALSE_VALUE = 0
         const val NO_STRING = -1
         const val UTF8_FLAG = 1 shl 8
+        const val TAG_USES_PERMISSION = "uses-permission"
+        const val ATTRIBUTE_NAME = "name"
     }
 }

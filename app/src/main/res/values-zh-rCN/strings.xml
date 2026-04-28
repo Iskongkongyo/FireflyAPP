@@ -101,6 +101,7 @@
     <string name="config_editor_screen_orientation">屏幕方向</string>
     <string name="config_editor_show_page_progress_bar">显示页面进度条</string>
     <string name="config_editor_immersive_status_bar">沉浸式状态栏</string>
+    <string name="config_editor_allow_page_zoom">允许页面缩放</string>
     <string name="config_editor_open_other_apps">打开其他应用</string>
     <string name="config_editor_host_rules_desc">Host 规则支持精确域名、像 *.example.com 这样的通配子域名，以及 https://example.com 这类带协议前缀的写法。</string>
     <string name="config_editor_top_bar_follow_page_title">跟随页面标题</string>
@@ -428,6 +429,16 @@
     <string name="packager_workspace_ready">模板工作区已就绪</string>
     <string name="packager_workspace_pending">工作区待准备</string>
     <string name="packager_project_summary">项目摘要</string>
+    <string name="packager_permissions_title">敏感权限</string>
+    <string name="packager_permissions_desc">可选最终打包出 APK 保留的权限(注：项目预览时所需权限不受这里设置的影响)。</string>
+    <string name="packager_permissions_legacy_note">这个旧项目仍在使用历史权限默认值。下面的开关当前反映的是旧版行为，等你改动并保存后就会迁移到新规则。</string>
+    <string name="packager_permissions_fixed_note">网络和通知权限默认保留。如果最终 APP 不需要上面这些能力，可以直接关闭。</string>
+    <string name="packager_permission_camera">相机</string>
+    <string name="packager_permission_camera_desc">网站拍照、录像时需要。</string>
+    <string name="packager_permission_microphone">麦克风</string>
+    <string name="packager_permission_microphone_desc">网站录音、语音输入时需要。</string>
+    <string name="packager_permission_location">定位</string>
+    <string name="packager_permission_location_desc">网站地理定位、地图定点时需要。</string>
     <string name="packager_preflight_title">预检查</string>
     <string name="packager_preflight_desc">检查最终包名、签名信息，以及 APK 是否可以覆盖已安装应用。</string>
     <string name="packager_preflight_pending_message">预检查尚未完成。</string>
@@ -559,6 +570,7 @@
     <string name="packager_message_repack_failed">模板 APK 重打包失败。</string>
     <string name="packager_message_history_deleted">打包历史记录已删除。</string>
     <string name="packager_message_history_delete_failed">删除所选打包历史记录失败。</string>
+    <string name="packager_message_permission_save_failed">保存所选权限选项失败。</string>
     <string name="packager_message_signed_ready">已生成签名 APK，可以直接安装。</string>
     <string name="packager_message_unsigned_apk_missing">未找到未签名 APK，请先执行 Pack。</string>
     <string name="packager_message_unsigned_packaging_failed">未签名 APK 打包失败。</string>

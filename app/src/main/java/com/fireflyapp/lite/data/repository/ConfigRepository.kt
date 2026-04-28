@@ -526,7 +526,7 @@ class ConfigRepository(
                             packageName = ""
                         ),
                         signing = ProjectSigning(),
-                        packaging = ProjectPackaging()
+                        packaging = defaultProjectPackaging()
                     )
                 )
             }
@@ -1277,7 +1277,16 @@ class ConfigRepository(
                 versionName = DEFAULT_VERSION_NAME,
                 versionCode = DEFAULT_VERSION_CODE
             ),
-            signing = ProjectSigning()
+            signing = ProjectSigning(),
+            packaging = defaultProjectPackaging()
+        )
+    }
+
+    private fun defaultProjectPackaging(): ProjectPackaging {
+        return ProjectPackaging(
+            enableCameraPermission = false,
+            enableMicrophonePermission = false,
+            enableLocationPermission = false
         )
     }
 

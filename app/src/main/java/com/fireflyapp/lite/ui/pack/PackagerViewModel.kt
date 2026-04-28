@@ -19,9 +19,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class PackagerViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ConfigRepository(application.applicationContext)
+    private val manifestUpdateMutex = Mutex()
 
     private val _uiState = MutableStateFlow(PackagerUiState())
     val uiState: StateFlow<PackagerUiState> = _uiState.asStateFlow()
@@ -67,6 +70,8 @@ class PackagerViewModel(application: Application) : AndroidViewModel(application
                         signingSummary = manifest.getOrNull()?.toSigningSummary(getApplication<Application>())
                             ?: DEFAULT_SIGNING_SUMMARY,
                         signingKeystorePath = manifest.getOrNull()?.signing?.keystorePath.orEmpty(),
+                        sensitivePermissions = manifest.getOrNull()?.packaging?.toSensitivePermissionsUiState()
+                            ?: PackSensitivePermissionsUiState(),
                         outputApkName = outputApkName.getOrDefault(""),
                         packHistory = packHistory.getOrDefault(emptyList()),
                         preflight = preflight.getOrElse { throwable ->
@@ -101,6 +106,15 @@ class PackagerViewModel(application: Application) : AndroidViewModel(application
         val projectId = currentProjectId ?: return
         _uiState.value = _uiState.value.copy(isPreparing = true, userMessage = null)
         viewModelScope.launch {
+            val permissionSaveResult = persistSensitivePermissions(projectId)
+            if (permissionSaveResult.isFailure) {
+                _uiState.value = _uiState.value.copy(
+                    isPreparing = false,
+                    userMessage = permissionSaveResult.exceptionOrNull()?.message
+                        ?: appString(R.string.packager_message_permission_save_failed)
+                )
+                return@launch
+            }
             repository.prepareTemplatePackWorkspace(projectId)
                 .onSuccess { workspace ->
                     val buildLogPreview = repository.loadTemplatePackLogPreview(projectId).getOrDefault("")
@@ -157,6 +171,22 @@ class PackagerViewModel(application: Application) : AndroidViewModel(application
             userMessage = null
         )
         viewModelScope.launch {
+            val permissionSaveResult = persistSensitivePermissions(projectId)
+            if (permissionSaveResult.isFailure) {
+                _uiState.value = _uiState.value.copy(
+                    isBuilding = false,
+                    buildExecution = PackBuildExecutionUiState(
+                        result = TemplatePackExecutionResult(
+                            status = TemplatePackExecutionStatus.BLOCKED,
+                            message = permissionSaveResult.exceptionOrNull()?.message
+                                ?: appString(R.string.packager_message_permission_save_failed)
+                        )
+                    ),
+                    userMessage = permissionSaveResult.exceptionOrNull()?.message
+                        ?: appString(R.string.packager_message_permission_save_failed)
+                )
+                return@launch
+            }
             repository.executeTemplatePack(projectId)
                 .onSuccess { result ->
                     val workspace = repository.inspectTemplatePackWorkspace(projectId).getOrNull()
@@ -198,6 +228,33 @@ class PackagerViewModel(application: Application) : AndroidViewModel(application
                     )
                 }
         }
+    }
+
+    fun updateSensitiveCameraPermission(enabled: Boolean) {
+        updateSensitivePermissions(
+            _uiState.value.sensitivePermissions.copy(
+                cameraEnabled = enabled,
+                usesLegacyDefaults = false
+            )
+        )
+    }
+
+    fun updateSensitiveMicrophonePermission(enabled: Boolean) {
+        updateSensitivePermissions(
+            _uiState.value.sensitivePermissions.copy(
+                microphoneEnabled = enabled,
+                usesLegacyDefaults = false
+            )
+        )
+    }
+
+    fun updateSensitiveLocationPermission(enabled: Boolean) {
+        updateSensitivePermissions(
+            _uiState.value.sensitivePermissions.copy(
+                locationEnabled = enabled,
+                usesLegacyDefaults = false
+            )
+        )
     }
 
     fun refreshPreflight() {
@@ -286,6 +343,48 @@ class PackagerViewModel(application: Application) : AndroidViewModel(application
             artifactCheck = localizedArtifactCheck
         )
     }
+
+    private fun updateSensitivePermissions(state: PackSensitivePermissionsUiState) {
+        val projectId = currentProjectId ?: return
+        _uiState.value = _uiState.value.copy(
+            sensitivePermissions = state,
+            userMessage = null
+        )
+        viewModelScope.launch {
+            persistSensitivePermissions(projectId)
+                .onFailure { throwable ->
+                    _uiState.value = _uiState.value.copy(
+                        userMessage = throwable.message
+                            ?: appString(R.string.packager_message_permission_save_failed)
+                    )
+                }
+        }
+    }
+
+    private suspend fun persistSensitivePermissions(projectId: String): Result<ProjectManifest> {
+        return manifestUpdateMutex.withLock {
+            repository.loadProjectManifest(projectId)
+                .fold(
+                    onSuccess = { projectManifest ->
+                        repository.saveProjectManifest(
+                            projectId,
+                            projectManifest.withSensitivePermissions(_uiState.value.sensitivePermissions)
+                        ).onSuccess { savedManifest ->
+                            _uiState.value = _uiState.value.copy(
+                                sensitivePermissions = savedManifest.packaging.toSensitivePermissionsUiState()
+                            )
+                        }.onFailure {
+                            _uiState.value = _uiState.value.copy(
+                                sensitivePermissions = projectManifest.packaging.toSensitivePermissionsUiState()
+                            )
+                        }
+                    },
+                    onFailure = { throwable ->
+                        Result.failure(throwable)
+                    }
+                )
+        }
+    }
 }
 
 data class PackagerUiState(
@@ -295,6 +394,7 @@ data class PackagerUiState(
     val projectSummary: ProjectSummary? = null,
     val signingSummary: String = DEFAULT_SIGNING_SUMMARY,
     val signingKeystorePath: String = "",
+    val sensitivePermissions: PackSensitivePermissionsUiState = PackSensitivePermissionsUiState(),
     val outputApkName: String = "",
     val packHistory: List<TemplatePackHistoryEntry> = emptyList(),
     val preflight: TemplatePackPreflight = TemplatePackPreflight(),
@@ -308,6 +408,13 @@ data class PackBuildExecutionUiState(
     val result: TemplatePackExecutionResult? = null
 )
 
+data class PackSensitivePermissionsUiState(
+    val cameraEnabled: Boolean = false,
+    val microphoneEnabled: Boolean = false,
+    val locationEnabled: Boolean = false,
+    val usesLegacyDefaults: Boolean = false
+)
+
 private fun ProjectManifest.toSigningSummary(application: Application): String {
     return if (signing.mode == "custom" && signing.keystorePath.isNotBlank()) {
         val alias = signing.keyAlias.ifBlank {
@@ -317,6 +424,28 @@ private fun ProjectManifest.toSigningSummary(application: Application): String {
     } else {
         application.getString(R.string.packager_signing_summary_default)
     }
+}
+
+private fun com.fireflyapp.lite.data.model.ProjectPackaging.toSensitivePermissionsUiState():
+    PackSensitivePermissionsUiState {
+    return PackSensitivePermissionsUiState(
+        cameraEnabled = isCameraPermissionEnabled(),
+        microphoneEnabled = isMicrophonePermissionEnabled(),
+        locationEnabled = isLocationPermissionEnabled(),
+        usesLegacyDefaults = usesLegacySensitivePermissionDefaults()
+    )
+}
+
+private fun ProjectManifest.withSensitivePermissions(
+    state: PackSensitivePermissionsUiState
+): ProjectManifest {
+    return copy(
+        packaging = packaging.copy(
+            enableCameraPermission = state.cameraEnabled,
+            enableMicrophonePermission = state.microphoneEnabled,
+            enableLocationPermission = state.locationEnabled
+        )
+    )
 }
 
 private const val DEFAULT_SIGNING_SUMMARY = ""

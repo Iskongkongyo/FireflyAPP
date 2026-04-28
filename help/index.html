@@ -1059,15 +1059,17 @@
             <h3 class="mini-title zh">5. 浏览器 区域</h3>
             <h3 class="mini-title en">5. Browser section</h3>
             <ul class="list zh block">
+              <li><code>允许页面缩放</code>：开启后支持双指缩放</li>
               <li><code>显示加载浮层</code>：切到慢页面时显示加载浮层</li>
               <li><code>显示加载进度条</code>：显示顶部加载进度条</li>
               <li><code>显示错误页</code>：加载失败时显示宿主错误页</li>
               <li><code>夜间模式</code>：<code>关闭 / 开启 / 跟随主题</code></li>
-              <li><code>屏幕方向</code>：<code>unspecified / portrait / landscape</code>，可控制不限制、强制竖屏或强制横屏</li>
+              <li><code>屏幕方向</code>：<code>不限制 / 强制竖屏 / 强制横屏</code></li>
               <li><code>沉浸式状态栏</code>：是否让内容更贴近状态栏</li>
               <li><code>userAgent</code>：只在确实需要伪装设备类型时再改</li>
             </ul>
             <ul class="list en block">
+              <li><code>allowPageZoom</code>: supports two-finger zooming when enabled.</li>
               <li><code>showLoadingOverlay</code>: shows a loading overlay when switching to slow pages</li>
               <li><code>showPageProgressBar</code>: shows the top loading progress bar</li>
               <li><code>showErrorView</code>: displays the host error page when loads fail</li>
@@ -1387,6 +1389,219 @@
                 <code>load_url</code>
               </li>
               <li>These two sections are best for “special handling on specific pages”</li>
+            </ul>
+          </div>
+        </div>
+
+
+<div class="callout" style="margin-top:12px">
+          <span class="zh">上面几张表更偏“代表性字段”，不是当前版本的完整清单。下面这份骨架补充了最近新增字段，以及在可视化页面里不一定一次能看全的高级字段。</span>
+          <span class="en">The tables above are representative rather than exhaustive. The schema skeleton below adds recently introduced fields and advanced fields that are not always obvious from the visual editor at a glance.</span>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3 class="mini-title zh">当前字段补充（完整骨架）</h3>
+          <h3 class="mini-title en">Current field supplement (full schema skeleton)</h3>
+          <pre class="muted" style="margin:0; white-space:pre-wrap;"><code>{
+  "schemaVersion": 1,
+  "app": {
+    "name": "FireflyAPP",
+    "template": "top_bar",
+    "defaultUrl": "https://example.com"
+  },
+  "browser": {
+    "javaScriptEnabled": true,
+    "domStorageEnabled": true,
+    "allowPageZoom": false,
+    "userAgent": "",
+    "showLoadingOverlay": true,
+    "showPageProgressBar": true,
+    "showErrorView": true,
+    "backAction": "go_back_or_exit",
+    "immersiveStatusBar": false,
+    "nightMode": "off",
+    "screenOrientation": "unspecified"
+  },
+  "shell": {
+    "topBarShowBackButton": true,
+    "topBarShowHomeButton": false,
+    "topBarShowRefreshButton": true,
+    "topBarBackBehavior": "default_back",
+    "topBarHomeBehavior": "default_home",
+    "topBarRefreshBehavior": "reload",
+    "topBarBackScript": "",
+    "topBarHomeScript": "",
+    "topBarRefreshScript": "",
+    "topBarFollowPageTitle": true,
+    "topBarTitleCentered": true,
+    "topBarHeightDp": 60,
+    "topBarIconSizeDp": 24,
+    "topBarCornerRadiusDp": 0,
+    "topBarShadowDp": 0,
+    "topBarBackIcon": "back",
+    "topBarHomeIcon": "home",
+    "topBarRefreshIcon": "refresh",
+    "bottomBarShowTextLabels": true,
+    "bottomBarHeightDp": 68,
+    "bottomBarIconSizeDp": 22,
+    "bottomBarCornerRadiusDp": 0,
+    "bottomBarShadowDp": 0,
+    "bottomBarBadgeColor": "",
+    "bottomBarBadgeTextColor": "",
+    "bottomBarBadgeGravity": "top_end",
+    "bottomBarBadgeMaxCharacterCount": 2,
+    "bottomBarBadgeHorizontalOffsetDp": 0,
+    "bottomBarBadgeVerticalOffsetDp": 0,
+    "bottomBarSelectedColor": "",
+    "drawerHeaderTitle": "",
+    "drawerHeaderSubtitle": "",
+    "drawerWidthDp": 0,
+    "drawerCornerRadiusDp": 0,
+    "drawerHeaderBackgroundColor": "",
+    "drawerWallpaperEnabled": false,
+    "drawerWallpaperPath": "",
+    "drawerWallpaperHeightDp": 132,
+    "drawerAvatarEnabled": false,
+    "drawerAvatarPath": "",
+    "drawerHeaderImageUrl": "",
+    "drawerHeaderImageHeightDp": 120,
+    "drawerHeaderImageScaleMode": "crop",
+    "drawerHeaderImageOverlayPreset": "custom",
+    "drawerHeaderImageOverlayColor": "",
+    "drawerMenuIcon": "menu",
+    "defaultNavigationItemId": "",
+    "enableSwipeNavigation": false,
+    "preserveNavigationPageStack": false,
+    "navigationPreloadCount": 0,
+    "navigationBackBehavior": "web_history",
+    "topBarThemeColor": "",
+    "bottomBarThemeColor": ""
+  },
+  "navigation": {
+    "items": [
+      {
+        "id": "home",
+        "title": "Home",
+        "url": "https://example.com",
+        "icon": "home",
+        "selectedIcon": "home",
+        "badgeCount": "",
+        "showUnreadDot": false
+      }
+    ]
+  },
+  "security": {
+    "allowedHosts": [],
+    "allowExternalHosts": true,
+    "enableNativeKvBridge": false,
+    "kvTrustedHosts": [],
+    "openOtherAppsMode": "ask",
+    "sslErrorHandling": "strict"
+  },
+  "inject": {
+    "globalJs": [],
+    "globalCss": []
+  },
+  "pageRules": [
+    {
+      "match": {
+        "urlEquals": null,
+        "urlStartsWith": null,
+        "urlContains": null
+      },
+      "overrides": {
+        "showTopBar": null,
+        "showBottomBar": null,
+        "showDownloadOverlay": null,
+        "suppressFocusHighlight": null,
+        "title": null,
+        "openExternal": null,
+        "loadingText": null,
+        "loadingCardBackgroundColor": null,
+        "loadingTextColor": null,
+        "loadingIndicatorColor": null,
+        "errorTitle": null,
+        "errorMessage": null,
+        "errorCardBackgroundColor": null,
+        "errorTitleColor": null,
+        "errorMessageColor": null,
+        "errorButtonText": null,
+        "errorButtonBackgroundColor": null,
+        "errorButtonTextColor": null,
+        "errorRetryAction": null,
+        "errorRetryUrl": null,
+        "injectJs": [],
+        "injectCss": []
+      }
+    }
+  ],
+  "pageEvents": [
+    {
+      "id": "event_1",
+      "enabled": true,
+      "trigger": "page_finished",
+      "match": {
+        "urlEquals": null,
+        "urlStartsWith": null,
+        "urlContains": null
+      },
+      "actions": [
+        {
+          "type": "toast",
+          "value": "",
+          "url": "",
+          "script": ""
+        }
+      ]
+    }
+  ]
+}</code></pre>
+        </div>
+
+        <div class="grid-2" style="margin-top:12px">
+          <div class="card">
+            <h3 class="mini-title zh">最近容易漏掉的字段</h3>
+            <h3 class="mini-title en">Fields that are easy to miss</h3>
+            <ul class="list zh block">
+              <li><code>browser.allowPageZoom</code>：是否允许双指缩放网页</li>
+              <li><code>browser.javaScriptEnabled</code> / <code>browser.domStorageEnabled</code>：WebView 的基础能力开关</li>
+              <li><code>browser.showPageProgressBar</code>：页面顶部进度条</li>
+              <li><code>navigation.items[].badgeCount</code> / <code>showUnreadDot</code>：导航角标与红点</li>
+              <li><code>security.kvTrustedHosts</code>：允许访问原生 KV 的 host 列表</li>
+              <li><code>pageRules[].overrides.*Color</code>：加载态和错误态的颜色定制</li>
+              <li><code>pageEvents[].actions[].value</code> / <code>url</code> / <code>script</code>：不同事件动作的参数载体</li>
+            </ul>
+            <ul class="list en block">
+              <li><code>browser.allowPageZoom</code>: whether pinch zoom is allowed</li>
+              <li><code>browser.javaScriptEnabled</code> / <code>browser.domStorageEnabled</code>: base WebView capability switches</li>
+              <li><code>browser.showPageProgressBar</code>: top progress bar visibility</li>
+              <li><code>navigation.items[].badgeCount</code> / <code>showUnreadDot</code>: badge and unread-dot support</li>
+              <li><code>security.kvTrustedHosts</code>: hosts allowed to access native KV</li>
+              <li><code>pageRules[].overrides.*Color</code>: loading/error color customization</li>
+              <li><code>pageEvents[].actions[].value</code> / <code>url</code> / <code>script</code>: payload fields used by different event actions</li>
+            </ul>
+          </div>
+
+          <div class="card">
+            <h3 class="mini-title zh">常见取值提醒</h3>
+            <h3 class="mini-title en">Common value reminders</h3>
+            <ul class="list zh block">
+              <li><code>browser.nightMode</code>：<code>off / on / follow_theme</code></li>
+              <li><code>browser.backAction</code>：<code>go_back_or_exit / go_back_or_home / disabled</code></li>
+              <li><code>browser.screenOrientation</code>：<code>unspecified / portrait / landscape</code></li>
+              <li><code>security.openOtherAppsMode</code>：<code>ask / allow / block</code></li>
+              <li><code>security.sslErrorHandling</code>：<code>strict / ignore</code></li>
+              <li><code>shell.navigationBackBehavior</code>：<code>web_history / reset_on_navigation</code></li>
+              <li><code>shell.topBarBackBehavior</code> / <code>topBarHomeBehavior</code> / <code>topBarRefreshBehavior</code>：会影响原生按钮执行的是默认行为还是脚本行为</li>
+            </ul>
+            <ul class="list en block">
+              <li><code>browser.nightMode</code>: <code>off / on / follow_theme</code></li>
+              <li><code>browser.backAction</code>: <code>go_back_or_exit / go_back_or_home / disabled</code></li>
+              <li><code>browser.screenOrientation</code>: <code>unspecified / portrait / landscape</code></li>
+              <li><code>security.openOtherAppsMode</code>: <code>ask / allow / block</code></li>
+              <li><code>security.sslErrorHandling</code>: <code>strict / ignore</code></li>
+              <li><code>shell.navigationBackBehavior</code>: <code>web_history / reset_on_navigation</code></li>
+              <li><code>shell.topBarBackBehavior</code> / <code>topBarHomeBehavior</code> / <code>topBarRefreshBehavior</code>: decide whether native buttons perform defaults or run scripts</li>
             </ul>
           </div>
         </div>
@@ -1902,6 +2117,23 @@
                 from a toast alone</li>
             </ul>
           </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <h3 class="mini-title zh">敏感权限设置</h3>
+          <h3 class="mini-title en">Sensitive Permission Settings</h3>
+          <ul class="list zh block">
+            <li>Pack 页里的 <strong>敏感权限</strong> 开关只影响最终打包生成的 APK，不影响宿主里的项目预览。</li>
+            <li>默认保留 <code>INTERNET(网络)</code> 和 <code>POST_NOTIFICATIONS(通知)</code>；相机、麦克风、定位可以按项目需要手动开启或关闭。</li>
+            <li>关闭某项后，最终 APK 的 Manifest 不再声明对应权限，相关网页能力会被直接拒绝，不会继续请求系统授权。</li>
+            <li>老项目会先沿用历史权限默认值；当你第一次修改并保存这些开关后，项目才会迁移到新的敏感权限规则。</li>
+          </ul>
+          <ul class="list en block">
+            <li>The <strong>Sensitive Permissions</strong> switches on the Pack page affect only the final packaged APK, not project preview inside the host app.</li>
+            <li>By default, <code>INTERNET</code> and <code>POST_NOTIFICATIONS</code> stay enabled. Camera, microphone, and location can be toggled per project.</li>
+            <li>If a permission is turned off, the final APK manifest no longer declares it, and related web capabilities are denied before any Android permission request is shown.</li>
+            <li>Older projects keep their legacy permission defaults first. They move to the new sensitive-permission rules only after you change and save these switches.</li>
+          </ul>
         </div>
       </section>
 
