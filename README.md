@@ -530,7 +530,7 @@ keyPassword=your_key_password
 - [**uCrop**](https://github.com/Yalantis/uCrop) — 优雅的图片裁剪组件，用于启动图标与 Splash 编辑
 - [**Material Design 3**](https://m3.material.io/) — 设计语言与组件库
 - [**Android Open Source Project**](https://source.android.com/) — 底层平台支持
-- [**FeintHeart721**]([(4) Feint (@FeintHeart721) / X](https://x.com/FeintHeart721)) - APP流萤启动图(去除背景处理)作者
+- [**FeintHeart721**](https://x.com/FeintHeart721)- APP流萤启动图(去除背景处理)作者
 - [**siyo_studio_v3**](https://x.com/siyo_studio_v3/status/2008525469272949032) - APP侧边栏背景图来源
 
 同时感谢所有提交 Issue 和 Pull Request 的贡献者们 ❤️
