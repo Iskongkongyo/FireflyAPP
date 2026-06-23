@@ -144,6 +144,8 @@ class WebContainerFragment : Fragment() {
     private var navigationSwipeCurrentTranslationX = 0f
     private var navigationSwipeTouchStartX = 0f
     private var navigationSwipeTouchStartY = 0f
+    private var navigationSwipeTouchStartScrollX = 0
+    private var navigationSwipeTouchStartScrollY = 0
     private var navigationSwipeTouchSlop = 0
     private var navigationSwipeVelocityTracker: VelocityTracker? = null
     private var navigationSwipeSnapshotView: ImageView? = null
@@ -460,6 +462,18 @@ class WebContainerFragment : Fragment() {
         captureDefaultUiStyle()
         binding.retryButton.setOnClickListener {
             performRetryAction()
+        }
+        binding.loadingContainer.setOnTouchListener { _, event ->
+            handleBlockingOverlayNavigationSwipeTouch(event)
+        }
+        binding.loadingCard.setOnTouchListener { _, event ->
+            handleBlockingOverlayNavigationSwipeTouch(event)
+        }
+        binding.errorView.setOnTouchListener { _, event ->
+            handleBlockingOverlayNavigationSwipeTouch(event)
+        }
+        binding.errorCard.setOnTouchListener { _, event ->
+            handleBlockingOverlayNavigationSwipeTouch(event)
         }
         initializeManagedWebViewStack(
             config = config,
@@ -1794,6 +1808,22 @@ class WebContainerFragment : Fragment() {
         navigationSwipeListener = listener
     }
 
+    private fun handleBlockingOverlayNavigationSwipeTouch(event: MotionEvent): Boolean {
+        val managedWebView = activeManagedWebView() ?: return false
+        val canHandleNavigationSwipe =
+            isInteractiveManagedWebView(managedWebView) &&
+                navigationSwipeListener != null &&
+                navigationItems.size > 1
+        if (!canHandleNavigationSwipe &&
+            !navigationSwipeInteractiveActive &&
+            !navigationSwipeInteractiveCommitted
+        ) {
+            return false
+        }
+        val handled = handleNavigationSwipeTouch(managedWebView, event)
+        return handled || canHandleNavigationSwipe
+    }
+
     private fun handleNavigationSwipeTouch(
         managedWebView: ManagedWebView,
         event: MotionEvent
@@ -1812,6 +1842,8 @@ class WebContainerFragment : Fragment() {
                 }
                 navigationSwipeTouchStartX = event.x
                 navigationSwipeTouchStartY = event.y
+                navigationSwipeTouchStartScrollX = managedWebView.webView.scrollX
+                navigationSwipeTouchStartScrollY = managedWebView.webView.scrollY
                 if (!navigationSwipeInteractiveCommitted) {
                     navigationSwipeInteractiveActive = false
                     navigationSwipeInteractiveTargetItem = null
@@ -1877,7 +1909,18 @@ class WebContainerFragment : Fragment() {
         targetItem: NavigationItem,
         event: MotionEvent
     ): Boolean {
-        val snapshotBitmap = captureNavigationSwipeSnapshot() ?: return false
+        if (managedWebView.webView.width <= 0 || managedWebView.webView.height <= 0) {
+            return false
+        }
+        managedWebView.webView.parent?.requestDisallowInterceptTouchEvent(true)
+        dispatchCancelToWebView(managedWebView.webView, event)
+        restoreNavigationSwipeTouchStartScroll(managedWebView.webView)
+        val snapshotBitmap = captureWebViewSnapshot(managedWebView.webView)
+            ?: createNavigationSwipeFallbackSnapshot(
+                width = managedWebView.webView.width,
+                height = managedWebView.webView.height
+            )
+            ?: return false
         resetNavigationSwipeTransition()
         navigationSwipeVelocityTracker = VelocityTracker.obtain().apply {
             addMovement(event)
@@ -1889,8 +1932,6 @@ class WebContainerFragment : Fragment() {
         navigationSwipeInteractiveCommitted = false
         navigationSwipeInteractiveTargetItem = targetItem
         navigationSwipeCurrentTranslationX = 0f
-        managedWebView.webView.parent?.requestDisallowInterceptTouchEvent(true)
-        dispatchCancelToWebView(managedWebView.webView, event)
         keepWebViewHiddenUntilLoaded = true
         applyNavigationSwipeBlankBackground()
         val previewWidth = resolveNavigationSwipeWidth()
@@ -2154,6 +2195,17 @@ class WebContainerFragment : Fragment() {
         cancelEvent.recycle()
     }
 
+    private fun restoreNavigationSwipeTouchStartScroll(webView: FireflyWebView) {
+        if (webView.scrollX != navigationSwipeTouchStartScrollX ||
+            webView.scrollY != navigationSwipeTouchStartScrollY
+        ) {
+            webView.scrollTo(navigationSwipeTouchStartScrollX, navigationSwipeTouchStartScrollY)
+        }
+        webView.cancelLongPress()
+        webView.isPressed = false
+        webView.invalidate()
+    }
+
     private fun resolveNavigationSwipePreviewManagedWebView(item: NavigationItem): ManagedWebView? {
         val preloadedManagedWebView = preloadedNavigationRoots[item.id] ?: return null
         return preloadedManagedWebView.takeUnless {
@@ -2180,6 +2232,17 @@ class WebContainerFragment : Fragment() {
             Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap ->
                 val canvas = Canvas(bitmap)
                 targetWebView.draw(canvas)
+            }
+        }.getOrNull()
+    }
+
+    private fun createNavigationSwipeFallbackSnapshot(width: Int, height: Int): Bitmap? {
+        if (width <= 0 || height <= 0) {
+            return null
+        }
+        return runCatching {
+            Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap ->
+                bitmap.eraseColor(resolveNavigationSwipeBlankColor())
             }
         }.getOrNull()
     }

@@ -135,13 +135,22 @@ class FireflyWebViewClient(
         errorResponse: WebResourceResponse?
     ) {
         super.onReceivedHttpError(view, request, errorResponse)
-        if (request?.isForMainFrame == true && (errorResponse?.statusCode ?: 0) >= 400) {
-            mainFrameError = mapHttpError(errorResponse?.statusCode ?: 0)
+        val statusCode = errorResponse?.statusCode ?: 0
+        if (request?.isForMainFrame == true && statusCode >= 400) {
+            val mappedError = mapHttpError(statusCode)
+            if (mappedError == null) {
+                Log.d(
+                    TAG,
+                    "onReceivedHttpError rendering response body url=${request.url} status=$statusCode reason=${errorResponse?.reasonPhrase} view=${describeView(view)}"
+                )
+                return
+            }
+            mainFrameError = mappedError
             Log.e(
                 TAG,
-                "onReceivedHttpError url=${request.url} status=${errorResponse?.statusCode} reason=${errorResponse?.reasonPhrase} mapped=$mainFrameError view=${describeView(view)}"
+                "onReceivedHttpError url=${request.url} status=$statusCode reason=${errorResponse?.reasonPhrase} mapped=$mainFrameError view=${describeView(view)}"
             )
-            onPageLoadError(mainFrameError ?: PageLoadErrorState.Generic)
+            onPageLoadError(mainFrameError)
             onPageLoadingChanged?.invoke(false)
         }
     }
@@ -237,8 +246,10 @@ class FireflyWebViewClient(
         }
     }
 
-    private fun mapHttpError(statusCode: Int): PageLoadErrorState {
+    private fun mapHttpError(statusCode: Int): PageLoadErrorState? {
         return when (statusCode) {
+            403,
+            503 -> null
             404 -> PageLoadErrorState.NotFound
             else -> PageLoadErrorState.Generic
         }
