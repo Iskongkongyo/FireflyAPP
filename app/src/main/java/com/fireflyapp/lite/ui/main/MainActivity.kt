@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.app.AppLanguageManager
 import com.fireflyapp.lite.core.config.AppConfigManager
+import com.fireflyapp.lite.core.nativebridge.NativeKvSessionStorage
 import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_LANDSCAPE
 import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_PORTRAIT
 import com.fireflyapp.lite.core.webview.FullscreenViewHost
@@ -139,6 +140,13 @@ class MainActivity : AppCompatActivity(), FullscreenViewHost {
             viewModel.uiState.value.config?.let(TemplateSystemBarPolicy::resolve)
                 ?: RuntimeSystemBarMode.DEFAULT
         )
+    }
+
+    override fun onDestroy() {
+        if (isFinishing && !isChangingConfigurations) {
+            NativeKvSessionStorage.clearScope(intent.getStringExtra(EXTRA_PROJECT_ID))
+        }
+        super.onDestroy()
     }
 
     private fun applySystemBarMode(mode: RuntimeSystemBarMode) {

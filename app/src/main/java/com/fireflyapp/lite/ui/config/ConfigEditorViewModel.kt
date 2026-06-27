@@ -16,6 +16,7 @@ import com.fireflyapp.lite.data.model.InjectConfig
 import com.fireflyapp.lite.data.model.MatchRule
 import com.fireflyapp.lite.data.model.NavigationConfig
 import com.fireflyapp.lite.data.model.NavigationItem
+import com.fireflyapp.lite.data.model.NATIVE_KV_STORAGE_MODE_PERSISTENT
 import com.fireflyapp.lite.data.model.PageEventAction
 import com.fireflyapp.lite.data.model.PageEventRule
 import com.fireflyapp.lite.data.model.PageOverride
@@ -37,6 +38,11 @@ private const val DEFAULT_EDITOR_TOP_BAR_HEIGHT_DP = 60
 private const val DEFAULT_EDITOR_TOP_BAR_ICON_SIZE_DP = 24
 private const val DEFAULT_EDITOR_BOTTOM_BAR_HEIGHT_DP = 68
 private const val DEFAULT_EDITOR_BOTTOM_BAR_ICON_SIZE_DP = 22
+private val appPageEventTriggers = setOf(
+    "app_started",
+    "app_foregrounded",
+    "app_backgrounded"
+)
 
 class ConfigEditorViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ConfigRepository(application.applicationContext)
@@ -191,6 +197,7 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
     fun updateAllowExternalHosts(value: Boolean) = updateForm { copy(allowExternalHosts = value) }
     fun updateEnableNativeKvBridge(value: Boolean) = updateForm { copy(enableNativeKvBridge = value) }
     fun updateKvTrustedHostsText(value: String) = updateForm { copy(kvTrustedHostsText = value) }
+    fun updateNativeKvStorageMode(value: String) = updateForm { copy(nativeKvStorageMode = value) }
     fun updateOpenOtherAppsMode(value: String) = updateForm { copy(openOtherAppsMode = value) }
     fun updateSslErrorHandling(value: String) = updateForm { copy(sslErrorHandling = value) }
     fun updateAllowedHostsText(value: String) = updateForm { copy(allowedHostsText = value) }
@@ -250,6 +257,22 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
         }
         cleanupObsoleteCustomIcon(removedItem.icon, "")
         cleanupObsoleteCustomIcon(removedItem.selectedIcon, "")
+    }
+
+    fun moveNavigationItem(fromIndex: Int, toIndex: Int) {
+        updateForm {
+            if (
+                fromIndex !in navigationItems.indices ||
+                toIndex !in navigationItems.indices ||
+                fromIndex == toIndex
+            ) {
+                return@updateForm this
+            }
+            val mutableItems = navigationItems.toMutableList()
+            val movedItem = mutableItems.removeAt(fromIndex)
+            mutableItems.add(toIndex, movedItem)
+            copy(navigationItems = mutableItems)
+        }
     }
 
     fun updateNavigationId(index: Int, value: String) = updateNavigationItem(index) { copy(id = value) }
@@ -329,7 +352,18 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
 
     fun updatePageEventId(index: Int, value: String) = updatePageEvent(index) { copy(id = value) }
     fun updatePageEventEnabled(index: Int, value: Boolean) = updatePageEvent(index) { copy(enabled = value) }
-    fun updatePageEventTrigger(index: Int, value: String) = updatePageEvent(index) { copy(trigger = value) }
+    fun updatePageEventTrigger(index: Int, value: String) = updatePageEvent(index) {
+        if (value in appPageEventTriggers) {
+            copy(
+                trigger = value,
+                urlEquals = "",
+                urlStartsWith = "",
+                urlContains = ""
+            )
+        } else {
+            copy(trigger = value)
+        }
+    }
     fun updatePageEventUrlEquals(index: Int, value: String) = updatePageEvent(index) { copy(urlEquals = value) }
     fun updatePageEventUrlStartsWith(index: Int, value: String) = updatePageEvent(index) { copy(urlStartsWith = value) }
     fun updatePageEventUrlContains(index: Int, value: String) = updatePageEvent(index) { copy(urlContains = value) }
@@ -1301,6 +1335,7 @@ data class ConfigEditorFormState(
     val allowExternalHosts: Boolean = true,
     val enableNativeKvBridge: Boolean = false,
     val kvTrustedHostsText: String = "",
+    val nativeKvStorageMode: String = NATIVE_KV_STORAGE_MODE_PERSISTENT,
     val openOtherAppsMode: String = "ask",
     val sslErrorHandling: String = SSL_ERROR_HANDLING_STRICT,
     val allowedHostsText: String = "",
@@ -1421,6 +1456,7 @@ data class ConfigEditorFormState(
                 allowExternalHosts = allowExternalHosts,
                 enableNativeKvBridge = enableNativeKvBridge,
                 kvTrustedHosts = kvTrustedHostsText.lines().map { it.trim() }.filter { it.isNotBlank() },
+                nativeKvStorageMode = nativeKvStorageMode,
                 openOtherAppsMode = openOtherAppsMode,
                 sslErrorHandling = sslErrorHandling
             ),
@@ -1536,6 +1572,7 @@ data class ConfigEditorFormState(
                 allowExternalHosts = config.security.allowExternalHosts,
                 enableNativeKvBridge = config.security.enableNativeKvBridge,
                 kvTrustedHostsText = config.security.kvTrustedHosts.joinToString("\n"),
+                nativeKvStorageMode = config.security.nativeKvStorageMode,
                 openOtherAppsMode = config.security.openOtherAppsMode,
                 sslErrorHandling = config.security.sslErrorHandling,
                 allowedHostsText = config.security.allowedHosts.joinToString("\n"),
@@ -1833,6 +1870,7 @@ private fun AppConfig.merge(sections: ConfigSections): AppConfig {
             allowExternalHosts = sections.security.allowExternalHosts,
             enableNativeKvBridge = sections.security.enableNativeKvBridge,
             kvTrustedHosts = sections.security.kvTrustedHosts,
+            nativeKvStorageMode = sections.security.nativeKvStorageMode,
             openOtherAppsMode = sections.security.openOtherAppsMode,
             sslErrorHandling = sections.security.sslErrorHandling
         ),

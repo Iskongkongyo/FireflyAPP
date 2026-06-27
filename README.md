@@ -216,6 +216,7 @@ cd FireflyApp
     "allowExternalHosts": true,          // 是否允许打开白名单外的 URL
     "enableNativeKvBridge": false,       // 是否启用 NativeBridge 原生 KV 桥
     "kvTrustedHosts": ["example.com"],   // 允许访问 NativeBridge 的 host 列表
+    "nativeKvStorageMode": "persistent", // KV 存储方式: persistent / session
     "openOtherAppsMode": "ask",          // 跳转外部应用: ask / allow / block
     "sslErrorHandling": "strict"         // SSL 证书错误处理: strict / ignore
   },
@@ -264,6 +265,14 @@ cd FireflyApp
 - **多代码块管理** — 全局 JS/CSS 与规则 JS/CSS 使用代码块列表管理，不需要再手写分隔符
 - **片段插入菜单** — JS 编辑器右上角 `+` 提供常用模板，如 IIFE、DOM Ready、`fetch` 请求、等待元素出现、批量移除广告节点、事件变量模板、`NativeBridge` 使用方法示例等
 - **顶栏按钮脚本** — 顶栏返回、首页、刷新按钮支持直接配置 `run_js`，可与网页逻辑或原生桥接联动
+- **导航顺序调整** — 导航项可通过上移、下移按钮直接调整位置，无需手工修改项目 JSON
+- **编辑状态跟随** — 新增页面规则或页面事件后自动切换到新条目；会即时生效的删除操作在执行前显示确认提示
+
+## 🛠️ 预览调试
+
+从项目中心点击 **预览 / Preview** 时，页面右下角会注入本地内置的 [Tencent vConsole](https://github.com/Tencent/vConsole)，可查看日志、网络请求、页面元素和 Web Storage 等调试信息。
+
+vConsole 仅在 FireflyApp 宿主的项目预览模式中启用；其脚本位于宿主专用 `host-app` 资产目录，不会注入或打包到最终生成的 APK。
 
 ## 🧠 NativeBridge 原生 KV
 
@@ -271,6 +280,7 @@ FireflyApp 提供一个可选的原生 KV `JavascriptInterface`，接口名为 `
 
 - 入口位置：`基础 / Basic -> 安全 / Security`
 - 启用方式：打开 `Enable Native KV bridge`
+- 存储方式：`persistent` 持久化保存到应用私有存储；`session` 仅保存在应用进程内存中，进程结束后清空
 - 访问控制：仅允许 `http/https` 页面访问，且当前页面 host 必须命中 `kvTrustedHosts`
 - 默认最小权限：关闭时不注入；`kvTrustedHosts` 为空时视为全部拒绝
 
@@ -351,14 +361,16 @@ unsigned 壳 APK（含占位符）
 | 文件上传 | ✅ | `FileChooserHandler` 支持标准 file input |
 | 剪贴板 | ✅ | JS Bridge：`FireflyClipboard` |
 | 通知 | ✅ | JS Bridge：`FireflyNotificationBridge`（含权限提示） |
-| NativeBridge KV | ✅ | 可选原生 KV 桥接；仅在启用且当前页面 host 命中 `kvTrustedHosts` 时可用 |
+| NativeBridge KV | ✅ | 可选原生 KV 桥接，支持持久化/会话级存储；仅在启用且当前页面 host 命中 `kvTrustedHosts` 时可用 |
 | 地理位置 | ✅ | `WebGeolocationHandler` 权限管理 + 白名单校验 |
 | 摄像头 / 麦克风 | ✅ | `WebPermissionHandler` 双语权限前置提示 |
 | 全屏视频 | ✅ | 自动进入/退出全屏 |
 | 长按菜单 | ✅ | 纯文本、链接、图片、图片链接均支持长按操作，图片可下载，链接/图片可复制或分享 |
 | 加载浮层 | ✅ | 可在 Basic 中开关 |
+| 导航滑动兜底 | ✅ | 启用滑动切换导航后，加载中、错误页、空白页状态下仍可左右滑动切换导航 |
 | 夜间模式 | ✅ | Algorithmic Darkening + 跟随宿主主题 |
 | 自定义错误页 | ✅ | 可按规则覆盖标题、文案和重试动作 |
+| 人机挑战页兼容 | ✅ | 主页面 `403/503` 响应体会交给 WebView 渲染，避免 Cloudflare 等挑战页被错误页遮挡 |
 | JS/CSS 注入 | ✅ | 全局注入 + 页面规则级注入 |
 | SPA 路由检测 | ✅ | MutationObserver 监听 URL 变化 |
 
@@ -386,6 +398,9 @@ unsigned 壳 APK（含占位符）
 | `page_title_changed` | 页面标题变化 |
 | `page_left` | 离开页面（导航到新页面前） |
 | `spa_url_changed` | SPA 单页应用内路由变化 |
+| `app_started` | App 进程启动并加载当前项目后触发，同一运行期间每个项目只触发一次 |
+| `app_foregrounded` | App 从后台回到前台时触发 |
+| `app_backgrounded` | App 进入后台时触发 |
 
 ### 动作（Action）
 
@@ -400,7 +415,7 @@ unsigned 壳 APK（含占位符）
 | `copy_to_clipboard` | 复制文本到剪贴板 |
 | `run_js` | 执行自定义 JavaScript |
 
-**模板变量**：动作的 `value` / `url` / `script` 字段支持 `{url}`、`{title}`、`{trigger}`、`{previousUrl}`、`{nextUrl}` 模板变量。
+**模板变量**：动作的 `value` / `url` / `script` 字段支持 `{url}`、`{title}`、`{trigger}`、`{previousUrl}`、`{nextUrl}` 模板变量。App 运行事件不使用 URL 匹配条件；`app_started` 中的 `run_js` 会等首个可交互页面加载完成后执行。
 
 ---
 
@@ -426,7 +441,7 @@ unsigned 壳 APK（含占位符）
 | URL 导航 | `allowedHosts` 域名白名单，支持通配符（`*.example.com`） |
 | 外部应用跳转 | `ask` / `allow` / `block` 三模式，弹窗显示目标应用信息 |
 | SSL 错误 | 可配置为严格校验或忽略证书错误（默认严格校验） |
-| NativeBridge KV | 独立开关 + `kvTrustedHosts` 白名单，且仅允许 `http/https` 页面访问 |
+| NativeBridge KV | 独立开关 + 持久化/会话级存储选择 + `kvTrustedHosts` 白名单，且仅允许 `http/https` 页面访问 |
 | 文件路径 | `sanitizeRelativeProjectPath()` 防止 `../` 路径穿越 |
 | 打包名 | 正则校验 + 长度限制 + 禁止与宿主包名重复 |
 | 签名凭据 | 存于 APP 私有沙盒目录 |
@@ -443,6 +458,7 @@ unsigned 壳 APK（含占位符）
 | **View + ViewBinding** | Template Fragment / WebView 层 |
 | **kotlinx.serialization** | 1.6.3（JSON 配置解析） |
 | **AndroidX WebKit** | 1.11.0（WebView 增强） |
+| **Tencent vConsole** | 3.15.1（仅用于宿主 APP 的项目预览调试） |
 | **apksig** | 8.5.2（APK 签名） |
 | **uCrop** | 2.2.10（图片裁剪） |
 | **Material 3** | 1.12.0 |
@@ -478,6 +494,10 @@ keyPassword=your_key_password
 
 ## ✨ 近期更新
 
+- 预览模式新增本地内置 vConsole 调试控制台，可查看日志、网络、元素和存储；不会影响最终打包 APK。
+- 配置编辑器支持直接调整导航项顺序；新增页面规则/事件后自动选中，并为即时生效的删除操作增加确认提示。
+- 优化滑动切换导航：页面加载中、网络失败错误页、超时错误页、空白页等状态下仍可左右滑动切换导航。
+- 优化 Cloudflare 等人机挑战页兼容：主页面 `403/503` 响应不再直接显示 App 错误页，而是保留 WebView 原始响应体。
 - 新增顶栏返回按钮行为配置，支持 `default_back`、`default_home`、`default_navigation_item`、`run_js`，并已接入带顶栏模板。 
 - 新增 `NativeBridge` 原生 KV 桥接，使用独立开关与 `kvTrustedHosts` 控制，仅对受信任 `http/https` 页面开放。
 - 配置编辑器新增全屏代码编辑器；全局 JS/CSS 与规则 JS/CSS 升级为多代码块编辑，支持新增、复制、排序、删除。
@@ -525,12 +545,12 @@ keyPassword=your_key_password
 
 - [**Jetpack Compose**](https://developer.android.com/jetpack/compose) — 现代声明式 UI 框架，驱动项目中心与配置编辑器
 - [**AndroidX WebKit**](https://developer.android.com/jetpack/androidx/releases/webkit) — WebView 增强能力的基石
+- [**Tencent vConsole**](https://github.com/Tencent/vConsole) — 宿主 APP 项目预览模式使用的移动端网页调试控制台
 - [**apksig**](https://android.googlesource.com/platform/tools/apksig/) — Google 官方 APK 签名库，保障打包产物的签名安全
 - [**kotlinx.serialization**](https://github.com/Kotlin/kotlinx.serialization) — 类型安全的 JSON 解析，支撑配置系统
 - [**uCrop**](https://github.com/Yalantis/uCrop) — 优雅的图片裁剪组件，用于启动图标与 Splash 编辑
 - [**Material Design 3**](https://m3.material.io/) — 设计语言与组件库
 - [**Android Open Source Project**](https://source.android.com/) — 底层平台支持
 - [**FeintHeart721**](https://x.com/FeintHeart721)- APP流萤启动图(去除背景处理)作者
-- [**siyo_studio_v3**](https://x.com/siyo_studio_v3/status/2008525469272949032) - APP侧边栏背景图来源
 
 同时感谢所有提交 Issue 和 Pull Request 的贡献者们 ❤️

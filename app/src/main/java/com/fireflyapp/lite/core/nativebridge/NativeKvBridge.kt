@@ -6,19 +6,22 @@ import android.net.Uri
 import android.util.Log
 import android.webkit.JavascriptInterface
 import com.fireflyapp.lite.core.rule.UrlMatcher
+import com.fireflyapp.lite.data.model.NATIVE_KV_STORAGE_MODE_PERSISTENT
+import com.fireflyapp.lite.data.model.NATIVE_KV_STORAGE_MODE_SESSION
 
 class NativeKvBridge(
     private val contextProvider: () -> Context?,
     private val trustedHostsProvider: () -> List<String>,
     private val currentPageUrlProvider: () -> String?,
-    private val storageScopeProvider: () -> String?
+    private val storageScopeProvider: () -> String?,
+    private val storageModeProvider: () -> String? = { null }
 ) {
     @JavascriptInterface
     fun get(namespace: String?, key: String?): String? {
         val access = resolveAccess() ?: return null
         val safeNamespace = sanitizeSegment(namespace, MAX_NAMESPACE_LENGTH) ?: return null
         val safeKey = sanitizeSegment(key, MAX_KEY_LENGTH) ?: return null
-        return access.preferences.getString(storageKey(access.scope, safeNamespace, safeKey), null)
+        return access.getString(storageKey(access.scope, safeNamespace, safeKey))
     }
 
     @JavascriptInterface
@@ -27,9 +30,7 @@ class NativeKvBridge(
         val safeNamespace = sanitizeSegment(namespace, MAX_NAMESPACE_LENGTH) ?: return false
         val safeKey = sanitizeSegment(key, MAX_KEY_LENGTH) ?: return false
         val safeValue = sanitizeValue(value) ?: return false
-        return access.preferences.edit()
-            .putString(storageKey(access.scope, safeNamespace, safeKey), safeValue)
-            .commit()
+        return access.putString(storageKey(access.scope, safeNamespace, safeKey), safeValue)
     }
 
     @JavascriptInterface
@@ -37,9 +38,7 @@ class NativeKvBridge(
         val access = resolveAccess() ?: return false
         val safeNamespace = sanitizeSegment(namespace, MAX_NAMESPACE_LENGTH) ?: return false
         val safeKey = sanitizeSegment(key, MAX_KEY_LENGTH) ?: return false
-        return access.preferences.edit()
-            .remove(storageKey(access.scope, safeNamespace, safeKey))
-            .commit()
+        return access.remove(storageKey(access.scope, safeNamespace, safeKey))
     }
 
     @JavascriptInterface
@@ -47,11 +46,15 @@ class NativeKvBridge(
         val access = resolveAccess() ?: return 0
         val safeNamespace = sanitizeSegment(namespace, MAX_NAMESPACE_LENGTH) ?: return 0
         val keyPrefix = storageNamespacePrefix(access.scope, safeNamespace)
-        val keysToRemove = access.preferences.all.keys.filter { it.startsWith(keyPrefix) }
+        if (access.storageMode == NATIVE_KV_STORAGE_MODE_SESSION) {
+            return NativeKvSessionStorage.removeByPrefix(access.scope, keyPrefix)
+        }
+        val preferences = access.preferences ?: return 0
+        val keysToRemove = preferences.all.keys.filter { it.startsWith(keyPrefix) }
         if (keysToRemove.isEmpty()) {
             return 0
         }
-        val editor = access.preferences.edit()
+        val editor = preferences.edit()
         keysToRemove.forEach(editor::remove)
         return if (editor.commit()) keysToRemove.size else 0
     }
@@ -66,14 +69,18 @@ class NativeKvBridge(
             return null
         }
 
-        val context = contextProvider()?.applicationContext ?: return null
+        val scope = normalizeNativeKvStorageScope(storageScopeProvider())
+        val storageMode = resolveStorageMode()
+        val preferences = if (storageMode == NATIVE_KV_STORAGE_MODE_PERSISTENT) {
+            val context = contextProvider()?.applicationContext ?: return null
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        } else {
+            null
+        }
         return AccessContext(
-            preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE),
-            scope = storageScopeProvider()
-                ?.trim()
-                ?.take(MAX_SCOPE_LENGTH)
-                .orEmpty()
-                .ifBlank { DEFAULT_SCOPE }
+            storageMode = storageMode,
+            preferences = preferences,
+            scope = scope
         )
     }
 
@@ -96,6 +103,13 @@ class NativeKvBridge(
 
     private fun currentPageUri(): Uri? {
         return runCatching { Uri.parse(currentPageUrlProvider().orEmpty()) }.getOrNull()
+    }
+
+    private fun resolveStorageMode(): String {
+        return when (storageModeProvider()?.trim()?.lowercase()) {
+            NATIVE_KV_STORAGE_MODE_SESSION -> NATIVE_KV_STORAGE_MODE_SESSION
+            else -> NATIVE_KV_STORAGE_MODE_PERSISTENT
+        }
     }
 
     private fun sanitizeSegment(value: String?, maxLength: Int): String? {
@@ -145,18 +159,99 @@ class NativeKvBridge(
         return "${Uri.encode(scope)}|${Uri.encode(namespace)}|"
     }
 
+    private fun AccessContext.getString(key: String): String? {
+        return if (storageMode == NATIVE_KV_STORAGE_MODE_SESSION) {
+            NativeKvSessionStorage.get(scope, key)
+        } else {
+            preferences?.getString(key, null)
+        }
+    }
+
+    private fun AccessContext.putString(key: String, value: String): Boolean {
+        return if (storageMode == NATIVE_KV_STORAGE_MODE_SESSION) {
+            NativeKvSessionStorage.put(scope, key, value)
+        } else {
+            preferences?.edit()?.putString(key, value)?.commit() == true
+        }
+    }
+
+    private fun AccessContext.remove(key: String): Boolean {
+        return if (storageMode == NATIVE_KV_STORAGE_MODE_SESSION) {
+            NativeKvSessionStorage.remove(scope, key)
+        } else {
+            preferences?.edit()?.remove(key)?.commit() == true
+        }
+    }
+
     private data class AccessContext(
-        val preferences: SharedPreferences,
+        val storageMode: String,
+        val preferences: SharedPreferences?,
         val scope: String
     )
 
     private companion object {
         const val TAG = "NativeKvBridge"
         const val PREFS_NAME = "firefly_native_kv"
-        const val DEFAULT_SCOPE = "standalone"
-        const val MAX_SCOPE_LENGTH = 96
         const val MAX_NAMESPACE_LENGTH = 64
         const val MAX_KEY_LENGTH = 128
         const val MAX_VALUE_LENGTH = 65_536
     }
+}
+
+internal object NativeKvSessionStorage {
+    private val lock = Any()
+    private val valuesByScope = mutableMapOf<String, MutableMap<String, String>>()
+
+    fun get(scope: String, key: String): String? {
+        return synchronized(lock) {
+            valuesByScope[scope]?.get(key)
+        }
+    }
+
+    fun put(scope: String, key: String, value: String): Boolean {
+        synchronized(lock) {
+            valuesByScope.getOrPut(scope) { mutableMapOf() }[key] = value
+        }
+        return true
+    }
+
+    fun remove(scope: String, key: String): Boolean {
+        synchronized(lock) {
+            val values = valuesByScope[scope] ?: return true
+            values.remove(key)
+            if (values.isEmpty()) {
+                valuesByScope.remove(scope)
+            }
+        }
+        return true
+    }
+
+    fun removeByPrefix(scope: String, keyPrefix: String): Int {
+        return synchronized(lock) {
+            val values = valuesByScope[scope] ?: return@synchronized 0
+            val keysToRemove = values.keys.filter { it.startsWith(keyPrefix) }
+            keysToRemove.forEach(values::remove)
+            if (values.isEmpty()) {
+                valuesByScope.remove(scope)
+            }
+            keysToRemove.size
+        }
+    }
+
+    fun clearScope(scope: String?) {
+        synchronized(lock) {
+            valuesByScope.remove(normalizeNativeKvStorageScope(scope))
+        }
+    }
+}
+
+private const val DEFAULT_NATIVE_KV_STORAGE_SCOPE = "standalone"
+private const val MAX_NATIVE_KV_STORAGE_SCOPE_LENGTH = 96
+
+private fun normalizeNativeKvStorageScope(scope: String?): String {
+    return scope
+        ?.trim()
+        ?.take(MAX_NATIVE_KV_STORAGE_SCOPE_LENGTH)
+        .orEmpty()
+        .ifBlank { DEFAULT_NATIVE_KV_STORAGE_SCOPE }
 }

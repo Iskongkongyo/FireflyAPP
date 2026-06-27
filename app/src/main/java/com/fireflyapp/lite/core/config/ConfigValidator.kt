@@ -9,9 +9,11 @@ import com.fireflyapp.lite.data.model.NavigationItem
 import com.fireflyapp.lite.data.model.PageEventAction
 import com.fireflyapp.lite.data.model.PageEventRule
 import com.fireflyapp.lite.data.model.SecurityConfig
+import com.fireflyapp.lite.data.model.NATIVE_KV_STORAGE_MODE_PERSISTENT
 import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_STRICT
 import com.fireflyapp.lite.data.model.TemplateType
 import com.fireflyapp.lite.data.model.supportedBrowserScreenOrientations
+import com.fireflyapp.lite.data.model.supportedNativeKvStorageModes
 import com.fireflyapp.lite.data.model.supportedSslErrorHandlingModes
 import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
 import com.fireflyapp.lite.ui.template.TemplateIconCatalog
@@ -58,6 +60,7 @@ class ConfigValidator {
 
         val sanitizedPageEvents = config.pageEvents
             .mapIndexed { index, event ->
+                val sanitizedTrigger = event.trigger.trim().lowercase().ifBlank { DEFAULT_PAGE_EVENT_TRIGGER }
                 val sanitizedActions = event.actions
                     .map { action ->
                         action.copy(
@@ -71,12 +74,16 @@ class ConfigValidator {
                 event.copy(
                     id = event.id.trim().ifBlank { "event_${index + 1}" },
                     enabled = event.enabled,
-                    trigger = event.trigger.trim().lowercase().ifBlank { DEFAULT_PAGE_EVENT_TRIGGER },
-                    match = event.match.copy(
-                        urlEquals = event.match.urlEquals?.trim()?.takeIf { it.isNotBlank() },
-                        urlStartsWith = event.match.urlStartsWith?.trim()?.takeIf { it.isNotBlank() },
-                        urlContains = event.match.urlContains?.trim()?.takeIf { it.isNotBlank() }
-                    ),
+                    trigger = sanitizedTrigger,
+                    match = if (sanitizedTrigger in appPageEventTriggers) {
+                        com.fireflyapp.lite.data.model.MatchRule()
+                    } else {
+                        event.match.copy(
+                            urlEquals = event.match.urlEquals?.trim()?.takeIf { it.isNotBlank() },
+                            urlStartsWith = event.match.urlStartsWith?.trim()?.takeIf { it.isNotBlank() },
+                            urlContains = event.match.urlContains?.trim()?.takeIf { it.isNotBlank() }
+                        )
+                    },
                     actions = sanitizedActions
                 )
             }
@@ -125,6 +132,11 @@ class ConfigValidator {
                     .map { it.trim() }
                     .filter { it.isNotEmpty() }
                     .distinct(),
+                nativeKvStorageMode = config.security.nativeKvStorageMode
+                    .trim()
+                    .lowercase()
+                    .takeIf { it in supportedNativeKvStorageModes }
+                    ?: NATIVE_KV_STORAGE_MODE_PERSISTENT,
                 openOtherAppsMode = config.security.openOtherAppsMode
                     .trim()
                     .lowercase()
@@ -323,7 +335,15 @@ class ConfigValidator {
             "page_finished",
             "page_title_changed",
             "page_left",
-            "spa_url_changed"
+            "spa_url_changed",
+            "app_started",
+            "app_foregrounded",
+            "app_backgrounded"
+        )
+        val appPageEventTriggers = setOf(
+            "app_started",
+            "app_foregrounded",
+            "app_backgrounded"
         )
         val supportedPageEventActions = setOf(
             "toast",

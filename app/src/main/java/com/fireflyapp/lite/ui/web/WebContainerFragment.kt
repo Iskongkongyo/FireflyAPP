@@ -43,6 +43,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import com.fireflyapp.lite.BuildConfig
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.core.clipboard.ClipboardBridge
 import com.fireflyapp.lite.core.download.BlobDownloadBridge
@@ -64,6 +65,7 @@ import com.fireflyapp.lite.core.rule.ResolvedPageState
 import com.fireflyapp.lite.core.webview.FireflyWebChromeClient
 import com.fireflyapp.lite.core.webview.FireflyWebViewClient.PageLoadErrorState
 import com.fireflyapp.lite.core.webview.FireflyWebViewClient
+import com.fireflyapp.lite.core.webview.PreviewWebConsole
 import com.fireflyapp.lite.core.webview.ResolvedPageInjectionApplier
 import com.fireflyapp.lite.core.webview.WebPageCallback
 import com.fireflyapp.lite.core.webview.WebViewConfigurator
@@ -132,6 +134,7 @@ class WebContainerFragment : Fragment() {
     private var defaultRetryButtonTextColor: Int? = null
     private var loadingSpinnerAnimator: ObjectAnimator? = null
     private var navigationSwipeListener: ((NavigationSwipeDirection) -> Unit)? = null
+    private var hasCompletedInitialResume = false
     private var pendingNavigationSwipeDirection: NavigationSwipeDirection? = null
     private var pendingNavigationSwipeExitCompleted = false
     private var pendingNavigationSwipePageReady = false
@@ -151,6 +154,7 @@ class WebContainerFragment : Fragment() {
     private var navigationSwipeSnapshotView: ImageView? = null
     private var lastRendererCrashUrl: String? = null
     private var lastRendererCrashAtElapsedMs: Long = 0L
+    private val pendingAppEventJavascriptActions = mutableListOf<PendingAppEventJavascriptAction>()
     private val hideDownloadStatusRunnable = Runnable {
         _binding?.downloadStatusContainer?.visibility = View.GONE
     }
@@ -172,14 +176,6 @@ class WebContainerFragment : Fragment() {
         currentPageUrlProvider = { currentPageUrl },
         dispatchPermissionResult = ::dispatchNotificationPermissionResult
     )
-    private val nativeKvBridge by lazy {
-        NativeKvBridge(
-            contextProvider = { context },
-            trustedHostsProvider = { mainViewModel.requireConfig().security.kvTrustedHosts },
-            currentPageUrlProvider = { currentPageUrl },
-            storageScopeProvider = { mainViewModel.uiState.value.projectId ?: "standalone" }
-        )
-    }
     private val blobDownloadBridge by lazy {
         BlobDownloadBridge(
             downloadHandler = downloadHandler,
@@ -240,18 +236,26 @@ class WebContainerFragment : Fragment() {
         var mode: ManagedWebViewMode,
         var navigationItemId: String? = null,
         var navigationRootUrl: String = "",
+        @Volatile
         var lastKnownUrl: String = "",
         var lastKnownTitle: String = "",
         var lastResolvedPageState: ResolvedPageState? = null,
         var lastLoadError: PageLoadErrorState? = null,
         var isLoading: Boolean = false,
+        var hasFinishedPageLoad: Boolean = false,
         var clearHistoryOnNextPageFinished: Boolean = false,
-        var preloadedAtElapsedMs: Long = 0L
+        var preloadedAtElapsedMs: Long = 0L,
+        var previewConsoleInstallation: PreviewWebConsole.Installation? = null
     )
 
     private data class TrimmedNavigationStackEntry(
         val url: String,
         val title: String = ""
+    )
+
+    private data class PendingAppEventJavascriptAction(
+        val script: String,
+        val eventContext: PageEventContext
     )
 
     private data class LongPressTarget(
@@ -326,46 +330,6 @@ class WebContainerFragment : Fragment() {
                 notificationBridge.showNotification(title, body, tag)
             } else {
                 false
-            }
-        }
-    }
-
-    private inner class GuardedNativeKvBridge(
-        private val isEnabled: () -> Boolean
-    ) {
-        @android.webkit.JavascriptInterface
-        fun get(namespace: String?, key: String?): String? {
-            return if (isEnabled()) {
-                nativeKvBridge.get(namespace, key)
-            } else {
-                null
-            }
-        }
-
-        @android.webkit.JavascriptInterface
-        fun set(namespace: String?, key: String?, value: String?): Boolean {
-            return if (isEnabled()) {
-                nativeKvBridge.set(namespace, key, value)
-            } else {
-                false
-            }
-        }
-
-        @android.webkit.JavascriptInterface
-        fun remove(namespace: String?, key: String?): Boolean {
-            return if (isEnabled()) {
-                nativeKvBridge.remove(namespace, key)
-            } else {
-                false
-            }
-        }
-
-        @android.webkit.JavascriptInterface
-        fun clearNamespace(namespace: String?): Int {
-            return if (isEnabled()) {
-                nativeKvBridge.clearNamespace(namespace)
-            } else {
-                0
             }
         }
     }
@@ -480,6 +444,7 @@ class WebContainerFragment : Fragment() {
             resolver = resolver,
             savedInstanceState = savedInstanceState
         )
+        dispatchAppStartedEventIfNeeded()
     }
 
     private fun supportsNavigationPageStack(config: AppConfig): Boolean {
@@ -521,6 +486,11 @@ class WebContainerFragment : Fragment() {
             managedWebView.webView === activeWebView()
     }
 
+    private fun isPreviewWebConsoleEnabled(): Boolean {
+        return BuildConfig.IS_WORKSPACE_HOST_APP &&
+            !mainViewModel.uiState.value.projectId.isNullOrBlank()
+    }
+
     private fun initializeManagedWebViewStack(
         config: AppConfig,
         resolver: PageRuleResolver,
@@ -542,6 +512,10 @@ class WebContainerFragment : Fragment() {
             rootManagedWebView.webView.restoreState(savedInstanceState)
             currentPageUrl = rootManagedWebView.webView.url
             currentPageTitle = rootManagedWebView.webView.title
+            rootManagedWebView.lastKnownUrl = currentPageUrl.orEmpty()
+            rootManagedWebView.hasFinishedPageLoad = !currentPageUrl.isNullOrBlank()
+            rootManagedWebView.previewConsoleInstallation
+                ?.injectCurrentDocument(rootManagedWebView.webView)
             currentPageUrl?.let {
                 currentPageState = resolver.resolve(it)
                 currentPageState?.let(::applyPageUiStyle)
@@ -573,9 +547,13 @@ class WebContainerFragment : Fragment() {
         val guardedNotificationBridge = GuardedNotificationBridge {
             isInteractiveManagedWebView(managedWebView)
         }
-        val guardedNativeKvBridge = GuardedNativeKvBridge {
-            isInteractiveManagedWebView(managedWebView)
-        }
+        val managedNativeKvBridge = NativeKvBridge(
+            contextProvider = { context },
+            trustedHostsProvider = { mainViewModel.requireConfig().security.kvTrustedHosts },
+            currentPageUrlProvider = { managedWebView.lastKnownUrl },
+            storageScopeProvider = { mainViewModel.uiState.value.projectId ?: "standalone" },
+            storageModeProvider = { mainViewModel.requireConfig().security.nativeKvStorageMode }
+        )
         val guardedBlobDownloadBridge = GuardedBlobDownloadBridge {
             isInteractiveManagedWebView(managedWebView)
         }
@@ -651,7 +629,7 @@ class WebContainerFragment : Fragment() {
         webView.addJavascriptInterface(guardedClipboardBridge, CLIPBOARD_BRIDGE_NAME)
         webView.addJavascriptInterface(guardedNotificationBridge, NOTIFICATION_BRIDGE_NAME)
         if (config.security.enableNativeKvBridge) {
-            webView.addJavascriptInterface(guardedNativeKvBridge, NATIVE_KV_BRIDGE_NAME)
+            webView.addJavascriptInterface(managedNativeKvBridge, NATIVE_KV_BRIDGE_NAME)
         }
         webView.addJavascriptInterface(guardedBlobDownloadBridge, BLOB_BRIDGE_NAME)
         webView.addJavascriptInterface(guardedDownloadMetadataBridge, DOWNLOAD_METADATA_BRIDGE_NAME)
@@ -754,7 +732,9 @@ class WebContainerFragment : Fragment() {
                 managedWebView.lastKnownUrl = url
                 managedWebView.lastLoadError = null
                 managedWebView.lastResolvedPageState = resolver.resolve(url)
+                managedWebView.hasFinishedPageLoad = false
                 managedWebView.preloadedAtElapsedMs = 0L
+                managedWebView.previewConsoleInstallation?.injectFallback(webView)
                 if (isInteractiveManagedWebView(managedWebView)) {
                     handlePageStarted(url)
                 }
@@ -773,11 +753,13 @@ class WebContainerFragment : Fragment() {
             },
             onPageFinished = { finishedWebView, url ->
                 managedWebView.lastKnownUrl = url
+                managedWebView.previewConsoleInstallation?.injectFallback(finishedWebView)
                 val resolvedTitle = finishedWebView.title.orEmpty()
                 if (resolvedTitle.isNotBlank()) {
                     managedWebView.lastKnownTitle = resolvedTitle
                 }
                 managedWebView.isLoading = false
+                managedWebView.hasFinishedPageLoad = true
                 managedWebView.preloadedAtElapsedMs = SystemClock.elapsedRealtime()
                 installPageEventHook(finishedWebView)
                 installClipboardBridge(finishedWebView)
@@ -791,6 +773,7 @@ class WebContainerFragment : Fragment() {
                 if (isInteractiveManagedWebView(managedWebView)) {
                     currentPageUrl = url
                     onNavigationSwipePageReady()
+                    flushPendingAppEventJavascriptActions()
                     dispatchPageEvent(
                         trigger = PAGE_EVENT_TRIGGER_PAGE_FINISHED,
                         url = url,
@@ -831,6 +814,12 @@ class WebContainerFragment : Fragment() {
             navigationItemId = navigationItemId,
             navigationRootUrl = navigationRootUrl
         )
+        if (isPreviewWebConsoleEnabled()) {
+            managedWebView.previewConsoleInstallation = PreviewWebConsole.install(
+                context = requireContext().applicationContext,
+                webView = webView
+            )
+        }
         return managedWebView
     }
 
@@ -1350,6 +1339,8 @@ class WebContainerFragment : Fragment() {
         managedWebView: ManagedWebView,
         renderProcessGone: Boolean = false
     ) {
+        managedWebView.previewConsoleInstallation?.dispose()
+        managedWebView.previewConsoleInstallation = null
         managedWebView.chromeClient.exitFullscreen()
         managedWebView.webView.apply {
             if (!renderProcessGone) {
@@ -2968,6 +2959,61 @@ class WebContainerFragment : Fragment() {
         }
     }
 
+    private fun dispatchAppStartedEventIfNeeded() {
+        val eventScope = appEventScope()
+        val shouldDispatch = synchronized(appStartedEventLock) {
+            appStartedEventScopes.add(eventScope)
+        }
+        if (shouldDispatch) {
+            dispatchAppLifecycleEvent(PAGE_EVENT_TRIGGER_APP_STARTED)
+        }
+    }
+
+    private fun dispatchAppLifecycleEvent(trigger: String) {
+        dispatchPageEvent(
+            trigger = trigger,
+            url = appEventUrl(),
+            title = currentPageTitle.orEmpty()
+        )
+    }
+
+    private fun appEventScope(): String {
+        return mainViewModel.uiState.value.projectId
+            ?.trim()
+            .orEmpty()
+            .ifBlank { DEFAULT_APP_EVENT_SCOPE }
+    }
+
+    private fun appEventUrl(): String {
+        return currentPageUrl
+            .orEmpty()
+            .ifBlank { activeManagedWebView()?.lastKnownUrl.orEmpty() }
+            .ifBlank { mainViewModel.requireConfig().app.defaultUrl }
+    }
+
+    private fun canRunEventJavascriptNow(): Boolean {
+        val active = activeManagedWebView() ?: return false
+        return active.hasFinishedPageLoad && active.webView.url.orEmpty().isNotBlank() && !active.isLoading
+    }
+
+    private fun flushPendingAppEventJavascriptActions() {
+        if (!canRunEventJavascriptNow() || pendingAppEventJavascriptActions.isEmpty()) {
+            return
+        }
+        val pendingActions = pendingAppEventJavascriptActions.toList()
+        pendingAppEventJavascriptActions.clear()
+        pendingActions.forEach { pendingAction ->
+            val executionContext = pendingAction.eventContext.copy(
+                url = appEventUrl(),
+                title = currentPageTitle.orEmpty()
+            )
+            val resolvedScript = resolveEventTemplate(pendingAction.script, executionContext)
+            if (resolvedScript.isNotBlank()) {
+                activeWebView()?.evaluateJavascript(resolvedScript, null)
+            }
+        }
+    }
+
     private fun executePageEventAction(
         type: String,
         value: String,
@@ -3014,7 +3060,14 @@ class WebContainerFragment : Fragment() {
             "run_js" -> {
                 val resolvedScript = resolveEventTemplate(script.ifBlank { value }, eventContext)
                 if (resolvedScript.isNotBlank()) {
-                    activeWebView()?.evaluateJavascript(resolvedScript, null)
+                    if (eventContext.trigger == PAGE_EVENT_TRIGGER_APP_STARTED && !canRunEventJavascriptNow()) {
+                        pendingAppEventJavascriptActions += PendingAppEventJavascriptAction(
+                            script = script.ifBlank { value },
+                            eventContext = eventContext
+                        )
+                    } else {
+                        activeWebView()?.evaluateJavascript(resolvedScript, null)
+                    }
                 }
             }
         }
@@ -3913,9 +3966,18 @@ class WebContainerFragment : Fragment() {
         super.onResume()
         isFragmentResumed = true
         updateManagedWebViewLifecycle()
+        if (hasCompletedInitialResume) {
+            dispatchAppLifecycleEvent(PAGE_EVENT_TRIGGER_APP_FOREGROUNDED)
+        } else {
+            hasCompletedInitialResume = true
+        }
+        flushPendingAppEventJavascriptActions()
     }
 
     override fun onPause() {
+        if (hasCompletedInitialResume && activity?.isChangingConfigurations != true) {
+            dispatchAppLifecycleEvent(PAGE_EVENT_TRIGGER_APP_BACKGROUNDED)
+        }
         isFragmentResumed = false
         updateManagedWebViewLifecycle()
         super.onPause()
@@ -3936,6 +3998,8 @@ class WebContainerFragment : Fragment() {
         loadingSpinnerAnimator = null
         navigationSwipeListener = null
         pendingNavigationSwipeDirection = null
+        pendingAppEventJavascriptActions.clear()
+        hasCompletedInitialResume = false
         pendingNavigationPreloadRefresh = false
         interactiveNavigationLoading = false
         lastRendererCrashUrl = null
@@ -3981,6 +4045,10 @@ class WebContainerFragment : Fragment() {
         private const val PAGE_EVENT_TRIGGER_PAGE_TITLE_CHANGED = "page_title_changed"
         private const val PAGE_EVENT_TRIGGER_PAGE_LEFT = "page_left"
         private const val PAGE_EVENT_TRIGGER_SPA_URL_CHANGED = "spa_url_changed"
+        private const val PAGE_EVENT_TRIGGER_APP_STARTED = "app_started"
+        private const val PAGE_EVENT_TRIGGER_APP_FOREGROUNDED = "app_foregrounded"
+        private const val PAGE_EVENT_TRIGGER_APP_BACKGROUNDED = "app_backgrounded"
+        private const val DEFAULT_APP_EVENT_SCOPE = "standalone"
         private const val SWIPE_HORIZONTAL_RATIO = 1.3f
         private const val NAVIGATION_SWIPE_COMMIT_PROGRESS = 0.28f
         private const val NAVIGATION_SWIPE_COMMIT_VELOCITY_PX = 900f
@@ -4013,6 +4081,8 @@ class WebContainerFragment : Fragment() {
             TemplateType.TOP_BAR_BOTTOM_TABS,
             TemplateType.SIDE_DRAWER
         )
+        private val appStartedEventLock = Any()
+        private val appStartedEventScopes = mutableSetOf<String>()
 
         fun newInstance(initialUrl: String): WebContainerFragment {
             return WebContainerFragment().apply {

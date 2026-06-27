@@ -89,6 +89,12 @@
     <string name="config_editor_app_icon_desc">The icon file is stored in the project directory and exported with the project package. Pack will replace the template APK launcher icons with this file.</string>
     <string name="config_editor_import_icon">Import icon</string>
     <string name="config_editor_clear">Clear</string>
+    <string name="config_editor_confirm_remove_title">Remove this content?</string>
+    <string name="config_editor_confirm_remove_message">This content will be removed from the current editor immediately. Continue?</string>
+    <string name="config_editor_confirm_clear_title">Clear this resource?</string>
+    <string name="config_editor_confirm_clear_message">This imported resource or credential will be cleared immediately. Continue?</string>
+    <string name="config_editor_confirm_delete">Delete</string>
+    <string name="config_editor_confirm_clear">Clear</string>
     <string name="config_editor_current_icon">Current icon: %1$s</string>
     <string name="config_editor_splash_desc">The splash image is stored with the project and injected into the packed APK as a fixed asset. Preview launch and packed launch both read the same image.</string>
     <string name="config_editor_current_splash_image">Current splash image: %1$s</string>
@@ -238,7 +244,7 @@
     <string name="config_editor_no_page_rules">No page rules yet.</string>
     <string name="config_editor_add_page_rule">Add page rule</string>
     <string name="config_editor_rule_title">Rule %1$d</string>
-    <string name="config_editor_page_events_desc">Events listen for page lifecycle or SPA route changes, then run one or more native or JS actions.</string>
+    <string name="config_editor_page_events_desc">Events listen for page lifecycle, app runtime lifecycle, or SPA route changes, then run one or more native or JS actions.</string>
     <string name="config_editor_page_events_targets_desc">Targets can be your Default URL, any Navigation item URL, or any later in-page route that matches the rule.</string>
     <string name="config_editor_no_page_events">No page events yet.</string>
     <string name="config_editor_add_page_event">Add page event</string>
@@ -250,6 +256,7 @@
     <string name="config_editor_url_starts_with">URL starts with</string>
     <string name="config_editor_url_contains">URL contains</string>
     <string name="config_editor_event_match_desc">Match is optional. Leave all three blank to listen on every page for the selected trigger.</string>
+    <string name="config_editor_app_event_match_desc">App runtime events are not bound to a page URL, so URL matching is disabled for this trigger.</string>
     <string name="config_editor_actions">Actions</string>
     <string name="config_editor_remove_event">Remove event</string>
     <string name="config_editor_add_action">Add action</string>
@@ -295,6 +302,9 @@
     <string name="config_editor_trigger_page_title_changed">Page title changed</string>
     <string name="config_editor_trigger_page_left">Page left</string>
     <string name="config_editor_trigger_spa_url_changed">SPA URL changed</string>
+    <string name="config_editor_trigger_app_started">App started</string>
+    <string name="config_editor_trigger_app_foregrounded">App foregrounded</string>
+    <string name="config_editor_trigger_app_backgrounded">App backgrounded</string>
     <string name="config_editor_action_toast">Show toast</string>
     <string name="config_editor_action_load_url">Load URL</string>
     <string name="config_editor_action_open_external">Open external</string>
@@ -696,6 +706,10 @@
     <string name="web_long_press_copied">Copied to clipboard.</string>
     <string name="web_long_press_share_chooser">Share</string>
     <string name="config_editor_enable_native_kv_bridge">Enable NativeBridge KV</string>
+    <string name="config_editor_native_kv_storage_mode">NativeBridge KV storage mode</string>
+    <string name="config_editor_native_kv_storage_mode_desc">Persistent keeps data after app restarts. Session keeps data in memory only until the app process closes.</string>
+    <string name="config_editor_native_kv_storage_persistent">Persistent</string>
+    <string name="config_editor_native_kv_storage_session">Session</string>
     <string name="config_editor_kv_trusted_hosts">KV trusted hosts (one per line)</string>
     <string name="config_editor_kv_trusted_hosts_desc">Only these hosts can access NativeBridge KV. Leave blank to block all pages. Host rules support exact hosts, wildcard subdomains like *.example.com, and optional scheme prefixes such as https://example.com.</string>
     <string name="config_editor_edit">Edit</string>

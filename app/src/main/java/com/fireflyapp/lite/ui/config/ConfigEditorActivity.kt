@@ -64,6 +64,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -137,6 +139,8 @@ import com.fireflyapp.lite.core.icon.ProjectCustomIconReference
 import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_LANDSCAPE
 import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_PORTRAIT
 import com.fireflyapp.lite.data.model.BROWSER_SCREEN_ORIENTATION_UNSPECIFIED
+import com.fireflyapp.lite.data.model.NATIVE_KV_STORAGE_MODE_PERSISTENT
+import com.fireflyapp.lite.data.model.NATIVE_KV_STORAGE_MODE_SESSION
 import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_IGNORE
 import com.fireflyapp.lite.data.model.SSL_ERROR_HANDLING_STRICT
 import com.fireflyapp.lite.data.model.TemplateType
@@ -377,6 +381,7 @@ class ConfigEditorActivity : ComponentActivity() {
                     onAllowExternalHostsChanged = viewModel::updateAllowExternalHosts,
                     onEnableNativeKvBridgeChanged = viewModel::updateEnableNativeKvBridge,
                     onKvTrustedHostsChanged = viewModel::updateKvTrustedHostsText,
+                    onNativeKvStorageModeChanged = viewModel::updateNativeKvStorageMode,
                     onOpenOtherAppsModeChanged = viewModel::updateOpenOtherAppsMode,
                     onSslErrorHandlingChanged = viewModel::updateSslErrorHandling,
                     onAllowedHostsChanged = viewModel::updateAllowedHostsText,
@@ -406,6 +411,7 @@ class ConfigEditorActivity : ComponentActivity() {
                     onClearKeystore = viewModel::clearProjectKeystore,
                     onAddNavigationItem = viewModel::addNavigationItem,
                     onRemoveNavigationItem = viewModel::removeNavigationItem,
+                    onMoveNavigationItem = viewModel::moveNavigationItem,
                     onNavigationIdChanged = viewModel::updateNavigationId,
                     onNavigationTitleChanged = viewModel::updateNavigationTitle,
                     onNavigationUrlChanged = viewModel::updateNavigationUrl,
@@ -625,6 +631,7 @@ private fun ConfigEditorScreen(
     onAllowExternalHostsChanged: (Boolean) -> Unit,
     onEnableNativeKvBridgeChanged: (Boolean) -> Unit,
     onKvTrustedHostsChanged: (String) -> Unit,
+    onNativeKvStorageModeChanged: (String) -> Unit,
     onOpenOtherAppsModeChanged: (String) -> Unit,
     onSslErrorHandlingChanged: (String) -> Unit,
     onAllowedHostsChanged: (String) -> Unit,
@@ -648,6 +655,7 @@ private fun ConfigEditorScreen(
     onClearKeystore: () -> Unit,
     onAddNavigationItem: () -> Unit,
     onRemoveNavigationItem: (Int) -> Unit,
+    onMoveNavigationItem: (Int, Int) -> Unit,
     onNavigationIdChanged: (Int, String) -> Unit,
     onNavigationTitleChanged: (Int, String) -> Unit,
     onNavigationUrlChanged: (Int, String) -> Unit,
@@ -703,10 +711,33 @@ private fun ConfigEditorScreen(
         ).coerceIn(0f, editorTabs.lastIndex.toFloat())
     val displayedSelectedTabIndex = pagerIndicatorPosition.roundToInt().coerceIn(0, editorTabs.lastIndex)
     var activeCodeEditorRequest by remember { mutableStateOf<CodeEditorOverlayRequest?>(null) }
+    var pendingDestructiveAction by remember { mutableStateOf<EditorDestructiveActionRequest?>(null) }
     val latestSelectedTab by rememberUpdatedState(state.selectedTab)
     val latestOnSelectTab by rememberUpdatedState(onSelectTab)
     val openCodeEditor: OnOpenCodeEditor = { request ->
         activeCodeEditorRequest = request
+    }
+    val removeContentTitle = stringResource(R.string.config_editor_confirm_remove_title)
+    val removeContentMessage = stringResource(R.string.config_editor_confirm_remove_message)
+    val clearAssetTitle = stringResource(R.string.config_editor_confirm_clear_title)
+    val clearAssetMessage = stringResource(R.string.config_editor_confirm_clear_message)
+    val deleteActionLabel = stringResource(R.string.config_editor_confirm_delete)
+    val clearActionLabel = stringResource(R.string.config_editor_confirm_clear)
+    fun requestRemoveContent(action: () -> Unit) {
+        pendingDestructiveAction = EditorDestructiveActionRequest(
+            title = removeContentTitle,
+            message = removeContentMessage,
+            confirmLabel = deleteActionLabel,
+            onConfirm = action
+        )
+    }
+    fun requestClearAsset(action: () -> Unit) {
+        pendingDestructiveAction = EditorDestructiveActionRequest(
+            title = clearAssetTitle,
+            message = clearAssetMessage,
+            confirmLabel = clearActionLabel,
+            onConfirm = action
+        )
     }
 
     BackHandler(enabled = activeCodeEditorRequest != null) {
@@ -887,11 +918,11 @@ private fun ConfigEditorScreen(
                         onDrawerHeaderBackgroundColorChanged = onDrawerHeaderBackgroundColorChanged,
                         onDrawerWallpaperEnabledChanged = onDrawerWallpaperEnabledChanged,
                         onImportDrawerWallpaper = onImportDrawerWallpaper,
-                        onClearDrawerWallpaper = onClearDrawerWallpaper,
+                        onClearDrawerWallpaper = { requestClearAsset(onClearDrawerWallpaper) },
                         onDrawerWallpaperHeightChanged = onDrawerWallpaperHeightChanged,
                         onDrawerAvatarEnabledChanged = onDrawerAvatarEnabledChanged,
                         onImportDrawerAvatar = onImportDrawerAvatar,
-                        onClearDrawerAvatar = onClearDrawerAvatar,
+                        onClearDrawerAvatar = { requestClearAsset(onClearDrawerAvatar) },
                         onDrawerHeaderImageUrlChanged = onDrawerHeaderImageUrlChanged,
                         onDrawerHeaderImageHeightChanged = onDrawerHeaderImageHeightChanged,
                         onDrawerHeaderImageScaleModeChanged = onDrawerHeaderImageScaleModeChanged,
@@ -908,13 +939,17 @@ private fun ConfigEditorScreen(
                         onAllowExternalHostsChanged = onAllowExternalHostsChanged,
                         onEnableNativeKvBridgeChanged = onEnableNativeKvBridgeChanged,
                         onKvTrustedHostsChanged = onKvTrustedHostsChanged,
+                        onNativeKvStorageModeChanged = onNativeKvStorageModeChanged,
                         onOpenOtherAppsModeChanged = onOpenOtherAppsModeChanged,
                         onSslErrorHandlingChanged = onSslErrorHandlingChanged,
                         onAllowedHostsChanged = onAllowedHostsChanged,
                         onGlobalJsChanged = onGlobalJsChanged,
                         onGlobalCssChanged = onGlobalCssChanged,
                         onAddNavigationItem = onAddNavigationItem,
-                        onRemoveNavigationItem = onRemoveNavigationItem,
+                        onRemoveNavigationItem = { index ->
+                            requestRemoveContent { onRemoveNavigationItem(index) }
+                        },
+                        onMoveNavigationItem = onMoveNavigationItem,
                         onNavigationIdChanged = onNavigationIdChanged,
                         onNavigationTitleChanged = onNavigationTitleChanged,
                         onNavigationUrlChanged = onNavigationUrlChanged,
@@ -930,7 +965,9 @@ private fun ConfigEditorScreen(
                     EditorTab.RULES -> PageRulesContent(
                         pageRules = state.formState.pageRules,
                         onAddPageRule = onAddPageRule,
-                        onRemovePageRule = onRemovePageRule,
+                        onRemovePageRule = { index ->
+                            requestRemoveContent { onRemovePageRule(index) }
+                        },
                         onUrlEqualsChanged = onPageRuleUrlEqualsChanged,
                         onUrlStartsWithChanged = onPageRuleUrlStartsWithChanged,
                         onUrlContainsChanged = onPageRuleUrlContainsChanged,
@@ -953,7 +990,9 @@ private fun ConfigEditorScreen(
                     EditorTab.EVENTS -> PageEventsContent(
                         pageEvents = state.formState.pageEvents,
                         onAddPageEvent = onAddPageEvent,
-                        onRemovePageEvent = onRemovePageEvent,
+                        onRemovePageEvent = { index ->
+                            requestRemoveContent { onRemovePageEvent(index) }
+                        },
                         onPageEventIdChanged = onPageEventIdChanged,
                         onPageEventEnabledChanged = onPageEventEnabledChanged,
                         onPageEventTriggerChanged = onPageEventTriggerChanged,
@@ -961,7 +1000,9 @@ private fun ConfigEditorScreen(
                         onPageEventUrlStartsWithChanged = onPageEventUrlStartsWithChanged,
                         onPageEventUrlContainsChanged = onPageEventUrlContainsChanged,
                         onAddPageEventAction = onAddPageEventAction,
-                        onRemovePageEventAction = onRemovePageEventAction,
+                        onRemovePageEventAction = { eventIndex, actionIndex ->
+                            requestRemoveContent { onRemovePageEventAction(eventIndex, actionIndex) }
+                        },
                         onPageEventActionTypeChanged = onPageEventActionTypeChanged,
                         onPageEventActionValueChanged = onPageEventActionValueChanged,
                         onPageEventActionUrlChanged = onPageEventActionUrlChanged,
@@ -972,9 +1013,9 @@ private fun ConfigEditorScreen(
                     EditorTab.BRANDING -> BrandingContent(
                         state = state.formState,
                         onImportIcon = onImportIcon,
-                        onClearIcon = onClearIcon,
+                        onClearIcon = { requestClearAsset(onClearIcon) },
                         onImportSplash = onImportSplash,
-                        onClearSplash = onClearSplash,
+                        onClearSplash = { requestClearAsset(onClearSplash) },
                         onSplashSkipEnabledChanged = onSplashSkipEnabledChanged,
                         onSplashSkipSecondsChanged = onSplashSkipSecondsChanged,
                         projectId = state.projectId
@@ -991,7 +1032,7 @@ private fun ConfigEditorScreen(
                         onSigningKeyAliasChanged = onSigningKeyAliasChanged,
                         onSigningKeyPasswordChanged = onSigningKeyPasswordChanged,
                         onImportKeystore = onImportKeystore,
-                        onClearKeystore = onClearKeystore
+                        onClearKeystore = { requestClearAsset(onClearKeystore) }
                     )
 
                     EditorTab.JSON -> ConfigJsonContent(
@@ -1012,6 +1053,29 @@ private fun ConfigEditorScreen(
                     activeCodeEditorRequest = null
                 },
                 snippetTemplates = request.snippetTemplates
+            )
+        }
+
+        pendingDestructiveAction?.let { request ->
+            AlertDialog(
+                onDismissRequest = { pendingDestructiveAction = null },
+                title = { Text(request.title) },
+                text = { Text(request.message) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            pendingDestructiveAction = null
+                            request.onConfirm()
+                        }
+                    ) {
+                        Text(request.confirmLabel)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDestructiveAction = null }) {
+                        Text(stringResource(R.string.project_hub_cancel_action))
+                    }
+                }
             )
         }
     }
@@ -1311,6 +1375,7 @@ private fun ConfigFormContent(
     onAllowExternalHostsChanged: (Boolean) -> Unit,
     onEnableNativeKvBridgeChanged: (Boolean) -> Unit,
     onKvTrustedHostsChanged: (String) -> Unit,
+    onNativeKvStorageModeChanged: (String) -> Unit,
     onOpenOtherAppsModeChanged: (String) -> Unit,
     onSslErrorHandlingChanged: (String) -> Unit,
     onAllowedHostsChanged: (String) -> Unit,
@@ -1318,6 +1383,7 @@ private fun ConfigFormContent(
     onGlobalCssChanged: (List<String>) -> Unit,
     onAddNavigationItem: () -> Unit,
     onRemoveNavigationItem: (Int) -> Unit,
+    onMoveNavigationItem: (Int, Int) -> Unit,
     onNavigationIdChanged: (Int, String) -> Unit,
     onNavigationTitleChanged: (Int, String) -> Unit,
     onNavigationUrlChanged: (Int, String) -> Unit,
@@ -1449,10 +1515,19 @@ private fun ConfigFormContent(
                             item = selectedItem,
                             onRemove = {
                                 onRemoveNavigationItem(selectedNavigationIndex)
-                                val nextSize = (state.navigationItems.size - 1).coerceAtLeast(0)
-                                selectedNavigationIndex = selectedNavigationIndex.coerceAtMost(
-                                    (nextSize - 1).coerceAtLeast(0)
-                                )
+                            },
+                            canMoveUp = selectedNavigationIndex > 0,
+                            canMoveDown = selectedNavigationIndex < state.navigationItems.lastIndex,
+                            onMoveUp = {
+                                val targetIndex = (selectedNavigationIndex - 1).coerceAtLeast(0)
+                                onMoveNavigationItem(selectedNavigationIndex, targetIndex)
+                                selectedNavigationIndex = targetIndex
+                            },
+                            onMoveDown = {
+                                val targetIndex = (selectedNavigationIndex + 1)
+                                    .coerceAtMost(state.navigationItems.lastIndex)
+                                onMoveNavigationItem(selectedNavigationIndex, targetIndex)
+                                selectedNavigationIndex = targetIndex
                             },
                             onIdChanged = { onNavigationIdChanged(selectedNavigationIndex, it) },
                             onTitleChanged = { onNavigationTitleChanged(selectedNavigationIndex, it) },
@@ -1806,6 +1881,20 @@ private fun ConfigFormContent(
                 onCheckedChange = onEnableNativeKvBridgeChanged
             )
             if (state.enableNativeKvBridge) {
+                Spacer(modifier = Modifier.height(12.dp))
+                LabeledDropdownField(
+                    label = stringResource(R.string.config_editor_native_kv_storage_mode),
+                    value = state.nativeKvStorageMode,
+                    options = listOf(NATIVE_KV_STORAGE_MODE_PERSISTENT, NATIVE_KV_STORAGE_MODE_SESSION),
+                    optionLabel = { formatNativeKvStorageModeLabel(context, it) },
+                    onValueChange = onNativeKvStorageModeChanged
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.config_editor_native_kv_storage_mode_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = state.kvTrustedHostsText,
@@ -2592,7 +2681,12 @@ private fun PageRulesContent(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
-            OutlinedButton(onClick = onAddPageRule) {
+            OutlinedButton(
+                onClick = {
+                    selectedPageRuleIndex = pageRules.size
+                    onAddPageRule()
+                }
+            ) {
                 Icon(imageVector = Icons.Filled.Add, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.config_editor_add_page_rule))
@@ -2607,10 +2701,6 @@ private fun PageRulesContent(
                     rule = rule,
                     onRemove = {
                         onRemovePageRule(selectedPageRuleIndex)
-                        val nextSize = (pageRules.size - 1).coerceAtLeast(0)
-                        selectedPageRuleIndex = selectedPageRuleIndex.coerceAtMost(
-                            (nextSize - 1).coerceAtLeast(0)
-                        )
                     },
                     onUrlEqualsChanged = { onUrlEqualsChanged(selectedPageRuleIndex, it) },
                     onUrlStartsWithChanged = { onUrlStartsWithChanged(selectedPageRuleIndex, it) },
@@ -2717,7 +2807,13 @@ private fun PageEventsContent(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
-            OutlinedButton(onClick = onAddPageEvent) {
+            OutlinedButton(
+                onClick = {
+                    selectedEventIndex = pageEvents.size
+                    selectedActionIndex = 0
+                    onAddPageEvent()
+                }
+            ) {
                 Icon(imageVector = Icons.Filled.Add, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(stringResource(R.string.config_editor_add_page_event))
@@ -2748,29 +2844,37 @@ private fun PageEventsContent(
                     onValueChange = { onPageEventTriggerChanged(selectedEventIndex, it) }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                LabeledTextField(
-                    label = stringResource(R.string.config_editor_url_equals),
-                    value = event.urlEquals,
-                    onValueChange = { onPageEventUrlEqualsChanged(selectedEventIndex, it) }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                LabeledTextField(
-                    label = stringResource(R.string.config_editor_url_starts_with),
-                    value = event.urlStartsWith,
-                    onValueChange = { onPageEventUrlStartsWithChanged(selectedEventIndex, it) }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                LabeledTextField(
-                    label = stringResource(R.string.config_editor_url_contains),
-                    value = event.urlContains,
-                    onValueChange = { onPageEventUrlContainsChanged(selectedEventIndex, it) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.config_editor_event_match_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (event.trigger in appPageEventTriggers) {
+                    Text(
+                        text = stringResource(R.string.config_editor_app_event_match_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    LabeledTextField(
+                        label = stringResource(R.string.config_editor_url_equals),
+                        value = event.urlEquals,
+                        onValueChange = { onPageEventUrlEqualsChanged(selectedEventIndex, it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LabeledTextField(
+                        label = stringResource(R.string.config_editor_url_starts_with),
+                        value = event.urlStartsWith,
+                        onValueChange = { onPageEventUrlStartsWithChanged(selectedEventIndex, it) }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LabeledTextField(
+                        label = stringResource(R.string.config_editor_url_contains),
+                        value = event.urlContains,
+                        onValueChange = { onPageEventUrlContainsChanged(selectedEventIndex, it) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.config_editor_event_match_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -2780,9 +2884,6 @@ private fun PageEventsContent(
                     )
                     IconButton(onClick = {
                         onRemovePageEvent(selectedEventIndex)
-                        val nextSize = (pageEvents.size - 1).coerceAtLeast(0)
-                        selectedEventIndex = selectedEventIndex.coerceAtMost((nextSize - 1).coerceAtLeast(0))
-                        selectedActionIndex = 0
                     }) {
                         Icon(imageVector = Icons.Filled.Delete, contentDescription = stringResource(R.string.config_editor_remove_event))
                     }
@@ -2819,8 +2920,6 @@ private fun PageEventsContent(
                         actionIndex = selectedActionIndex,
                         onRemove = {
                             onRemovePageEventAction(selectedEventIndex, selectedActionIndex)
-                            val nextSize = (event.actions.size - 1).coerceAtLeast(0)
-                            selectedActionIndex = selectedActionIndex.coerceAtMost((nextSize - 1).coerceAtLeast(0))
                         },
                         onTypeChanged = { onPageEventActionTypeChanged(selectedEventIndex, selectedActionIndex, it) },
                         onValueChanged = { onPageEventActionValueChanged(selectedEventIndex, selectedActionIndex, it) },
@@ -4201,6 +4300,14 @@ private fun formatScreenOrientationLabel(context: Context, value: String): Strin
     }
 }
 
+private fun formatNativeKvStorageModeLabel(context: Context, value: String): String {
+    return when (value) {
+        NATIVE_KV_STORAGE_MODE_PERSISTENT -> context.getString(R.string.config_editor_native_kv_storage_persistent)
+        NATIVE_KV_STORAGE_MODE_SESSION -> context.getString(R.string.config_editor_native_kv_storage_session)
+        else -> value
+    }
+}
+
 private fun formatOpenOtherAppsModeLabel(context: Context, value: String): String {
     return when (value) {
         "ask" -> context.getString(R.string.config_editor_option_ask)
@@ -4271,6 +4378,9 @@ private fun formatPageEventTriggerLabel(context: Context, value: String): String
         "page_title_changed" -> context.getString(R.string.config_editor_trigger_page_title_changed)
         "page_left" -> context.getString(R.string.config_editor_trigger_page_left)
         "spa_url_changed" -> context.getString(R.string.config_editor_trigger_spa_url_changed)
+        "app_started" -> context.getString(R.string.config_editor_trigger_app_started)
+        "app_foregrounded" -> context.getString(R.string.config_editor_trigger_app_foregrounded)
+        "app_backgrounded" -> context.getString(R.string.config_editor_trigger_app_backgrounded)
         else -> value
     }
 }
@@ -4398,6 +4508,10 @@ private fun NavigationItemEditor(
     projectId: String?,
     item: NavigationItemForm,
     onRemove: () -> Unit,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
     onIdChanged: (String) -> Unit,
     onTitleChanged: (String) -> Unit,
     onUrlChanged: (String) -> Unit,
@@ -4415,6 +4529,24 @@ private fun NavigationItemEditor(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f)
             )
+            IconButton(
+                onClick = onMoveUp,
+                enabled = canMoveUp
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowUp,
+                    contentDescription = stringResource(R.string.config_editor_move_up)
+                )
+            }
+            IconButton(
+                onClick = onMoveDown,
+                enabled = canMoveDown
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowDown,
+                    contentDescription = stringResource(R.string.config_editor_move_down)
+                )
+            }
             IconButton(onClick = onRemove) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
@@ -4499,7 +4631,16 @@ private val pageEventTriggers = listOf(
     "page_finished",
     "page_title_changed",
     "page_left",
-    "spa_url_changed"
+    "spa_url_changed",
+    "app_started",
+    "app_foregrounded",
+    "app_backgrounded"
+)
+
+private val appPageEventTriggers = setOf(
+    "app_started",
+    "app_foregrounded",
+    "app_backgrounded"
 )
 
 private val pageEventActionTypes = listOf(
@@ -4522,6 +4663,13 @@ private data class CodeEditorOverlayRequest(
     val value: String,
     val snippetTemplates: List<CodeEditorSnippetTemplate> = emptyList(),
     val onSave: (String) -> Unit
+)
+
+private data class EditorDestructiveActionRequest(
+    val title: String,
+    val message: String,
+    val confirmLabel: String,
+    val onConfirm: () -> Unit
 )
 
 private typealias OnOpenCodeEditor = (CodeEditorOverlayRequest) -> Unit
@@ -5015,6 +5163,7 @@ private fun CodeBlockListEditorField(
     onOpenCodeEditor: OnOpenCodeEditor
 ) {
     val blockCount = blocks.size
+    var pendingRemoveBlockIndex by remember { mutableStateOf<Int?>(null) }
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -5195,11 +5344,7 @@ private fun CodeBlockListEditorField(
                                 }) {
                                     Text(stringResource(R.string.config_editor_duplicate))
                                 }
-                                TextButton(onClick = {
-                                    onBlocksChanged(
-                                        blocks.filterIndexed { currentIndex, _ -> currentIndex != index }
-                                    )
-                                }) {
+                                TextButton(onClick = { pendingRemoveBlockIndex = index }) {
                                     Text(stringResource(R.string.config_editor_remove_code_block))
                                 }
                             }
@@ -5208,6 +5353,31 @@ private fun CodeBlockListEditorField(
                 }
             }
         }
+    }
+
+    pendingRemoveBlockIndex?.let { removeIndex ->
+        AlertDialog(
+            onDismissRequest = { pendingRemoveBlockIndex = null },
+            title = { Text(stringResource(R.string.config_editor_confirm_remove_title)) },
+            text = { Text(stringResource(R.string.config_editor_confirm_remove_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingRemoveBlockIndex = null
+                        onBlocksChanged(
+                            blocks.filterIndexed { currentIndex, _ -> currentIndex != removeIndex }
+                        )
+                    }
+                ) {
+                    Text(stringResource(R.string.config_editor_confirm_delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRemoveBlockIndex = null }) {
+                    Text(stringResource(R.string.project_hub_cancel_action))
+                }
+            }
+        )
     }
 }
 
@@ -5802,6 +5972,7 @@ private fun IconPickerField(
     onImportCustomIconRequested: (() -> Unit)? = null
 ) {
     var dialogOpen by remember { mutableStateOf(false) }
+    var pendingClearIcon by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -5871,7 +6042,10 @@ private fun IconPickerField(
         }.thenBy { it.label })
 
         AlertDialog(
-            onDismissRequest = { dialogOpen = false },
+            onDismissRequest = {
+                dialogOpen = false
+                pendingClearIcon = false
+            },
             title = { Text(text = label) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -5965,16 +6139,37 @@ private fun IconPickerField(
             },
             dismissButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = {
-                        val applyValue = onAppliedValueChange ?: onValueChange
-                        applyValue("")
-                        dialogOpen = false
-                    }) {
+                    TextButton(onClick = { pendingClearIcon = true }) {
                         Text(stringResource(R.string.config_editor_clear))
                     }
                     TextButton(onClick = { dialogOpen = false }) {
                         Text(stringResource(R.string.project_hub_cancel_action))
                     }
+                }
+            }
+        )
+    }
+
+    if (pendingClearIcon) {
+        AlertDialog(
+            onDismissRequest = { pendingClearIcon = false },
+            title = { Text(stringResource(R.string.config_editor_confirm_clear_title)) },
+            text = { Text(stringResource(R.string.config_editor_confirm_clear_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val applyValue = onAppliedValueChange ?: onValueChange
+                        applyValue("")
+                        pendingClearIcon = false
+                        dialogOpen = false
+                    }
+                ) {
+                    Text(stringResource(R.string.config_editor_confirm_clear))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingClearIcon = false }) {
+                    Text(stringResource(R.string.project_hub_cancel_action))
                 }
             }
         )
