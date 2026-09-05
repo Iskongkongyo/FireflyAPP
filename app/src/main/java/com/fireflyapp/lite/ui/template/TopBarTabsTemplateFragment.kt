@@ -10,6 +10,7 @@ import androidx.core.view.isVisible
 import androidx.core.view.updatePadding
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.tabs.TabLayout
 import com.fireflyapp.lite.R
 import com.fireflyapp.lite.core.rule.ResolvedPageState
@@ -18,6 +19,7 @@ import com.fireflyapp.lite.data.model.NavigationItem
 import com.fireflyapp.lite.databinding.FragmentTopBarTabsTemplateBinding
 import com.fireflyapp.lite.ui.main.MainViewModel
 import com.fireflyapp.lite.ui.web.WebContainerFragment
+import kotlinx.coroutines.launch
 
 class TopBarTabsTemplateFragment : Fragment(), TemplateHost, BackPressHandler, WebPageCallback {
     private var _binding: FragmentTopBarTabsTemplateBinding? = null
@@ -100,6 +102,7 @@ class TopBarTabsTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
             shadowDp = shellConfig.bottomBarShadowDp
         )
         setupTabs(items, shellConfig)
+        observeNavigationBadges(items, shellConfig)
         applyStatusBarTheme()
 
         if (savedInstanceState == null) {
@@ -257,7 +260,8 @@ class TopBarTabsTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
             badgeGravityValue = shellConfig.bottomBarBadgeGravity,
             maxCharacterCount = shellConfig.bottomBarBadgeMaxCharacterCount,
             horizontalOffsetDp = shellConfig.bottomBarBadgeHorizontalOffsetDp,
-            verticalOffsetDp = shellConfig.bottomBarBadgeVerticalOffsetDp
+            verticalOffsetDp = shellConfig.bottomBarBadgeVerticalOffsetDp,
+            runtimeBadges = mainViewModel.navigationBadges.value
         )
         binding.tabs.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
@@ -276,6 +280,28 @@ class TopBarTabsTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
 
             override fun onTabReselected(tab: TabLayout.Tab) = Unit
         })
+    }
+
+    private fun observeNavigationBadges(
+        items: List<NavigationItem>,
+        shellConfig: com.fireflyapp.lite.data.model.ShellConfig
+    ) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            mainViewModel.navigationBadges.collect { badges ->
+                val currentBinding = _binding ?: return@collect
+                TemplateNavigationBadgeHelper.applyToTabs(
+                    tabLayout = currentBinding.tabs,
+                    items = items,
+                    badgeColorValue = shellConfig.bottomBarBadgeColor,
+                    badgeTextColorValue = shellConfig.bottomBarBadgeTextColor,
+                    badgeGravityValue = shellConfig.bottomBarBadgeGravity,
+                    maxCharacterCount = shellConfig.bottomBarBadgeMaxCharacterCount,
+                    horizontalOffsetDp = shellConfig.bottomBarBadgeHorizontalOffsetDp,
+                    verticalOffsetDp = shellConfig.bottomBarBadgeVerticalOffsetDp,
+                    runtimeBadges = badges
+                )
+            }
+        }
     }
 
     private fun navigateToTopBarTarget(behavior: String) {

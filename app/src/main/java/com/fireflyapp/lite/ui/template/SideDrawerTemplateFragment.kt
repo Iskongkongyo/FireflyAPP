@@ -70,6 +70,7 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
         applyWindowInsets(config.browser.immersiveStatusBar)
         setupToolbar(config.app.name)
         setupDrawerMenu(navigationItems)
+        observeNavigationBadges(navigationItems)
         setupDrawerHeader(
             defaultTitle = config.app.name,
             headerTitle = shellConfig.drawerHeaderTitle,
@@ -256,7 +257,10 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
                 Menu.NONE,
                 item.id.hashCode(),
                 index,
-                TemplateNavigationBadgeHelper.formatDrawerTitle(item)
+                TemplateNavigationBadgeHelper.formatDrawerTitle(
+                    item,
+                    mainViewModel.navigationBadges.value[item.id]
+                )
             )
                 .setIcon(TemplateNavigationIconResolver.resolve(requireContext(), projectId, item, index))
         }
@@ -280,6 +284,18 @@ class SideDrawerTemplateFragment : Fragment(), TemplateHost, BackPressHandler, W
                 webFragment?.loadNavigationUrl(item, resetHistory = shouldResetHistoryOnNavigation())
             }
             true
+        }
+    }
+
+    private fun observeNavigationBadges(items: List<NavigationItem>) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            mainViewModel.navigationBadges.collect { badges ->
+                val menu = _binding?.drawerNavigation?.menu ?: return@collect
+                items.forEach { item ->
+                    menu.findItem(item.id.hashCode())?.title =
+                        TemplateNavigationBadgeHelper.formatDrawerTitle(item, badges[item.id])
+                }
+            }
         }
     }
 

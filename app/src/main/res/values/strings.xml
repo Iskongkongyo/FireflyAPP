@@ -129,8 +129,8 @@
     <string name="config_editor_template_desc_bottom_bar">Tab-style shell backed by configured navigation items.</string>
     <string name="config_editor_navigation_item_title">Item %1$d</string>
     <string name="config_editor_selected_icon">Selected icon</string>
-    <string name="config_editor_badge_count">Badge count</string>
-    <string name="config_editor_show_unread_dot">Show unread dot</string>
+    <string name="config_editor_show_unread_badge">Show unread badge</string>
+    <string name="config_editor_navigation_badge_js_desc">Current navigation ID: %1$s. This switch sets the initial numberless badge. A page can dynamically call FireflyNavigationBridge.setBadgeCount(&quot;ID&quot;, 3), showUnreadBadge(&quot;ID&quot;), or clearBadge(&quot;ID&quot;). A count of 0 also hides the badge; runtime values last for this app session only.</string>
     <string name="config_editor_custom_user_agent">Custom User-Agent</string>
     <string name="config_editor_back_action">Back action</string>
     <string name="config_editor_night_mode">Night mode</string>
@@ -732,6 +732,7 @@
     <string name="config_editor_js_snippet_click_element">Click element</string>
     <string name="config_editor_js_snippet_set_text">Set text content</string>
     <string name="config_editor_js_snippet_native_bridge_kv">NativeBridge KV example</string>
+    <string name="config_editor_js_snippet_navigation_badges">Navigation badge examples</string>
     <string name="config_editor_js_snippet_fetch_request">Fetch request</string>
     <string name="config_editor_js_snippet_wait_for_element">Wait for element</string>
     <string name="config_editor_js_snippet_remove_ads">Remove ad nodes</string>

@@ -28,6 +28,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -57,7 +58,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -101,6 +101,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -165,6 +166,37 @@ private enum class DrawerMediaTarget {
 }
 
 private const val MAX_EDIT_NAVIGATION_ITEMS = 5
+
+/**
+ * Keeps a form page's controls composed while it is being scrolled.
+ *
+ * Each editor section contains several Material text fields and menus. Treating a whole section
+ * as one lazy item makes Compose create all of those controls at once when the section reaches the
+ * viewport, which can interrupt a fling. Editor tabs are already disposed by [HorizontalPager]
+ * when they are far off-screen, so eagerly composing the current tab is a bounded trade-off that
+ * makes vertical scrolling consistently cheap.
+ */
+@Composable
+private fun SmoothFormColumn(
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(contentPadding),
+        verticalArrangement = verticalArrangement,
+        content = content
+    )
+}
+
+/** Keeps the existing section-oriented call sites readable inside [SmoothFormColumn]. */
+@Composable
+private fun ColumnScope.item(content: @Composable () -> Unit) {
+    content()
+}
 
 class ConfigEditorActivity : ComponentActivity() {
     private val viewModel: ConfigEditorViewModel by viewModels()
@@ -417,7 +449,6 @@ class ConfigEditorActivity : ComponentActivity() {
                     onNavigationUrlChanged = viewModel::updateNavigationUrl,
                     onNavigationIconChanged = viewModel::updateNavigationIcon,
                     onNavigationSelectedIconChanged = viewModel::updateNavigationSelectedIcon,
-                    onNavigationBadgeCountChanged = viewModel::updateNavigationBadgeCount,
                     onNavigationShowUnreadDotChanged = viewModel::updateNavigationShowUnreadDot,
                     onImportCustomIconRequested = { target ->
                         pendingCustomIconTarget = target
@@ -661,7 +692,6 @@ private fun ConfigEditorScreen(
     onNavigationUrlChanged: (Int, String) -> Unit,
     onNavigationIconChanged: (Int, String) -> Unit,
     onNavigationSelectedIconChanged: (Int, String) -> Unit,
-    onNavigationBadgeCountChanged: (Int, String) -> Unit,
     onNavigationShowUnreadDotChanged: (Int, Boolean) -> Unit,
     onImportCustomIconRequested: (EditorIconTarget) -> Unit,
     onApplyIconValue: (EditorIconTarget, String) -> Unit,
@@ -955,7 +985,6 @@ private fun ConfigEditorScreen(
                         onNavigationUrlChanged = onNavigationUrlChanged,
                         onNavigationIconChanged = onNavigationIconChanged,
                         onNavigationSelectedIconChanged = onNavigationSelectedIconChanged,
-                        onNavigationBadgeCountChanged = onNavigationBadgeCountChanged,
                         onNavigationShowUnreadDotChanged = onNavigationShowUnreadDotChanged,
                         onImportCustomIconRequested = onImportCustomIconRequested,
                         onApplyIconValue = onApplyIconValue,
@@ -1139,7 +1168,7 @@ private fun BrandingContent(
     onSplashSkipSecondsChanged: (String) -> Unit,
     projectId: String?
 ) {
-    LazyColumn(
+    SmoothFormColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -1389,7 +1418,6 @@ private fun ConfigFormContent(
     onNavigationUrlChanged: (Int, String) -> Unit,
     onNavigationIconChanged: (Int, String) -> Unit,
     onNavigationSelectedIconChanged: (Int, String) -> Unit,
-    onNavigationBadgeCountChanged: (Int, String) -> Unit,
     onNavigationShowUnreadDotChanged: (Int, Boolean) -> Unit,
     onImportCustomIconRequested: (EditorIconTarget) -> Unit,
     onApplyIconValue: (EditorIconTarget, String) -> Unit,
@@ -1406,7 +1434,7 @@ private fun ConfigFormContent(
         )
     }
 
-    LazyColumn(
+    SmoothFormColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -1534,8 +1562,6 @@ private fun ConfigFormContent(
                             onUrlChanged = { onNavigationUrlChanged(selectedNavigationIndex, it) },
                             onIconChanged = { onNavigationIconChanged(selectedNavigationIndex, it) },
                             onSelectedIconChanged = { onNavigationSelectedIconChanged(selectedNavigationIndex, it) },
-                            onBadgeCountChanged = { onNavigationBadgeCountChanged(selectedNavigationIndex, it) },
-                            onShowUnreadDotChanged = { onNavigationShowUnreadDotChanged(selectedNavigationIndex, it) },
                             onImportCustomIconRequested = onImportCustomIconRequested,
                             onApplyIconValue = onApplyIconValue
                         )
@@ -1714,6 +1740,10 @@ private fun ConfigFormContent(
                 DrawerShellSection(
                     projectId = projectId,
                     state = state,
+                    selectedNavigationItem = state.navigationItems.getOrNull(selectedNavigationIndex),
+                    onShowUnreadBadgeChanged = {
+                        onNavigationShowUnreadDotChanged(selectedNavigationIndex, it)
+                    },
                     onDrawerHeaderTitleChanged = onDrawerHeaderTitleChanged,
                     onDrawerHeaderSubtitleChanged = onDrawerHeaderSubtitleChanged,
                     onDrawerWidthChanged = onDrawerWidthChanged,
@@ -1742,6 +1772,10 @@ private fun ConfigFormContent(
             item {
                 BottomBarShellSection(
                     state = state,
+                    selectedNavigationItem = state.navigationItems.getOrNull(selectedNavigationIndex),
+                    onShowUnreadBadgeChanged = {
+                        onNavigationShowUnreadDotChanged(selectedNavigationIndex, it)
+                    },
                     navigationChromeStyle = selectedTemplateSpec.navigationChromeStyle
                         ?: TemplateNavigationChromeStyle.BOTTOM_BAR,
                     onBottomBarShowTextLabelsChanged = onBottomBarShowTextLabelsChanged,
@@ -2169,6 +2203,8 @@ private fun TopBarShellSection(
 private fun DrawerShellSection(
     projectId: String?,
     state: ConfigEditorFormState,
+    selectedNavigationItem: NavigationItemForm?,
+    onShowUnreadBadgeChanged: (Boolean) -> Unit,
     onDrawerHeaderTitleChanged: (String) -> Unit,
     onDrawerHeaderSubtitleChanged: (String) -> Unit,
     onDrawerWidthChanged: (String) -> Unit,
@@ -2283,6 +2319,13 @@ private fun DrawerShellSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(12.dp))
+        selectedNavigationItem?.let { item ->
+            NavigationUnreadBadgeControl(
+                item = item,
+                onShowUnreadBadgeChanged = onShowUnreadBadgeChanged
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
         IconPickerField(
             label = stringResource(R.string.config_editor_drawer_menu_icon),
             projectId = projectId,
@@ -2299,6 +2342,8 @@ private fun DrawerShellSection(
 @Composable
 private fun BottomBarShellSection(
     state: ConfigEditorFormState,
+    selectedNavigationItem: NavigationItemForm?,
+    onShowUnreadBadgeChanged: (Boolean) -> Unit,
     navigationChromeStyle: TemplateNavigationChromeStyle,
     onBottomBarShowTextLabelsChanged: (Boolean) -> Unit,
     onBottomBarHeightChanged: (String) -> Unit,
@@ -2363,6 +2408,13 @@ private fun BottomBarShellSection(
             keyboardType = KeyboardType.Number
         )
         Spacer(modifier = Modifier.height(12.dp))
+        selectedNavigationItem?.let { item ->
+            NavigationUnreadBadgeControl(
+                item = item,
+                onShowUnreadBadgeChanged = onShowUnreadBadgeChanged
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
         ColorPickerField(
             label = stringResource(R.string.config_editor_bottom_bar_badge_color),
             value = state.bottomBarBadgeColor,
@@ -2456,7 +2508,7 @@ private fun BuildConfigContent(
     ) {
         resolveOutputApkPreviewName(context, state)
     }
-    LazyColumn(
+    SmoothFormColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -2641,7 +2693,7 @@ private fun PageRulesContent(
         )
     }
 
-    LazyColumn(
+    SmoothFormColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -2761,7 +2813,7 @@ private fun PageEventsContent(
         )
     }
 
-    LazyColumn(
+    SmoothFormColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -3551,31 +3603,13 @@ private fun MiniTabsBar(
                         maxLines = 1
                     )
                 }
-                when {
-                    item.badgeCount.isNotBlank() -> {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .size(14.dp)
-                                .background(Color(0xFFE11D48), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = item.badgeCount.take(1),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.White
-                            )
-                        }
-                    }
-
-                    item.showUnreadDot -> {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .size(8.dp)
-                                .background(Color(0xFFE11D48), CircleShape)
-                        )
-                    }
+                if (item.showUnreadDot) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .size(8.dp)
+                            .background(Color(0xFFE11D48), CircleShape)
+                    )
                 }
             }
         }
@@ -3851,30 +3885,13 @@ private fun MiniBottomBar(
                         fallbackIconId = navigationPreviewFallbackIconId(item, index, selected),
                         iconSizeDp = iconSizeDp
                     )
-                    when {
-                        item.badgeCount.isNotBlank() -> {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(14.dp)
-                                    .background(Color(0xFFE11D48), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = item.badgeCount.take(1),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                        item.showUnreadDot -> {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(8.dp)
-                                    .background(Color(0xFFE11D48), CircleShape)
-                            )
-                        }
+                    if (item.showUnreadDot) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .size(8.dp)
+                                .background(Color(0xFFE11D48), CircleShape)
+                        )
                     }
                 }
                 if (showLabels) {
@@ -4300,6 +4317,24 @@ private fun formatScreenOrientationLabel(context: Context, value: String): Strin
     }
 }
 
+@Composable
+private fun NavigationUnreadBadgeControl(
+    item: NavigationItemForm,
+    onShowUnreadBadgeChanged: (Boolean) -> Unit
+) {
+    ToggleRow(
+        label = stringResource(R.string.config_editor_show_unread_badge),
+        checked = item.showUnreadDot,
+        onCheckedChange = onShowUnreadBadgeChanged
+    )
+    Spacer(modifier = Modifier.height(8.dp))
+    Text(
+        text = stringResource(R.string.config_editor_navigation_badge_js_desc, item.id),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
 private fun formatNativeKvStorageModeLabel(context: Context, value: String): String {
     return when (value) {
         NATIVE_KV_STORAGE_MODE_PERSISTENT -> context.getString(R.string.config_editor_native_kv_storage_persistent)
@@ -4517,8 +4552,6 @@ private fun NavigationItemEditor(
     onUrlChanged: (String) -> Unit,
     onIconChanged: (String) -> Unit,
     onSelectedIconChanged: (String) -> Unit,
-    onBadgeCountChanged: (String) -> Unit,
-    onShowUnreadDotChanged: (Boolean) -> Unit,
     onImportCustomIconRequested: (EditorIconTarget) -> Unit,
     onApplyIconValue: (EditorIconTarget, String) -> Unit
 ) {
@@ -4588,17 +4621,6 @@ private fun NavigationItemEditor(
                 onImportCustomIconRequested(EditorIconTarget.Navigation(index = index, selected = true))
             }
         )
-        LabeledTextField(
-            label = stringResource(R.string.config_editor_badge_count),
-            value = item.badgeCount,
-            onValueChange = onBadgeCountChanged,
-            keyboardType = KeyboardType.Number
-        )
-        ToggleRow(
-            label = stringResource(R.string.config_editor_show_unread_dot),
-            checked = item.showUnreadDot,
-            onCheckedChange = onShowUnreadDotChanged
-        )
     }
 }
 
@@ -4665,6 +4687,11 @@ private data class CodeEditorOverlayRequest(
     val onSave: (String) -> Unit
 )
 
+/** Stores the latest expensive text layout without invalidating the whole editor composition. */
+private class CodeEditorTextLayoutHolder {
+    var value: TextLayoutResult? = null
+}
+
 private data class EditorDestructiveActionRequest(
     val title: String,
     val message: String,
@@ -4720,6 +4747,41 @@ private val commonJsEditorSnippets = listOf(
                 const value = NativeBridge.get('shared', 'key');
                 console.log(value);
             }
+            """.trimIndent()
+    ),
+    CodeEditorSnippetTemplate(
+        labelRes = R.string.config_editor_js_snippet_navigation_badges,
+        content =
+            """
+            (function () {
+                // 替换成“基础”页面中配置的导航 ID。
+                // Replace this with a navigation ID configured on the Basic page.
+                const navigationId = 'NAVIGATION_ID';
+
+                // 角标接口仅在带原生导航的 Firefly 页面中可用。
+                // The badge API is available only in Firefly pages with native navigation.
+                if (typeof FireflyNavigationBridge === 'undefined') {
+                    console.warn('Firefly navigation badge API is unavailable.');
+                    return;
+                }
+
+                // 显示数字角标。数量必须大于 0；返回值表示请求是否被接受。
+                // Show a numbered badge. The count must be greater than 0.
+                const updated = FireflyNavigationBridge.setBadgeCount(navigationId, 3);
+                console.log('Badge update accepted:', updated);
+
+                // 显示无数字的未读角标。
+                // Show a numberless unread badge.
+                // FireflyNavigationBridge.showUnreadBadge(navigationId);
+
+                // 隐藏角标。setBadgeCount(..., 0) 的效果相同。
+                // Hide the badge. Passing 0 to setBadgeCount has the same effect.
+                // FireflyNavigationBridge.clearBadge(navigationId);
+                // FireflyNavigationBridge.setBadgeCount(navigationId, 0);
+
+                // 不存在的导航 ID、负数及预加载隐藏页调用会返回 false。
+                // Runtime badge values survive page changes and rotation, but reset after app exit.
+            })();
             """.trimIndent()
     ),
     CodeEditorSnippetTemplate(
@@ -4845,7 +4907,7 @@ private fun FullScreenCodeEditorOverlay(
     val editorScrollState = rememberScrollState()
     val density = LocalDensity.current
     var editorViewportHeightPx by remember { mutableStateOf(0) }
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val textLayoutHolder = remember { CodeEditorTextLayoutHolder() }
     val draftText = draftValue.text
     val draftLineCount = remember(draftText) { countCodeEditorLines(draftText) }
     val draftCharacterCount = remember(draftText) { draftText.length }
@@ -4860,12 +4922,17 @@ private fun FullScreenCodeEditorOverlay(
     }
     val borderWidth = if (isEditorFocused) 2.dp else 1.dp
 
-    LaunchedEffect(draftValue.selection, draftText, editorViewportHeightPx, textLayoutResult) {
-        val layout = textLayoutResult ?: return@LaunchedEffect
+    LaunchedEffect(draftValue.selection, draftText, editorViewportHeightPx) {
         if (editorViewportHeightPx <= 0) {
             return@LaunchedEffect
         }
-        val cursorOffset = draftValue.selection.end.coerceIn(0, draftText.length)
+
+        // Let the text field finish its latest layout (including an IME viewport resize) before
+        // resolving the cursor rectangle. An immediate scroll avoids competing animations when
+        // the keyboard and cursor become visible at the same time.
+        withFrameNanos { }
+        val layout = textLayoutHolder.value ?: return@LaunchedEffect
+        val cursorOffset = draftValue.selection.end.coerceIn(0, layout.layoutInput.text.length)
         val cursorRect = layout.getCursorRect(cursorOffset)
         val currentScroll = editorScrollState.value.toFloat()
         val visibleTop = currentScroll
@@ -4882,7 +4949,10 @@ private fun FullScreenCodeEditorOverlay(
             else -> null
         }
         targetScroll?.let { desired ->
-            editorScrollState.animateScrollTo(desired.coerceAtLeast(0))
+            val target = desired.coerceIn(0, editorScrollState.maxValue)
+            if (target != editorScrollState.value) {
+                editorScrollState.scrollTo(target)
+            }
         }
     }
 
@@ -5032,9 +5102,10 @@ private fun FullScreenCodeEditorOverlay(
                                 fontFamily = FontFamily.Monospace,
                                 color = MaterialTheme.colorScheme.onSurface
                             ),
+                            keyboardOptions = KeyboardOptions(autoCorrect = false),
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                             onTextLayout = { layoutResult ->
-                                textLayoutResult = layoutResult
+                                textLayoutHolder.value = layoutResult
                             },
                             decorationBox = { innerTextField ->
                                 Box(modifier = Modifier.fillMaxSize()) {
@@ -5459,7 +5530,17 @@ private fun countCodeEditorLines(value: String): Int {
     if (value.isBlank()) {
         return 0
     }
-    return value.trimEnd().lines().size
+    var lastContentIndex = value.lastIndex
+    while (lastContentIndex >= 0 && value[lastContentIndex].isWhitespace()) {
+        lastContentIndex--
+    }
+    var lineCount = 1
+    for (index in 0..lastContentIndex) {
+        if (value[index] == '\n') {
+            lineCount++
+        }
+    }
+    return lineCount
 }
 
 private fun buildCodePreview(value: String, previewLineCount: Int): String {

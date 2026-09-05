@@ -35,7 +35,6 @@ class ConfigValidator {
                             else -> sanitizeIconReference(selectedIcon, fallbackIconId = sanitizedIconId)
                         }
                     },
-                    badgeCount = item.badgeCount.trim(),
                     showUnreadDot = item.showUnreadDot
                 )
             }

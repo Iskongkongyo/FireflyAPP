@@ -5,6 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.fireflyapp.lite.core.config.AppConfigManager
 import com.fireflyapp.lite.data.model.AppConfig
+import com.fireflyapp.lite.data.model.RuntimeNavigationBadge
+import com.fireflyapp.lite.data.model.RuntimeNavigationBadgeMode
 import com.fireflyapp.lite.data.repository.ConfigRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +19,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(MainUiState())
     val uiState: StateFlow<MainUiState> = _uiState.asStateFlow()
+    private val _navigationBadges = MutableStateFlow<Map<String, RuntimeNavigationBadge>>(emptyMap())
+    val navigationBadges: StateFlow<Map<String, RuntimeNavigationBadge>> = _navigationBadges.asStateFlow()
     private var currentProjectId: String? = null
 
     fun requireConfig(): AppConfig {
@@ -25,6 +29,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadProject(projectId: String) {
         currentProjectId = projectId
+        _navigationBadges.value = emptyMap()
         viewModelScope.launch {
             val previousState = _uiState.value
             _uiState.value = previousState.copy(
@@ -54,6 +59,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadStandaloneConfig() {
         currentProjectId = null
+        _navigationBadges.value = emptyMap()
         viewModelScope.launch {
             val previousState = _uiState.value
             _uiState.value = previousState.copy(
@@ -83,6 +89,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun reloadProject() {
         currentProjectId?.let(::loadProject) ?: loadStandaloneConfig()
+    }
+
+    fun setNavigationBadgeCount(navigationId: String?, count: Int): Boolean {
+        val id = resolveNavigationId(navigationId) ?: return false
+        if (count < 0) {
+            return false
+        }
+        val badge = if (count == 0) {
+            RuntimeNavigationBadge(RuntimeNavigationBadgeMode.HIDDEN)
+        } else {
+            RuntimeNavigationBadge(RuntimeNavigationBadgeMode.COUNT, count)
+        }
+        _navigationBadges.value = _navigationBadges.value + (id to badge)
+        return true
+    }
+
+    fun showNavigationUnreadBadge(navigationId: String?): Boolean {
+        val id = resolveNavigationId(navigationId) ?: return false
+        _navigationBadges.value = _navigationBadges.value +
+            (id to RuntimeNavigationBadge(RuntimeNavigationBadgeMode.UNREAD))
+        return true
+    }
+
+    fun clearNavigationBadge(navigationId: String?): Boolean {
+        val id = resolveNavigationId(navigationId) ?: return false
+        _navigationBadges.value = _navigationBadges.value +
+            (id to RuntimeNavigationBadge(RuntimeNavigationBadgeMode.HIDDEN))
+        return true
+    }
+
+    private fun resolveNavigationId(candidate: String?): String? {
+        val id = candidate?.trim().orEmpty()
+        if (id.isBlank() || id.length > MAX_NAVIGATION_ID_LENGTH) {
+            return null
+        }
+        return id.takeIf { expectedId ->
+            _uiState.value.config?.navigation?.items?.any { it.id == expectedId } == true
+        }
+    }
+
+    private companion object {
+        const val MAX_NAVIGATION_ID_LENGTH = 128
     }
 }
 

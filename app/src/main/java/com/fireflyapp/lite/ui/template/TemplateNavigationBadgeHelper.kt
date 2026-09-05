@@ -3,6 +3,8 @@ package com.fireflyapp.lite.ui.template
 import android.content.Context
 import android.graphics.Color
 import com.fireflyapp.lite.data.model.NavigationItem
+import com.fireflyapp.lite.data.model.RuntimeNavigationBadge
+import com.fireflyapp.lite.data.model.RuntimeNavigationBadgeMode
 import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.navigation.NavigationBarView
 import com.google.android.material.tabs.TabLayout
@@ -16,7 +18,8 @@ object TemplateNavigationBadgeHelper {
         badgeGravityValue: String = "top_end",
         maxCharacterCount: Int = 2,
         horizontalOffsetDp: Int = 0,
-        verticalOffsetDp: Int = 0
+        verticalOffsetDp: Int = 0,
+        runtimeBadges: Map<String, RuntimeNavigationBadge> = emptyMap()
     ) {
         val resolvedBadgeColor = parseColorOrNull(badgeColorValue)
         val resolvedBadgeTextColor = parseColorOrNull(badgeTextColorValue)
@@ -25,12 +28,12 @@ object TemplateNavigationBadgeHelper {
         val verticalOffsetPx = dpToPx(bottomNavigation.context, verticalOffsetDp)
         items.forEach { item ->
             val itemId = item.id.hashCode()
-            val badgeCount = item.badgeCount.trim().toIntOrNull()?.takeIf { it > 0 }
-            when {
-                badgeCount != null -> {
+            val runtimeBadge = runtimeBadges[item.id]
+            when (runtimeBadge?.mode) {
+                RuntimeNavigationBadgeMode.COUNT -> {
                     bottomNavigation.getOrCreateBadge(itemId).apply {
                         isVisible = true
-                        number = badgeCount
+                        number = runtimeBadge.count
                         this.maxCharacterCount = maxCharacterCount.coerceIn(1, 4)
                         badgeGravity = resolvedBadgeGravity
                         backgroundColor = resolvedBadgeColor ?: backgroundColor
@@ -40,7 +43,7 @@ object TemplateNavigationBadgeHelper {
                     }
                 }
 
-                item.showUnreadDot -> {
+                RuntimeNavigationBadgeMode.UNREAD -> {
                     bottomNavigation.getOrCreateBadge(itemId).apply {
                         clearNumber()
                         isVisible = true
@@ -52,7 +55,20 @@ object TemplateNavigationBadgeHelper {
                     }
                 }
 
-                else -> bottomNavigation.removeBadge(itemId)
+                RuntimeNavigationBadgeMode.HIDDEN -> bottomNavigation.removeBadge(itemId)
+                null -> if (item.showUnreadDot) {
+                    bottomNavigation.getOrCreateBadge(itemId).apply {
+                        clearNumber()
+                        isVisible = true
+                        this.maxCharacterCount = maxCharacterCount.coerceIn(1, 4)
+                        badgeGravity = resolvedBadgeGravity
+                        backgroundColor = resolvedBadgeColor ?: backgroundColor
+                        horizontalOffset = horizontalOffsetPx
+                        verticalOffset = verticalOffsetPx
+                    }
+                } else {
+                    bottomNavigation.removeBadge(itemId)
+                }
             }
         }
     }
@@ -65,7 +81,8 @@ object TemplateNavigationBadgeHelper {
         badgeGravityValue: String = "top_end",
         maxCharacterCount: Int = 2,
         horizontalOffsetDp: Int = 0,
-        verticalOffsetDp: Int = 0
+        verticalOffsetDp: Int = 0,
+        runtimeBadges: Map<String, RuntimeNavigationBadge> = emptyMap()
     ) {
         val resolvedBadgeColor = parseColorOrNull(badgeColorValue)
         val resolvedBadgeTextColor = parseColorOrNull(badgeTextColorValue)
@@ -74,12 +91,12 @@ object TemplateNavigationBadgeHelper {
         val verticalOffsetPx = dpToPx(tabLayout.context, verticalOffsetDp)
         items.forEachIndexed { index, item ->
             val tab = tabLayout.getTabAt(index) ?: return@forEachIndexed
-            val badgeCount = item.badgeCount.trim().toIntOrNull()?.takeIf { it > 0 }
-            when {
-                badgeCount != null -> {
+            val runtimeBadge = runtimeBadges[item.id]
+            when (runtimeBadge?.mode) {
+                RuntimeNavigationBadgeMode.COUNT -> {
                     tab.orCreateBadge.apply {
                         isVisible = true
-                        number = badgeCount
+                        number = runtimeBadge.count
                         this.maxCharacterCount = maxCharacterCount.coerceIn(1, 4)
                         badgeGravity = resolvedBadgeGravity
                         backgroundColor = resolvedBadgeColor ?: backgroundColor
@@ -89,7 +106,7 @@ object TemplateNavigationBadgeHelper {
                     }
                 }
 
-                item.showUnreadDot -> {
+                RuntimeNavigationBadgeMode.UNREAD -> {
                     tab.orCreateBadge.apply {
                         clearNumber()
                         isVisible = true
@@ -101,17 +118,33 @@ object TemplateNavigationBadgeHelper {
                     }
                 }
 
-                else -> tab.removeBadge()
+                RuntimeNavigationBadgeMode.HIDDEN -> tab.removeBadge()
+                null -> if (item.showUnreadDot) {
+                    tab.orCreateBadge.apply {
+                        clearNumber()
+                        isVisible = true
+                        this.maxCharacterCount = maxCharacterCount.coerceIn(1, 4)
+                        badgeGravity = resolvedBadgeGravity
+                        backgroundColor = resolvedBadgeColor ?: backgroundColor
+                        horizontalOffset = horizontalOffsetPx
+                        verticalOffset = verticalOffsetPx
+                    }
+                } else {
+                    tab.removeBadge()
+                }
             }
         }
     }
 
-    fun formatDrawerTitle(item: NavigationItem): String {
-        val badgeCount = item.badgeCount.trim()
-        return when {
-            badgeCount.isNotBlank() -> "${item.title} ($badgeCount)"
-            item.showUnreadDot -> "${item.title} *"
-            else -> item.title
+    fun formatDrawerTitle(
+        item: NavigationItem,
+        runtimeBadge: RuntimeNavigationBadge? = null
+    ): String {
+        return when (runtimeBadge?.mode) {
+            RuntimeNavigationBadgeMode.COUNT -> "${item.title} (${runtimeBadge.count})"
+            RuntimeNavigationBadgeMode.UNREAD -> "${item.title} *"
+            RuntimeNavigationBadgeMode.HIDDEN -> item.title
+            null -> if (item.showUnreadDot) "${item.title} *" else item.title
         }
     }
 

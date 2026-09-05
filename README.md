@@ -29,6 +29,7 @@
 - 📦 **设备端本地打包** — 无需电脑，直接在手机上完成 APK 重打包与签名
 - 🛠 **可视化配置编辑器** — 分 Tab 编辑所有配置项（Basic / Rules / Events / Branding / Build），大段 JS/CSS/脚本可进入全屏代码编辑器
 - 🧩 **多代码块注入编辑** — 全局 JS/CSS 与规则 JS/CSS 支持新增、复制、排序、删除和独立全屏编辑
+- 🔴 **动态导航角标** — 网页 JavaScript 可按导航 ID 显示数量角标、未读角标或清除角标
 - 🌐 **完整 WebView 能力** — Cookie、localStorage、IndexedDB、文件上传下载、地理位置
 - 👤 **权限桥接与提示**：相机、麦克风、地理位置、通知等能力都有宿主侧统一授权与双语提示
 - 🧠 **NativeBridge 原生 KV 桥** — 可选启用，支持跨域页面共享本地 KV 数据，受独立 trusted hosts 控制
@@ -204,8 +205,7 @@ cd FireflyApp
         "url": "https://example.com",
         "icon": "home",
         "selectedIcon": "home",          // supports built-in IDs or custom://branding/custom-icons/...
-        "badgeCount": "",
-        "showUnreadDot": false
+        "showUnreadDot": false            // 启动时显示无数字的未读角标
       }
     ]
   },
@@ -263,7 +263,7 @@ cd FireflyApp
 
 - **全屏代码编辑器** — 全局 JS/CSS、规则 JS/CSS、按钮 `run_js`、事件 `run_js` 都支持进入全屏编辑，适合粘贴较长脚本
 - **多代码块管理** — 全局 JS/CSS 与规则 JS/CSS 使用代码块列表管理，不需要再手写分隔符
-- **片段插入菜单** — JS 编辑器右上角 `+` 提供常用模板，如 IIFE、DOM Ready、`fetch` 请求、等待元素出现、批量移除广告节点、事件变量模板、`NativeBridge` 使用方法示例等
+- **片段插入菜单** — JS 编辑器右上角 `+` 提供常用模板，如 IIFE、DOM Ready、`fetch` 请求、等待元素出现、批量移除广告节点、事件变量模板、`NativeBridge` 与“角标功能示例”等
 - **顶栏按钮脚本** — 顶栏返回、首页、刷新按钮支持直接配置 `run_js`，可与网页逻辑或原生桥接联动
 - **导航顺序调整** — 导航项可通过上移、下移按钮直接调整位置，无需手工修改项目 JSON
 - **编辑状态跟随** — 新增页面规则或页面事件后自动切换到新条目；会即时生效的删除操作在执行前显示确认提示
@@ -295,6 +295,21 @@ NativeBridge.clearNamespace("shared")
 ```
 
 对象值建议自行使用 `JSON.stringify()` / `JSON.parse()` 处理。
+
+## 🔴 导航角标 JS 桥接
+
+带导航栏的模板会向正常显示的网页注入 `FireflyNavigationBridge`。网页可使用导航项的 `id` 动态控制角标：
+
+```js
+FireflyNavigationBridge.setBadgeCount("home", 3) // 显示数量角标
+FireflyNavigationBridge.showUnreadBadge("home") // 显示无数字的未读角标
+FireflyNavigationBridge.clearBadge("home")      // 清除运行时角标
+```
+
+- `setBadgeCount(id, 0)` 与 `clearBadge(id)` 效果相同；负数和不存在的导航 ID 会被拒绝。
+- “显示未读角标”配置用于设置启动时的默认状态，JS 设置的运行时状态优先。
+- 运行时角标仅在当前 App 运行期间保留，重新载入项目或进程重启后恢复配置状态。
+- 可在“全局/自定义 JavaScript”编辑器右上角的 `+` 菜单中选择“角标功能示例”快速导入带注释代码。
 
 ---
 
@@ -362,6 +377,7 @@ unsigned 壳 APK（含占位符）
 | 剪贴板 | ✅ | JS Bridge：`FireflyClipboard` |
 | 通知 | ✅ | JS Bridge：`FireflyNotificationBridge`（含权限提示） |
 | NativeBridge KV | ✅ | 可选原生 KV 桥接，支持持久化/会话级存储；仅在启用且当前页面 host 命中 `kvTrustedHosts` 时可用 |
+| 导航角标 | ✅ | JS Bridge：`FireflyNavigationBridge`，支持数量角标、未读角标和清除角标 |
 | 地理位置 | ✅ | `WebGeolocationHandler` 权限管理 + 白名单校验 |
 | 摄像头 / 麦克风 | ✅ | `WebPermissionHandler` 双语权限前置提示 |
 | 全屏视频 | ✅ | 自动进入/退出全屏 |
@@ -494,6 +510,8 @@ keyPassword=your_key_password
 
 ## ✨ 近期更新
 
+- 新增 `FireflyNavigationBridge` 动态导航角标，可由网页按导航 ID 显示数量/未读角标或清除角标；JS 片段菜单同步增加“角标功能示例”。
+- 优化配置页滚动与大量内容下的 JS/CSS 全屏编辑体验，减少布局重组、输入法弹出和光标定位时的卡顿。
 - 预览模式新增本地内置 vConsole 调试控制台，可查看日志、网络、元素和存储；不会影响最终打包 APK。
 - 配置编辑器支持直接调整导航项顺序；新增页面规则/事件后自动选中，并为即时生效的删除操作增加确认提示。
 - 优化滑动切换导航：页面加载中、网络失败错误页、超时错误页、空白页等状态下仍可左右滑动切换导航。

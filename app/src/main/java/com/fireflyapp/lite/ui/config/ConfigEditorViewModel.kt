@@ -291,7 +291,6 @@ class ConfigEditorViewModel(application: Application) : AndroidViewModel(applica
             updateNavigationItem(index) { copy(selectedIcon = value) }
         }
     }
-    fun updateNavigationBadgeCount(index: Int, value: String) = updateNavigationItem(index) { copy(badgeCount = value) }
     fun updateNavigationShowUnreadDot(index: Int, value: Boolean) = updateNavigationItem(index) { copy(showUnreadDot = value) }
 
     fun addPageRule() {
@@ -1446,7 +1445,6 @@ data class ConfigEditorFormState(
                         url = item.url,
                         icon = item.icon,
                         selectedIcon = item.selectedIcon,
-                        badgeCount = item.badgeCount,
                         showUnreadDot = item.showUnreadDot
                     )
                 }
@@ -1601,7 +1599,6 @@ data class ConfigEditorFormState(
                         url = item.url,
                         icon = item.icon,
                         selectedIcon = item.selectedIcon,
-                        badgeCount = item.badgeCount,
                         showUnreadDot = item.showUnreadDot
                     )
                 },
@@ -1618,7 +1615,6 @@ data class NavigationItemForm(
     val url: String,
     val icon: String,
     val selectedIcon: String = "",
-    val badgeCount: String = "",
     val showUnreadDot: Boolean = false
 )
 

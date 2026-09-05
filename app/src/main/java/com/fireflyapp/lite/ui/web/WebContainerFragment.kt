@@ -401,6 +401,25 @@ class WebContainerFragment : Fragment() {
         }
     }
 
+    private inner class GuardedNavigationBridge(
+        private val isEnabled: () -> Boolean
+    ) {
+        @android.webkit.JavascriptInterface
+        fun setBadgeCount(navigationId: String?, count: Int): Boolean {
+            return isEnabled() && mainViewModel.setNavigationBadgeCount(navigationId, count)
+        }
+
+        @android.webkit.JavascriptInterface
+        fun showUnreadBadge(navigationId: String?): Boolean {
+            return isEnabled() && mainViewModel.showNavigationUnreadBadge(navigationId)
+        }
+
+        @android.webkit.JavascriptInterface
+        fun clearBadge(navigationId: String?): Boolean {
+            return isEnabled() && mainViewModel.clearNavigationBadge(navigationId)
+        }
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -600,6 +619,9 @@ class WebContainerFragment : Fragment() {
             },
             isEnabled = { isInteractiveManagedWebView(managedWebView) }
         )
+        val guardedNavigationBridge = GuardedNavigationBridge {
+            isInteractiveManagedWebView(managedWebView)
+        }
         val managedPageCallback = object : WebPageCallback {
             override fun onPageTitleChanged(title: String) {
                 if (isInteractiveManagedWebView(managedWebView)) {
@@ -634,6 +656,7 @@ class WebContainerFragment : Fragment() {
         webView.addJavascriptInterface(guardedBlobDownloadBridge, BLOB_BRIDGE_NAME)
         webView.addJavascriptInterface(guardedDownloadMetadataBridge, DOWNLOAD_METADATA_BRIDGE_NAME)
         webView.addJavascriptInterface(guardedPageEventBridge, PAGE_EVENT_BRIDGE_NAME)
+        webView.addJavascriptInterface(guardedNavigationBridge, NAVIGATION_BRIDGE_NAME)
 
         val managedChromeClient = FireflyWebChromeClient(
             pageCallback = managedPageCallback,
@@ -1357,6 +1380,7 @@ class WebContainerFragment : Fragment() {
             runCatching { removeJavascriptInterface(BLOB_BRIDGE_NAME) }
             runCatching { removeJavascriptInterface(DOWNLOAD_METADATA_BRIDGE_NAME) }
             runCatching { removeJavascriptInterface(PAGE_EVENT_BRIDGE_NAME) }
+            runCatching { removeJavascriptInterface(NAVIGATION_BRIDGE_NAME) }
             runCatching { (parent as? ViewGroup)?.removeView(this) }
             runCatching { destroy() }
         }
@@ -4035,6 +4059,7 @@ class WebContainerFragment : Fragment() {
         private const val BLOB_BRIDGE_NAME = "FireflyBlobDownloadBridge"
         private const val DOWNLOAD_METADATA_BRIDGE_NAME = "FireflyDownloadMetadataBridge"
         private const val PAGE_EVENT_BRIDGE_NAME = "FireflyPageEventBridge"
+        private const val NAVIGATION_BRIDGE_NAME = "FireflyNavigationBridge"
         private const val BLOB_URL_PREFIX = "blob:"
         private const val TAG = "WebContainerFragment"
         private const val DOWNLOAD_STATUS_AUTO_HIDE_MS = 2_500L

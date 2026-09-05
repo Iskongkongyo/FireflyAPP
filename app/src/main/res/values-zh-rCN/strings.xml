@@ -99,8 +99,8 @@
     <string name="config_editor_template_desc_bottom_bar">由配置导航项驱动的标签式底栏壳。</string>
     <string name="config_editor_navigation_item_title">项目 %1$d</string>
     <string name="config_editor_selected_icon">选中图标</string>
-    <string name="config_editor_badge_count">角标数量</string>
-    <string name="config_editor_show_unread_dot">显示未读红点</string>
+    <string name="config_editor_show_unread_badge">显示未读角标</string>
+    <string name="config_editor_navigation_badge_js_desc">当前导航 ID：%1$s。此开关设置启动时的无数字角标；网页可调用 FireflyNavigationBridge.setBadgeCount(&quot;ID&quot;, 3)、showUnreadBadge(&quot;ID&quot;) 或 clearBadge(&quot;ID&quot;) 动态更新。数量传 0 也会隐藏角标，运行时值仅在本次运行中保留。</string>
     <string name="config_editor_custom_user_agent">自定义 User-Agent</string>
     <string name="config_editor_back_action">返回动作</string>
     <string name="config_editor_night_mode">夜间模式</string>
@@ -709,6 +709,7 @@
     <string name="config_editor_js_snippet_click_element">点击元素</string>
     <string name="config_editor_js_snippet_set_text">设置文本内容</string>
     <string name="config_editor_js_snippet_native_bridge_kv">NativeBridge KV 示例</string>
+    <string name="config_editor_js_snippet_navigation_badges">角标功能示例</string>
     <string name="config_editor_js_snippet_fetch_request">fetch 请求</string>
     <string name="config_editor_js_snippet_wait_for_element">等待元素出现</string>
     <string name="config_editor_js_snippet_remove_ads">批量移除广告节点</string>
