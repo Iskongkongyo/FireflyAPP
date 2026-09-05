@@ -37,9 +37,8 @@ replay_pid*
 # Project export / local package outputs
 *.fireflyproj.zip
 
-# Local working notes / source assets
+# Local working notes
 /文档/
-/splash_firefly.jpg
 
 # OS junk
 .DS_Store
